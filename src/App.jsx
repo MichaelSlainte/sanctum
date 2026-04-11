@@ -4,106 +4,81 @@ import { useState, useEffect, useRef } from "react";
 const SUPABASE_URL = "https://hqlgwisfkkosgekotojz.supabase.co";
 const SUPABASE_KEY = "sb_publishable_Eky9AvrbiYjejxogwxwJ6Q_x7eoySQ4";
 
+// Auth helpers
+const auth = {
+  signUp: async (email, password) => {
+    const res = await fetch(`${SUPABASE_URL}/auth/v1/signup`, {
+      method: "POST",
+      headers: { apikey: SUPABASE_KEY, "Content-Type": "application/json" },
+      body: JSON.stringify({ email, password })
+    });
+    return res.json();
+  },
+  signIn: async (email, password) => {
+    const res = await fetch(`${SUPABASE_URL}/auth/v1/token?grant_type=password`, {
+      method: "POST",
+      headers: { apikey: SUPABASE_KEY, "Content-Type": "application/json" },
+      body: JSON.stringify({ email, password })
+    });
+    return res.json();
+  },
+  signOut: () => {
+    localStorage.removeItem("sanctum_token");
+    localStorage.removeItem("sanctum_user");
+  },
+  getSession: () => {
+    const token = localStorage.getItem("sanctum_token");
+    const user  = localStorage.getItem("sanctum_user");
+    if (token && user) return { token, user: JSON.parse(user) };
+    return null;
+  },
+  saveSession: (data) => {
+    localStorage.setItem("sanctum_token", data.access_token);
+    localStorage.setItem("sanctum_user", JSON.stringify(data.user));
+  }
+};
+
+// DB helpers (auth-aware)
 const sb = {
   from: (table) => ({
     select: async (cols = "*") => {
-      const res = await fetch(`${SUPABASE_URL}/rest/v1/${table}?select=${cols}`, {
-        headers: { apikey: SUPABASE_KEY, Authorization: `Bearer ${SUPABASE_KEY}` }
-      });
+      const session = auth.getSession();
+      const headers = { apikey: SUPABASE_KEY, "Content-Type": "application/json" };
+      if (session) headers.Authorization = `Bearer ${session.token}`;
+      const res = await fetch(`${SUPABASE_URL}/rest/v1/${table}?select=${cols}`, { headers });
       return res.json();
     },
     insert: async (data) => {
+      const session = auth.getSession();
+      const headers = { apikey: SUPABASE_KEY, "Content-Type": "application/json", Prefer: "return=representation" };
+      if (session) headers.Authorization = `Bearer ${session.token}`;
       const res = await fetch(`${SUPABASE_URL}/rest/v1/${table}`, {
-        method: "POST",
-        headers: { apikey: SUPABASE_KEY, Authorization: `Bearer ${SUPABASE_KEY}`, "Content-Type": "application/json", Prefer: "return=representation" },
-        body: JSON.stringify(data)
+        method: "POST", headers, body: JSON.stringify(data)
       });
       return res.json();
     },
     update: async (data, match) => {
+      const session = auth.getSession();
+      const headers = { apikey: SUPABASE_KEY, "Content-Type": "application/json", Prefer: "return=representation" };
+      if (session) headers.Authorization = `Bearer ${session.token}`;
       const params = Object.entries(match).map(([k,v]) => `${k}=eq.${v}`).join("&");
       const res = await fetch(`${SUPABASE_URL}/rest/v1/${table}?${params}`, {
-        method: "PATCH",
-        headers: { apikey: SUPABASE_KEY, Authorization: `Bearer ${SUPABASE_KEY}`, "Content-Type": "application/json", Prefer: "return=representation" },
-        body: JSON.stringify(data)
+        method: "PATCH", headers, body: JSON.stringify(data)
       });
       return res.json();
     },
     delete: async (match) => {
+      const session = auth.getSession();
+      const headers = { apikey: SUPABASE_KEY, "Content-Type": "application/json" };
+      if (session) headers.Authorization = `Bearer ${session.token}`;
       const params = Object.entries(match).map(([k,v]) => `${k}=eq.${v}`).join("&");
       const res = await fetch(`${SUPABASE_URL}/rest/v1/${table}?${params}`, {
-        method: "DELETE",
-        headers: { apikey: SUPABASE_KEY, Authorization: `Bearer ${SUPABASE_KEY}` }
+        method: "DELETE", headers
       });
       return res.ok;
     }
   })
 };
-
-// ─── SQL SCHEMA (run this in Supabase SQL editor) ────────────────────────────
-// Exported as a comment so you can copy it into Supabase → SQL Editor → New query
-/*
-  -- TASKS
-  create table tasks (
-    id uuid default gen_random_uuid() primary key,
-    text text not null,
-    tag text,
-    done boolean default false,
-    created_at timestamp with time zone default now()
-  );
-  alter table tasks enable row level security;
-  create policy "Public access" on tasks for all using (true);
-
-  -- NOTES
-  create table notes (
-    id uuid default gen_random_uuid() primary key,
-    notebook text not null,
-    section text not null,
-    title text,
-    body text,
-    updated_at date default current_date,
-    created_at timestamp with time zone default now()
-  );
-  alter table notes enable row level security;
-  create policy "Public access" on notes for all using (true);
-
-  -- EVENTS (calendar)
-  create table events (
-    id uuid default gen_random_uuid() primary key,
-    title text not null,
-    date date not null,
-    category text default 'personal',
-    color text default '#388bfd',
-    created_at timestamp with time zone default now()
-  );
-  alter table events enable row level security;
-  create policy "Public access" on events for all using (true);
-
-  -- APPLICATIONS (career)
-  create table applications (
-    id uuid default gen_random_uuid() primary key,
-    company text not null,
-    role text not null,
-    status text default 'submitted',
-    applied_date date,
-    notes text,
-    created_at timestamp with time zone default now()
-  );
-  alter table applications enable row level security;
-  create policy "Public access" on applications for all using (true);
-
-  -- FINANCE
-  create table finance (
-    id uuid default gen_random_uuid() primary key,
-    label text not null,
-    amount numeric not null,
-    category text,
-    month text,
-    created_at timestamp with time zone default now()
-  );
-  alter table finance enable row level security;
-  create policy "Public access" on finance for all using (true);
-*/
 
 // ─── GLOBAL CSS ──────────────────────────────────────────────────────────────
 const CSS = `
@@ -134,6 +109,30 @@ const CSS = `
   }
   html, body, #root { height: 100%; background: var(--bg); color: var(--t1); font-family: var(--sans); font-size: 14px; -webkit-font-smoothing: antialiased; }
   .shell { display: flex; height: 100vh; overflow: hidden; }
+
+  /* ── Login ── */
+  .login-wrap {
+    min-height: 100vh; display: flex; align-items: center; justify-content: center;
+    background: var(--bg);
+    background-image: radial-gradient(ellipse at 50% 20%, rgba(56,139,253,0.08) 0%, transparent 60%);
+  }
+  .login-box {
+    background: var(--bg1); border: 1px solid var(--b1);
+    border-radius: 16px; padding: 40px; width: 100%; max-width: 380px;
+    box-shadow: 0 24px 80px rgba(0,0,0,0.4);
+  }
+  .login-logo {
+    display: flex; align-items: center; gap: 10px; margin-bottom: 32px; justify-content: center;
+  }
+  .login-mark {
+    width: 36px; height: 36px; border-radius: 10px; background: var(--blue);
+    display: flex; align-items: center; justify-content: center;
+    font-family: var(--mono); font-size: 16px; font-weight: 500; color: #fff;
+  }
+  .login-name { font-size: 20px; font-weight: 600; color: var(--t1); }
+  .login-title { font-size: 16px; font-weight: 600; color: var(--t1); margin-bottom: 6px; text-align: center; }
+  .login-sub   { font-size: 13px; color: var(--t3); margin-bottom: 28px; text-align: center; }
+  .login-error { background: rgba(248,81,73,.10); border: 1px solid rgba(248,81,73,.3); color: var(--red); font-size: 12px; padding: 10px 12px; border-radius: 7px; margin-bottom: 16px; }
 
   /* Sidebar */
   .sidebar { width: 220px; min-width: 220px; background: var(--bg1); border-right: 1px solid var(--b1); display: flex; flex-direction: column; overflow-y: auto; }
@@ -314,6 +313,7 @@ const Icon = ({ name, size = 16 }) => {
     x:        <><line x1="18" y1="6" x2="6" y2="18"/><line x1="6" y1="6" x2="18" y2="18"/></>,
     chevL:    <><polyline points="15 18 9 12 15 6"/></>,
     chevR:    <><polyline points="9 18 15 12 9 6"/></>,
+    logout:   <><path d="M9 21H5a2 2 0 01-2-2V5a2 2 0 012-2h4"/><polyline points="16 17 21 12 16 7"/><line x1="21" y1="12" x2="9" y2="12"/></>,
   };
   return <svg viewBox="0 0 24 24" style={s}>{p[name]}</svg>;
 };
@@ -347,9 +347,79 @@ function Modal({ title, onClose, children }) {
   );
 }
 
+// ─── LOGIN ───────────────────────────────────────────────────────────────────
+function Login({ onLogin }) {
+  const [email, setEmail]       = useState("");
+  const [password, setPassword] = useState("");
+  const [error, setError]       = useState("");
+  const [loading, setLoading]   = useState(false);
+  const [mode, setMode]         = useState("login"); // login | signup
+
+  const handleSubmit = async () => {
+    if (!email || !password) return setError("Please enter your email and password.");
+    setLoading(true); setError("");
+    try {
+      const data = mode === "login"
+        ? await auth.signIn(email, password)
+        : await auth.signUp(email, password);
+
+      if (data.access_token) {
+        auth.saveSession(data);
+        onLogin(data.user);
+      } else if (data.id && mode === "signup") {
+        setError("Account created. Check your email to confirm, then sign in.");
+        setMode("login");
+      } else {
+        setError(data.error_description || data.message || "Something went wrong. Try again.");
+      }
+    } catch {
+      setError("Connection error. Check your internet and try again.");
+    }
+    setLoading(false);
+  };
+
+  return (
+    <div className="login-wrap">
+      <div className="login-box">
+        <div className="login-logo">
+          <div className="login-mark">S</div>
+          <div className="login-name">Sanctum</div>
+        </div>
+        <div className="login-title">{mode === "login" ? "Welcome back" : "Create account"}</div>
+        <div className="login-sub">{mode === "login" ? "Sign in to your private space" : "Set up your Sanctum account"}</div>
+
+        {error && <div className="login-error">{error}</div>}
+
+        <div className="form-row">
+          <label className="form-label">Email</label>
+          <input className="inp" type="email" value={email} onChange={e => setEmail(e.target.value)}
+            placeholder="you@email.com" onKeyDown={e => e.key === "Enter" && handleSubmit()} autoFocus />
+        </div>
+        <div className="form-row">
+          <label className="form-label">Password</label>
+          <input className="inp" type="password" value={password} onChange={e => setPassword(e.target.value)}
+            placeholder="••••••••" onKeyDown={e => e.key === "Enter" && handleSubmit()} />
+        </div>
+
+        <button className="btn primary" style={{ width: "100%", justifyContent: "center", padding: "10px", marginTop: 8 }}
+          onClick={handleSubmit} disabled={loading}>
+          {loading ? "Please wait..." : mode === "login" ? "Sign in" : "Create account"}
+        </button>
+
+        <div style={{ textAlign: "center", marginTop: 16, fontSize: 12, color: "var(--t3)" }}>
+          {mode === "login" ? "No account? " : "Already have one? "}
+          <span style={{ color: "var(--blue)", cursor: "pointer" }} onClick={() => { setMode(mode === "login" ? "signup" : "login"); setError(""); }}>
+            {mode === "login" ? "Create one" : "Sign in"}
+          </span>
+        </div>
+      </div>
+    </div>
+  );
+}
+
 // ─── DASHBOARD ───────────────────────────────────────────────────────────────
 function Dashboard({ onNavigate }) {
-  const [tasks, setTasks] = useState([]);
+  const [tasks, setTasks]   = useState([]);
   const [loading, setLoading] = useState(true);
   const [showAdd, setShowAdd] = useState(false);
   const [newTask, setNewTask] = useState({ text: "", tag: "" });
@@ -361,21 +431,20 @@ function Dashboard({ onNavigate }) {
     try {
       const data = await sb.from("tasks").select("*");
       if (Array.isArray(data)) setTasks(data);
+      else throw new Error();
     } catch {
-      // fallback to sample data if DB not set up yet
       setTasks([
-        { id: "t1", text: "Submit PMP application", tag: "PMP", done: false },
-        { id: "t2", text: "Follow up — Google app", tag: "Career", done: false },
-        { id: "t3", text: "Book Scotland Airbnb",   tag: "Travel", done: false },
-        { id: "t4", text: "Ozzy vet checkup",        tag: "Ozzy",   done: true  },
+        { id: "t1", text: "Submit PMP application", tag: "PMP",    done: false },
+        { id: "t2", text: "Follow up — Google app",  tag: "Career", done: false },
+        { id: "t3", text: "Book Scotland Airbnb",    tag: "Travel", done: false },
+        { id: "t4", text: "Ozzy vet checkup",         tag: "Ozzy",   done: true  },
       ]);
     }
     setLoading(false);
   };
 
   const toggleTask = async (t) => {
-    const updated = tasks.map(x => x.id === t.id ? { ...x, done: !x.done } : x);
-    setTasks(updated);
+    setTasks(prev => prev.map(x => x.id === t.id ? { ...x, done: !x.done } : x));
     try { await sb.from("tasks").update({ done: !t.done }, { id: t.id }); } catch {}
   };
 
@@ -384,8 +453,8 @@ function Dashboard({ onNavigate }) {
     const task = { text: newTask.text, tag: newTask.tag, done: false };
     try {
       const res = await sb.from("tasks").insert(task);
-      if (Array.isArray(res) && res[0]) setTasks(t => [...t, res[0]]);
-      else setTasks(t => [...t, { ...task, id: Date.now().toString() }]);
+      const created = Array.isArray(res) && res[0] ? res[0] : { ...task, id: Date.now().toString() };
+      setTasks(t => [...t, created]);
     } catch { setTasks(t => [...t, { ...task, id: Date.now().toString() }]); }
     setNewTask({ text: "", tag: "" });
     setShowAdd(false);
@@ -403,7 +472,6 @@ function Dashboard({ onNavigate }) {
           <div className="modal-actions"><button className="btn" onClick={() => setShowAdd(false)}>Cancel</button><button className="btn primary" onClick={addTask}>Add task</button></div>
         </Modal>
       )}
-
       <div className="card mb16">
         <div className="card-header">
           <div><div className="card-title">This week</div><div className="card-sub">April 2026</div></div>
@@ -419,51 +487,25 @@ function Dashboard({ onNavigate }) {
           ))}
         </div>
       </div>
-
       <div className="grid-4 mb16">
-        <div className="dash-widget" onClick={() => onNavigate("career")}>
-          <div className="dw-label">Applications</div>
-          <div className="dw-value">3</div>
-          <div className="dw-sub">Anthropic, Google ×2</div>
-        </div>
-        <div className="dash-widget" onClick={() => onNavigate("study")}>
-          <div className="dw-label">PMP Exam</div>
-          <div className="dw-value">Aug</div>
-          <div className="dw-sub">2026 target</div>
-        </div>
-        <div className="dash-widget" onClick={() => onNavigate("finance")}>
-          <div className="dw-label">Monthly spend</div>
-          <div className="dw-value">€685</div>
-          <div className="dw-sub">Mar 2026</div>
-        </div>
-        <div className="dash-widget" onClick={() => onNavigate("travel")}>
-          <div className="dw-label">Next trip</div>
-          <div className="dw-value">152d</div>
-          <div className="dw-sub">Scotland — Sep 7</div>
-        </div>
+        <div className="dash-widget" onClick={() => onNavigate("career")}><div className="dw-label">Applications</div><div className="dw-value">3</div><div className="dw-sub">Anthropic, Google ×2</div></div>
+        <div className="dash-widget" onClick={() => onNavigate("study")}><div className="dw-label">PMP Exam</div><div className="dw-value">Aug</div><div className="dw-sub">2026 target</div></div>
+        <div className="dash-widget" onClick={() => onNavigate("finance")}><div className="dw-label">Monthly spend</div><div className="dw-value">€685</div><div className="dw-sub">Mar 2026</div></div>
+        <div className="dash-widget" onClick={() => onNavigate("travel")}><div className="dw-label">Next trip</div><div className="dw-value">152d</div><div className="dw-sub">Scotland — Sep 7</div></div>
       </div>
-
       <div className="grid-2 mb16">
         <div className="card">
-          <div className="card-header">
-            <div className="card-title">Tasks</div>
-            <button className="btn sm" onClick={() => setShowAdd(true)}><Icon name="plus" size={12} /> Add</button>
-          </div>
+          <div className="card-header"><div className="card-title">Tasks</div><button className="btn sm" onClick={() => setShowAdd(true)}><Icon name="plus" size={12} /> Add</button></div>
           {loading ? <div className="loading">Loading...</div> : tasks.map(t => (
             <div key={t.id} className="task-item">
-              <div className={`task-check${t.done ? " done" : ""}`} onClick={() => toggleTask(t)}>
-                {t.done && <Icon name="check" size={10} />}
-              </div>
+              <div className={`task-check${t.done ? " done" : ""}`} onClick={() => toggleTask(t)}>{t.done && <Icon name="check" size={10} />}</div>
               <span className={`task-text${t.done ? " done" : ""}`}>{t.text}</span>
               <span className="task-tag">{t.tag}</span>
             </div>
           ))}
         </div>
         <div className="card">
-          <div className="card-header">
-            <div className="card-title">Quick notes</div>
-            <button className="btn sm" onClick={() => onNavigate("notes")}>Open →</button>
-          </div>
+          <div className="card-header"><div className="card-title">Quick notes</div><button className="btn sm" onClick={() => onNavigate("notes")}>Open →</button></div>
           {["Scotland Sep 7–13 — accommodation needed","BOI mortgage review Q3","Ozzy vet checkup — done ✓"].map((n,i) => (
             <div key={i} style={{ padding: "8px 0", borderBottom: "1px solid var(--b1)", fontSize: 13, color: "var(--t2)" }}>{n}</div>
           ))}
@@ -472,7 +514,6 @@ function Dashboard({ onNavigate }) {
           </div>
         </div>
       </div>
-
       <div className="grid-3">
         <div className="stat"><div className="stat-label">PMP Hours</div><div className="stat-value">2h</div><div className="stat-sub">Target 4,500h — Aug 2026</div><div className="stat-bar"><div className="stat-fill" style={{ width: "0.1%" }} /></div></div>
         <div className="stat"><div className="stat-label">MSc starts</div><div className="stat-value">159d</div><div className="stat-sub">SETU — Sep 14 2026</div><div className="stat-bar"><div className="stat-fill grn" style={{ width: "60%" }} /></div></div>
@@ -484,14 +525,13 @@ function Dashboard({ onNavigate }) {
 
 // ─── NOTES ───────────────────────────────────────────────────────────────────
 function Notes() {
-  const [activeNB, setActiveNB]       = useState("finance");
-  const [activeSection, setSection]   = useState("mortgage");
-  const [notes, setNotes]             = useState([]);
-  const [activeNote, setActiveNote]   = useState(null);
-  const [editTitle, setEditTitle]     = useState("");
-  const [editBody, setEditBody]       = useState("");
-  const [loading, setLoading]         = useState(false);
-
+  const [activeNB, setActiveNB]     = useState("finance");
+  const [activeSection, setSection] = useState("mortgage");
+  const [notes, setNotes]           = useState([]);
+  const [activeNote, setActiveNote] = useState(null);
+  const [editTitle, setEditTitle]   = useState("");
+  const [editBody, setEditBody]     = useState("");
+  const [loading, setLoading]       = useState(false);
   const notebook = NOTEBOOKS.find(n => n.id === activeNB);
 
   useEffect(() => { loadNotes(); }, [activeSection]);
@@ -505,6 +545,7 @@ function Notes() {
         setNotes(filtered);
         setActiveNote(filtered[0]?.id || null);
         if (filtered[0]) { setEditTitle(filtered[0].title || ""); setEditBody(filtered[0].body || ""); }
+        else { setEditTitle(""); setEditBody(""); }
       }
     } catch { setNotes([]); }
     setLoading(false);
@@ -524,24 +565,21 @@ function Notes() {
     try {
       const res = await sb.from("notes").insert(note);
       const created = Array.isArray(res) && res[0] ? res[0] : { ...note, id: Date.now().toString() };
-      setNotes(prev => [created, ...prev]);
-      setActiveNote(created.id); setEditTitle("New note"); setEditBody("");
+      setNotes(prev => [created, ...prev]); setActiveNote(created.id); setEditTitle("New note"); setEditBody("");
     } catch { const n = { ...note, id: Date.now().toString() }; setNotes(prev => [n, ...prev]); setActiveNote(n.id); }
   };
 
   const deleteNote = async () => {
     if (!activeNote) return;
     const remaining = notes.filter(n => n.id !== activeNote);
-    setNotes(remaining);
-    setActiveNote(remaining[0]?.id || null);
+    setNotes(remaining); setActiveNote(remaining[0]?.id || null);
     if (remaining[0]) { setEditTitle(remaining[0].title || ""); setEditBody(remaining[0].body || ""); }
     try { await sb.from("notes").delete({ id: activeNote }); } catch {}
   };
 
   const selectSection = (sid, nbid) => {
     if (nbid !== activeNB) setActiveNB(nbid);
-    setSection(sid);
-    setActiveNote(null); setEditTitle(""); setEditBody("");
+    setSection(sid); setActiveNote(null); setEditTitle(""); setEditBody("");
   };
 
   const currentNote = notes.find(n => n.id === activeNote);
@@ -566,7 +604,6 @@ function Notes() {
           </div>
         ))}
       </div>
-
       <div className="notes-list">
         <div style={{ padding: "10px 12px", borderBottom: "1px solid var(--b1)", display: "flex", alignItems: "center", justifyContent: "space-between" }}>
           <span style={{ fontSize: 12, fontWeight: 600, color: "var(--t1)" }}>{notebook?.sections.find(s => s.id === activeSection)?.label}</span>
@@ -582,7 +619,6 @@ function Notes() {
           </div>
         ))}
       </div>
-
       <div className="note-editor">
         {currentNote ? (
           <>
@@ -609,13 +645,12 @@ function Notes() {
 
 // ─── CALENDAR ────────────────────────────────────────────────────────────────
 function Calendar() {
-  const [year, setYear]   = useState(2026);
-  const [month, setMonth] = useState(3); // April = 3
+  const [year, setYear]     = useState(2026);
+  const [month, setMonth]   = useState(3);
   const [events, setEvents] = useState([]);
-  const [showAdd, setShowAdd] = useState(false);
+  const [showAdd, setShowAdd]   = useState(false);
   const [selectedDay, setSelectedDay] = useState(null);
-  const [newEvent, setNewEvent] = useState({ title: "", category: "personal", color: "#388bfd" });
-
+  const [newEvent, setNewEvent] = useState({ title: "", category: "personal" });
   const MONTHS = ["January","February","March","April","May","June","July","August","September","October","November","December"];
   const CATS   = [{ id: "personal", label: "Personal", color: "#388bfd" }, { id: "career", label: "Career", color: "#d29922" }, { id: "travel", label: "Travel", color: "#3fb950" }, { id: "study", label: "Study", color: "#a371f7" }];
 
@@ -624,7 +659,7 @@ function Calendar() {
   const loadEvents = async () => {
     try {
       const data = await sb.from("events").select("*");
-      if (Array.isArray(data)) setEvents(data);
+      if (Array.isArray(data) && data.length) setEvents(data);
       else throw new Error();
     } catch {
       setEvents([
@@ -632,7 +667,6 @@ function Calendar() {
         { id: "e2", title: "Italy trip",           date: "2026-06-12", category: "travel",  color: "#3fb950" },
         { id: "e3", title: "Scotland trip",        date: "2026-09-07", category: "travel",  color: "#3fb950" },
         { id: "e4", title: "MSc starts — SETU",    date: "2026-09-14", category: "study",   color: "#a371f7" },
-        { id: "e5", title: "Metallica Dublin",     date: "2026-06-20", category: "personal",color: "#388bfd" },
       ]);
     }
   };
@@ -647,16 +681,13 @@ function Calendar() {
       const created = Array.isArray(res) && res[0] ? res[0] : { ...ev, id: Date.now().toString() };
       setEvents(prev => [...prev, created]);
     } catch { setEvents(prev => [...prev, { ...ev, id: Date.now().toString() }]); }
-    setNewEvent({ title: "", category: "personal", color: "#388bfd" });
-    setShowAdd(false);
+    setNewEvent({ title: "", category: "personal" }); setShowAdd(false);
   };
 
-  // Build calendar grid
   const firstDay = new Date(year, month, 1).getDay();
   const daysInMonth = new Date(year, month + 1, 0).getDate();
   const daysInPrev  = new Date(year, month, 0).getDate();
   const startOffset = firstDay === 0 ? 6 : firstDay - 1;
-
   const cells = [];
   for (let i = startOffset - 1; i >= 0; i--) cells.push({ day: daysInPrev - i, current: false });
   for (let i = 1; i <= daysInMonth; i++) cells.push({ day: i, current: true });
@@ -667,11 +698,9 @@ function Calendar() {
     const dateStr = `${year}-${String(month+1).padStart(2,"0")}-${String(day.day).padStart(2,"0")}`;
     return events.filter(e => e.date === dateStr);
   };
-
-  const isToday = (day) => day.current && year === 2026 && month === 3 && day.day === 8;
-
+  const isToday = (day) => day.current && year === 2026 && month === 3 && day.day === 11;
   const prev = () => { if (month === 0) { setMonth(11); setYear(y => y-1); } else setMonth(m => m-1); };
-  const next = () => { if (month === 11) { setMonth(0);  setYear(y => y+1); } else setMonth(m => m+1); };
+  const next = () => { if (month === 11) { setMonth(0); setYear(y => y+1); } else setMonth(m => m+1); };
 
   return (
     <div className="page-body">
@@ -686,7 +715,6 @@ function Calendar() {
           <div className="modal-actions"><button className="btn" onClick={() => setShowAdd(false)}>Cancel</button><button className="btn primary" onClick={addEvent}>Add event</button></div>
         </Modal>
       )}
-
       <div className="card">
         <div className="card-header">
           <div style={{ display: "flex", alignItems: "center", gap: 12 }}>
@@ -694,11 +722,10 @@ function Calendar() {
             <div className="card-title" style={{ fontSize: 15, minWidth: 160, textAlign: "center" }}>{MONTHS[month]} {year}</div>
             <button className="btn sm" onClick={next}><Icon name="chevR" size={13} /></button>
           </div>
-          <div style={{ display: "flex", gap: 8, alignItems: "center" }}>
+          <div style={{ display: "flex", gap: 8 }}>
             {CATS.map(c => <span key={c.id} style={{ fontSize: 10, color: c.color, fontFamily: "var(--mono)" }}>● {c.label}</span>)}
           </div>
         </div>
-
         <div className="cal-grid" style={{ marginBottom: 4 }}>
           {["Mon","Tue","Wed","Thu","Fri","Sat","Sun"].map(d => <div key={d} className="cal-header-cell">{d}</div>)}
         </div>
@@ -720,10 +747,11 @@ function Calendar() {
 
 // ─── CAREER ──────────────────────────────────────────────────────────────────
 function Career() {
-  const [apps, setApps]     = useState([]);
+  const [apps, setApps]       = useState([]);
   const [loading, setLoading] = useState(true);
   const [showAdd, setShowAdd] = useState(false);
   const [newApp, setNewApp]   = useState({ company: "", role: "", status: "submitted", applied_date: "", notes: "" });
+  const STATUSES = ["submitted","interview","offer","rejected","withdrawn"];
 
   useEffect(() => { loadApps(); }, []);
 
@@ -735,9 +763,9 @@ function Career() {
       else throw new Error();
     } catch {
       setApps([
-        { id: "a1", company: "Anthropic",  role: "Copyright Ops PM",         status: "submitted", applied_date: "2026-03-10", notes: "Cover letter tailored — LEON migration, cross-functional scope" },
-        { id: "a2", company: "Google",     role: "Sr Analyst Trust & Safety", status: "submitted", applied_date: "2026-03-15", notes: "EU HQ Dublin — strong fit on policy + operations" },
-        { id: "a3", company: "Google",     role: "TPM Analytics EU",          status: "submitted", applied_date: "2026-03-18", notes: "EU HQ Dublin — TPM track" },
+        { id: "a1", company: "Anthropic", role: "Copyright Ops PM",          status: "submitted", applied_date: "2026-03-10", notes: "Cover letter tailored" },
+        { id: "a2", company: "Google",    role: "Sr Analyst Trust & Safety",  status: "submitted", applied_date: "2026-03-15", notes: "EU HQ Dublin" },
+        { id: "a3", company: "Google",    role: "TPM Analytics EU",           status: "submitted", applied_date: "2026-03-18", notes: "TPM track" },
       ]);
     }
     setLoading(false);
@@ -750,8 +778,7 @@ function Career() {
       const created = Array.isArray(res) && res[0] ? res[0] : { ...newApp, id: Date.now().toString() };
       setApps(prev => [...prev, created]);
     } catch { setApps(prev => [...prev, { ...newApp, id: Date.now().toString() }]); }
-    setNewApp({ company: "", role: "", status: "submitted", applied_date: "", notes: "" });
-    setShowAdd(false);
+    setNewApp({ company: "", role: "", status: "submitted", applied_date: "", notes: "" }); setShowAdd(false);
   };
 
   const updateStatus = async (id, status) => {
@@ -759,36 +786,30 @@ function Career() {
     try { await sb.from("applications").update({ status }, { id }); } catch {}
   };
 
-  const STATUSES = ["submitted","interview","offer","rejected","withdrawn"];
-
   return (
     <div className="page-body">
       {showAdd && (
         <Modal title="Add application" onClose={() => setShowAdd(false)}>
-          <div className="form-row"><label className="form-label">Company</label><input className="inp" value={newApp.company} onChange={e => setNewApp(n => ({...n, company: e.target.value}))} placeholder="Company name" autoFocus /></div>
-          <div className="form-row"><label className="form-label">Role</label><input className="inp" value={newApp.role} onChange={e => setNewApp(n => ({...n, role: e.target.value}))} placeholder="Job title" /></div>
+          <div className="form-row"><label className="form-label">Company</label><input className="inp" value={newApp.company} onChange={e => setNewApp(n => ({...n, company: e.target.value}))} autoFocus /></div>
+          <div className="form-row"><label className="form-label">Role</label><input className="inp" value={newApp.role} onChange={e => setNewApp(n => ({...n, role: e.target.value}))} /></div>
           <div className="form-row"><label className="form-label">Applied date</label><input className="inp" type="date" value={newApp.applied_date} onChange={e => setNewApp(n => ({...n, applied_date: e.target.value}))} /></div>
-          <div className="form-row"><label className="form-label">Notes</label><textarea className="inp" value={newApp.notes} onChange={e => setNewApp(n => ({...n, notes: e.target.value}))} placeholder="Key notes..." /></div>
+          <div className="form-row"><label className="form-label">Notes</label><textarea className="inp" value={newApp.notes} onChange={e => setNewApp(n => ({...n, notes: e.target.value}))} /></div>
           <div className="modal-actions"><button className="btn" onClick={() => setShowAdd(false)}>Cancel</button><button className="btn primary" onClick={addApp}>Add</button></div>
         </Modal>
       )}
-
       <div className="grid-3 mb16">
-        <div className="stat"><div className="stat-label">Active</div><div className="stat-value">{apps.filter(a => a.status === "submitted" || a.status === "interview").length}</div><div className="stat-sub">In progress</div></div>
-        <div className="stat"><div className="stat-label">Interviews</div><div className="stat-value">{apps.filter(a => a.status === "interview").length}</div><div className="stat-sub">Scheduled or completed</div></div>
-        <div className="stat"><div className="stat-label">Total applied</div><div className="stat-value">{apps.length}</div><div className="stat-sub">All time</div></div>
+        <div className="stat"><div className="stat-label">Active</div><div className="stat-value">{apps.filter(a => ["submitted","interview"].includes(a.status)).length}</div><div className="stat-sub">In progress</div></div>
+        <div className="stat"><div className="stat-label">Interviews</div><div className="stat-value">{apps.filter(a => a.status === "interview").length}</div><div className="stat-sub">Scheduled</div></div>
+        <div className="stat"><div className="stat-label">Total</div><div className="stat-value">{apps.length}</div><div className="stat-sub">All time</div></div>
       </div>
-
       <div className="card">
         <div className="card-header">
-          <div><div className="card-title">Applications</div><div className="card-sub">Track every opportunity</div></div>
+          <div><div className="card-title">Applications</div></div>
           <button className="btn sm primary" onClick={() => setShowAdd(true)}><Icon name="plus" size={12} /> Add</button>
         </div>
-
         <div className="app-row" style={{ paddingTop: 0 }}>
           {["Company","Role","Status","Applied",""].map(h => <div key={h} className="app-row-header">{h}</div>)}
         </div>
-
         {loading ? <div className="loading">Loading...</div> : apps.map(a => (
           <div key={a.id} className="app-row">
             <div style={{ fontSize: 13, fontWeight: 600, color: "var(--t1)" }}>{a.company}</div>
@@ -801,18 +822,6 @@ function Career() {
           </div>
         ))}
       </div>
-
-      {apps.some(a => a.notes) && (
-        <div className="card" style={{ marginTop: 16 }}>
-          <div className="card-header"><div className="card-title">Notes</div></div>
-          {apps.filter(a => a.notes).map(a => (
-            <div key={a.id} style={{ padding: "10px 0", borderBottom: "1px solid var(--b1)" }}>
-              <div style={{ fontSize: 12, fontWeight: 600, color: "var(--t1)", marginBottom: 4 }}>{a.company} — {a.role}</div>
-              <div style={{ fontSize: 12, color: "var(--t2)" }}>{a.notes}</div>
-            </div>
-          ))}
-        </div>
-      )}
     </div>
   );
 }
@@ -823,7 +832,6 @@ function Finance() {
   const [loading, setLoading] = useState(true);
   const [showAdd, setShowAdd] = useState(false);
   const [newEntry, setNewEntry] = useState({ label: "", amount: "", category: "expense", month: "April 2026" });
-
   const CATS = ["expense","income","mortgage","insurance","subscription","savings"];
 
   useEffect(() => { loadFinance(); }, []);
@@ -836,14 +844,14 @@ function Finance() {
       else throw new Error();
     } catch {
       setEntries([
-        { id: "f1", label: "BOI Mortgage",      amount: 1450, category: "mortgage",     month: "April 2026" },
-        { id: "f2", label: "Groceries",          amount: 320,  category: "expense",      month: "April 2026" },
-        { id: "f3", label: "Utilities",          amount: 180,  category: "expense",      month: "April 2026" },
-        { id: "f4", label: "Ozzy expenses",      amount: 120,  category: "expense",      month: "April 2026" },
-        { id: "f5", label: "Subscriptions",      amount: 65,   category: "subscription", month: "April 2026" },
-        { id: "f6", label: "AXA Car Insurance",  amount: 121,  category: "insurance",    month: "April 2026" },
-        { id: "f7", label: "Salary",             amount: 5800, category: "income",       month: "April 2026" },
-        { id: "f8", label: "Savings",            amount: 500,  category: "savings",      month: "April 2026" },
+        { id: "f1", label: "BOI Mortgage",     amount: 1450, category: "mortgage",     month: "April 2026" },
+        { id: "f2", label: "Groceries",         amount: 320,  category: "expense",      month: "April 2026" },
+        { id: "f3", label: "Utilities",         amount: 180,  category: "expense",      month: "April 2026" },
+        { id: "f4", label: "Ozzy expenses",     amount: 120,  category: "expense",      month: "April 2026" },
+        { id: "f5", label: "Subscriptions",     amount: 65,   category: "subscription", month: "April 2026" },
+        { id: "f6", label: "AXA Car Insurance", amount: 121,  category: "insurance",    month: "April 2026" },
+        { id: "f7", label: "Salary",            amount: 5800, category: "income",       month: "April 2026" },
+        { id: "f8", label: "Savings",           amount: 500,  category: "savings",      month: "April 2026" },
       ]);
     }
     setLoading(false);
@@ -857,49 +865,41 @@ function Finance() {
       const created = Array.isArray(res) && res[0] ? res[0] : { ...entry, id: Date.now().toString() };
       setEntries(prev => [...prev, created]);
     } catch { setEntries(prev => [...prev, { ...entry, id: Date.now().toString() }]); }
-    setNewEntry({ label: "", amount: "", category: "expense", month: "April 2026" });
-    setShowAdd(false);
+    setNewEntry({ label: "", amount: "", category: "expense", month: "April 2026" }); setShowAdd(false);
   };
 
   const income   = entries.filter(e => e.category === "income").reduce((s, e) => s + Number(e.amount), 0);
   const expenses = entries.filter(e => e.category !== "income").reduce((s, e) => s + Number(e.amount), 0);
   const balance  = income - expenses;
 
-  const CAT_COLORS = { expense: "#f85149", income: "#3fb950", mortgage: "#388bfd", insurance: "#d29922", subscription: "#a371f7", savings: "#3fb950" };
-
   return (
     <div className="page-body">
       {showAdd && (
         <Modal title="Add entry" onClose={() => setShowAdd(false)}>
-          <div className="form-row"><label className="form-label">Label</label><input className="inp" value={newEntry.label} onChange={e => setNewEntry(n => ({...n, label: e.target.value}))} placeholder="Groceries, mortgage..." autoFocus /></div>
-          <div className="form-row"><label className="form-label">Amount (€)</label><input className="inp" type="number" value={newEntry.amount} onChange={e => setNewEntry(n => ({...n, amount: e.target.value}))} placeholder="0.00" /></div>
+          <div className="form-row"><label className="form-label">Label</label><input className="inp" value={newEntry.label} onChange={e => setNewEntry(n => ({...n, label: e.target.value}))} autoFocus /></div>
+          <div className="form-row"><label className="form-label">Amount (€)</label><input className="inp" type="number" value={newEntry.amount} onChange={e => setNewEntry(n => ({...n, amount: e.target.value}))} /></div>
           <div className="form-row"><label className="form-label">Category</label>
             <select className="inp" value={newEntry.category} onChange={e => setNewEntry(n => ({...n, category: e.target.value}))}>
               {CATS.map(c => <option key={c} value={c}>{c.charAt(0).toUpperCase() + c.slice(1)}</option>)}
             </select>
           </div>
-          <div className="form-row"><label className="form-label">Month</label><input className="inp" value={newEntry.month} onChange={e => setNewEntry(n => ({...n, month: e.target.value}))} placeholder="April 2026" /></div>
+          <div className="form-row"><label className="form-label">Month</label><input className="inp" value={newEntry.month} onChange={e => setNewEntry(n => ({...n, month: e.target.value}))} /></div>
           <div className="modal-actions"><button className="btn" onClick={() => setShowAdd(false)}>Cancel</button><button className="btn primary" onClick={addEntry}>Add</button></div>
         </Modal>
       )}
-
       <div className="grid-3 mb16">
         <div className="stat"><div className="stat-label">Income</div><div className="stat-value" style={{ color: "var(--grn)" }}>€{income.toLocaleString()}</div><div className="stat-sub">April 2026</div></div>
         <div className="stat"><div className="stat-label">Expenses</div><div className="stat-value" style={{ color: "var(--red)" }}>€{expenses.toLocaleString()}</div><div className="stat-sub">All outgoings</div></div>
-        <div className="stat"><div className="stat-label">Balance</div><div className="stat-value" style={{ color: balance >= 0 ? "var(--grn)" : "var(--red)" }}>€{balance.toLocaleString()}</div><div className="stat-sub">After all expenses</div><div className="stat-bar"><div className="stat-fill grn" style={{ width: `${Math.min((balance/income)*100, 100)}%` }} /></div></div>
+        <div className="stat"><div className="stat-label">Balance</div><div className="stat-value" style={{ color: balance >= 0 ? "var(--grn)" : "var(--red)" }}>€{balance.toLocaleString()}</div><div className="stat-sub">After all expenses</div><div className="stat-bar"><div className="stat-fill grn" style={{ width: `${Math.min((balance/income)*100,100)}%` }} /></div></div>
       </div>
-
       <div className="card">
         <div className="card-header">
-          <div><div className="card-title">April 2026</div><div className="card-sub">All entries</div></div>
+          <div><div className="card-title">April 2026</div></div>
           <button className="btn sm primary" onClick={() => setShowAdd(true)}><Icon name="plus" size={12} /> Add</button>
         </div>
         {loading ? <div className="loading">Loading...</div> : entries.map(e => (
           <div key={e.id} className="fin-row">
-            <div>
-              <div className="fin-label">{e.label}</div>
-              <div className="fin-cat">{e.category}</div>
-            </div>
+            <div><div className="fin-label">{e.label}</div><div className="fin-cat">{e.category}</div></div>
             <div className="fin-amount" style={{ color: e.category === "income" ? "var(--grn)" : "var(--t1)" }}>
               {e.category === "income" ? "+" : "-"}€{Number(e.amount).toLocaleString()}
             </div>
@@ -937,7 +937,26 @@ const TITLES = { dashboard:"Dashboard", notes:"Notes", calendar:"Calendar", care
 
 // ─── APP ─────────────────────────────────────────────────────────────────────
 export default function App() {
-  const [page, setPage] = useState("dashboard");
+  const [user, setUser]   = useState(null);
+  const [page, setPage]   = useState("dashboard");
+  const [checking, setChecking] = useState(true);
+
+  useEffect(() => {
+    const session = auth.getSession();
+    if (session) setUser(session.user);
+    setChecking(false);
+  }, []);
+
+  const handleLogin = (u) => setUser(u);
+
+  const handleLogout = () => {
+    auth.signOut();
+    setUser(null);
+    setPage("dashboard");
+  };
+
+  if (checking) return null;
+  if (!user) return <><style>{CSS}</style><Login onLogin={handleLogin} /></>;
 
   const renderPage = () => {
     if (page === "dashboard") return <Dashboard onNavigate={setPage} />;
@@ -947,6 +966,9 @@ export default function App() {
     if (page === "finance")   return <Finance />;
     return <PlaceholderPage label={TITLES[page]} />;
   };
+
+  const email = user?.email || "";
+  const initials = email.slice(0,2).toUpperCase();
 
   return (
     <>
@@ -971,13 +993,17 @@ export default function App() {
             <div className="nav-item" style={{ fontSize: 12 }}>
               <Icon name="lock" size={13} /><span style={{ color: "var(--grn)" }}>Encrypted</span>
             </div>
+            <div className="nav-item" style={{ fontSize: 12, marginTop: 4 }} onClick={handleLogout}>
+              <Icon name="logout" size={13} /><span>Sign out</span>
+            </div>
           </div>
         </aside>
         <div className="main">
           <div className="topbar">
             <div className="topbar-title">{TITLES[page]}</div>
             <div className="topbar-right">
-              <span style={{ fontSize: 11, color: "var(--t3)", fontFamily: "var(--mono)" }}>Wed 8 Apr 2026</span>
+              <span style={{ fontSize: 11, color: "var(--t3)", fontFamily: "var(--mono)" }}>Sat 11 Apr 2026</span>
+              <div style={{ width: 28, height: 28, borderRadius: "50%", background: "var(--bluem)", border: "1px solid var(--blueb)", display: "flex", alignItems: "center", justifyContent: "center", fontSize: 11, color: "var(--blue)", fontFamily: "var(--mono)", fontWeight: 600 }}>{initials}</div>
             </div>
           </div>
           {renderPage()}
