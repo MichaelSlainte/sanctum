@@ -986,7 +986,7 @@ export default function App() {
         <aside className="sidebar">
           <div className="sidebar-logo">
             <div className="logo-mark">S</div>
-            <div><div className="logo-name">Sanctum</div><div className="logo-sub">Michael · Dublin</div></div>
+            <div><div className="logo-name">Sanctum</div><div className="logo-sub">{user?.email?.split("@")[0]} · Dublin</div></div>
           </div>
           {GROUPS.map(g => (
             <div key={g.key} className="nav-section">
