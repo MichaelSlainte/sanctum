@@ -127,7 +127,7 @@ const CSS = `
   }
   .logo-mark {
     width: 36px; height: 36px; border-radius: 10px;
-    background: linear-gradient(135deg, var(--blue), var(--purple));
+    background: #2563eb;
     display: flex; align-items: center; justify-content: center;
     font-family: var(--mono); font-size: 14px; font-weight: 700;
     color: #fff; flex-shrink: 0;
@@ -215,10 +215,10 @@ const CSS = `
   .stat-value { font-size: 28px; font-weight: 700; font-family: var(--mono); color: var(--t1); letter-spacing: -1.5px; line-height: 1; }
   .stat-sub   { font-size: 11px; color: var(--t3); margin-top: 6px; }
   .stat-bar   { height: 3px; background: var(--b2); border-radius: 2px; margin-top: 14px; }
-  .stat-fill  { height: 100%; border-radius: 2px; background: linear-gradient(90deg, var(--blue), var(--purple)); transition: width .6s ease; }
-  .stat-fill.grn   { background: linear-gradient(90deg, var(--grn), #34d399); }
-  .stat-fill.amber { background: linear-gradient(90deg, var(--amber), #fbbf24); }
-  .stat-fill.red   { background: linear-gradient(90deg, var(--red), #f87171); }
+  .stat-fill  { height: 100%; border-radius: 2px; background: var(--blue); transition: width .6s ease; }
+  .stat-fill.grn   { background: var(--grn); }
+  .stat-fill.amber { background: var(--amber); }
+  .stat-fill.red   { background: var(--red); }
 
   /* ── Badges ── */
   .badge { display: inline-flex; align-items: center; gap: 4px; padding: 3px 10px; border-radius: 20px; font-size: 11px; font-weight: 600; }
@@ -720,6 +720,7 @@ function Dashboard({ onNavigate, onGoToCalendarDay }) {
   const [editText, setEditText]   = useState("");
   const [newTask, setNewTask]     = useState({ text: "", tag: "" });
   const [events, setEvents]       = useState([]);
+  const [showArchived, setShowArchived] = useState(false);
 
   const today = new Date();
   const DAYS  = ["Mon","Tue","Wed","Thu","Fri","Sat","Sun"];
@@ -792,6 +793,8 @@ function Dashboard({ onNavigate, onGoToCalendarDay }) {
   };
 
   const done = tasks.filter(t => t.done).length;
+  const activeTasks   = tasks.filter(t => !t.done);
+  const archivedTasks = tasks.filter(t => t.done);
 
   return (
     <div className="page-body animate-in">
@@ -875,16 +878,17 @@ function Dashboard({ onNavigate, onGoToCalendarDay }) {
       <div className="grid-2 mb18">
         <div className="card">
           <div className="card-header">
-            <div><div className="card-title">Tasks</div><div className="card-sub">{done} of {tasks.length} complete</div></div>
+            <div><div className="card-title">Tasks</div><div className="card-sub">{activeTasks.length} active · {archivedTasks.length} done</div></div>
             <button className="btn sm primary" onClick={() => setShowAdd(true)}><Icon name="plus" size={13} /> Add</button>
           </div>
           {loading ? <div className="loading">Loading...</div> : (
             <div>
-              {tasks.map(t => (
+              {activeTasks.length === 0 && (
+                <div style={{ color: "var(--t3)", fontSize: 13, textAlign: "center", padding: "20px 0" }}>No active tasks 🎉</div>
+              )}
+              {activeTasks.map(t => (
                 <div key={t.id} className="task-item">
-                  <div className={`task-check${t.done ? " done" : ""}`} onClick={() => toggleTask(t)}>
-                    {t.done && <Icon name="check" size={10} color="#fff" />}
-                  </div>
+                  <div className="task-check" onClick={() => toggleTask(t)} />
                   <div className="task-content">
                     {editingId === t.id ? (
                       <input className="task-edit-input" value={editText}
@@ -893,7 +897,7 @@ function Dashboard({ onNavigate, onGoToCalendarDay }) {
                         onKeyDown={e => { if (e.key === "Enter") saveEdit(t.id); if (e.key === "Escape") setEditingId(null); }}
                         autoFocus />
                     ) : (
-                      <div className={`task-text${t.done ? " done" : ""}`}>{t.text}</div>
+                      <div className="task-text">{t.text}</div>
                     )}
                     {t.tag && <div className="task-meta"><span className="task-tag">{t.tag}</span></div>}
                   </div>
@@ -903,7 +907,29 @@ function Dashboard({ onNavigate, onGoToCalendarDay }) {
                   </div>
                 </div>
               ))}
-              {tasks.length === 0 && <div style={{ color: "var(--t3)", fontSize: 13, textAlign: "center", padding: "20px 0" }}>No tasks yet</div>}
+
+              {archivedTasks.length > 0 && (
+                <div style={{ marginTop: 12 }}>
+                  <button className="btn sm ghost" style={{ width: "100%", justifyContent: "center", color: "var(--t3)", fontSize: 11 }}
+                    onClick={() => setShowArchived(s => !s)}>
+                    {showArchived ? "▲ Hide" : "▼ Show"} {archivedTasks.length} completed
+                  </button>
+                  {showArchived && archivedTasks.map(t => (
+                    <div key={t.id} className="task-item" style={{ opacity: .5 }}>
+                      <div className="task-check done" onClick={() => toggleTask(t)}>
+                        <Icon name="check" size={10} color="#fff" />
+                      </div>
+                      <div className="task-content">
+                        <div className="task-text done">{t.text}</div>
+                        {t.tag && <div className="task-meta"><span className="task-tag">{t.tag}</span></div>}
+                      </div>
+                      <div className="task-actions">
+                        <button className="btn xs danger" onClick={() => deleteTask(t.id)}><Icon name="trash" size={12} /></button>
+                      </div>
+                    </div>
+                  ))}
+                </div>
+              )}
             </div>
           )}
         </div>
@@ -1322,6 +1348,7 @@ function Career() {
   const [apps, setApps]       = useState([]);
   const [loading, setLoading] = useState(true);
   const [showAdd, setShowAdd] = useState(false);
+  const [showArchived, setShowArchived] = useState(false);
   const [newApp, setNewApp]   = useState({ company: "", role: "", status: "submitted", applied_date: "", notes: "" });
   const STATUSES = ["submitted","interview","offer","rejected","withdrawn"];
 
@@ -1363,7 +1390,9 @@ function Career() {
     try { await sb.from("applications").delete({ id }); } catch {}
   };
 
-  const active    = apps.filter(a => ["submitted","interview"].includes(a.status)).length;
+  const activeApps   = apps.filter(a => !["rejected","withdrawn"].includes(a.status));
+  const archivedApps = apps.filter(a => ["rejected","withdrawn"].includes(a.status));
+  const active    = activeApps.length;
   const interviews = apps.filter(a => a.status === "interview").length;
 
   return (
@@ -1392,28 +1421,58 @@ function Career() {
           <button className="btn sm primary" onClick={() => setShowAdd(true)}><Icon name="plus" size={13} /> Add</button>
         </div>
         {loading ? <div className="loading">Loading...</div> : (
-          <table className="app-table">
-            <thead><tr>
-              <th>Company</th><th>Role</th><th>Status</th><th>Applied</th><th>Notes</th><th></th>
-            </tr></thead>
-            <tbody>
-              {apps.map(a => (
-                <tr key={a.id}>
-                  <td><div className="company-name">{a.company}</div></td>
-                  <td><div style={{ fontSize: 13, color: "var(--t2)" }}>{a.role}</div></td>
-                  <td>
-                    <select className="inp" style={{ padding: "4px 10px", fontSize: 12, width: "auto" }}
-                      value={a.status} onChange={e => updateStatus(a.id, e.target.value)}>
-                      {STATUSES.map(s => <option key={s} value={s}>{s.charAt(0).toUpperCase() + s.slice(1)}</option>)}
-                    </select>
-                  </td>
-                  <td><span style={{ fontSize: 12, color: "var(--t3)", fontFamily: "var(--mono)" }}>{a.applied_date}</span></td>
-                  <td><span style={{ fontSize: 12, color: "var(--t2)", maxWidth: 200, display: "block", overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }}>{a.notes}</span></td>
-                  <td><button className="btn xs danger" onClick={() => deleteApp(a.id)}><Icon name="trash" size={11} /></button></td>
-                </tr>
-              ))}
-            </tbody>
-          </table>
+          <>
+            <table className="app-table">
+              <thead><tr>
+                <th>Company</th><th>Role</th><th>Status</th><th>Applied</th><th>Notes</th><th></th>
+              </tr></thead>
+              <tbody>
+                {activeApps.map(a => (
+                  <tr key={a.id}>
+                    <td><div className="company-name">{a.company}</div></td>
+                    <td><div style={{ fontSize: 13, color: "var(--t2)" }}>{a.role}</div></td>
+                    <td>
+                      <select className="inp" style={{ padding: "4px 10px", fontSize: 12, width: "auto" }}
+                        value={a.status} onChange={e => updateStatus(a.id, e.target.value)}>
+                        {STATUSES.map(s => <option key={s} value={s}>{s.charAt(0).toUpperCase() + s.slice(1)}</option>)}
+                      </select>
+                    </td>
+                    <td><span style={{ fontSize: 12, color: "var(--t3)", fontFamily: "var(--mono)" }}>{a.applied_date}</span></td>
+                    <td><span style={{ fontSize: 12, color: "var(--t2)", maxWidth: 200, display: "block", overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }}>{a.notes}</span></td>
+                    <td><button className="btn xs danger" onClick={() => deleteApp(a.id)}><Icon name="trash" size={11} /></button></td>
+                  </tr>
+                ))}
+                {activeApps.length === 0 && (
+                  <tr><td colSpan={6} style={{ textAlign: "center", color: "var(--t3)", padding: "24px 0", fontSize: 13 }}>No active applications</td></tr>
+                )}
+              </tbody>
+            </table>
+
+            {archivedApps.length > 0 && (
+              <div style={{ marginTop: 16 }}>
+                <button className="btn sm ghost" style={{ width: "100%", justifyContent: "center", color: "var(--t3)", fontSize: 11 }}
+                  onClick={() => setShowArchived(s => !s)}>
+                  {showArchived ? "▲ Hide" : "▼ Show"} {archivedApps.length} archived (rejected / withdrawn)
+                </button>
+                {showArchived && (
+                  <table className="app-table" style={{ marginTop: 8, opacity: .5 }}>
+                    <tbody>
+                      {archivedApps.map(a => (
+                        <tr key={a.id}>
+                          <td><div className="company-name" style={{ textDecoration: "line-through" }}>{a.company}</div></td>
+                          <td><div style={{ fontSize: 13, color: "var(--t3)" }}>{a.role}</div></td>
+                          <td><span className={`badge ${STATUS_COLORS[a.status] || "muted"}`}>{a.status}</span></td>
+                          <td><span style={{ fontSize: 12, color: "var(--t3)", fontFamily: "var(--mono)" }}>{a.applied_date}</span></td>
+                          <td></td>
+                          <td><button className="btn xs danger" onClick={() => deleteApp(a.id)}><Icon name="trash" size={11} /></button></td>
+                        </tr>
+                      ))}
+                    </tbody>
+                  </table>
+                )}
+              </div>
+            )}
+          </>
         )}
       </div>
     </div>
