@@ -28,7 +28,7 @@ const auth = {
   },
   getSession: () => {
     const token = localStorage.getItem("sanctum_token");
-    const user  = localStorage.getItem("sanctum_user");
+    const user = localStorage.getItem("sanctum_user");
     if (token && user) return { token, user: JSON.parse(user) };
     return null;
   },
@@ -52,8 +52,9 @@ const sb = {
       const session = auth.getSession();
       const headers = { apikey: SUPABASE_KEY, "Content-Type": "application/json", Prefer: "return=representation" };
       if (session) headers.Authorization = `Bearer ${session.token}`;
+      const payload = session ? { ...data, user_id: session.user.id } : data;
       const res = await fetch(`${SUPABASE_URL}/rest/v1/${table}`, {
-        method: "POST", headers, body: JSON.stringify(data)
+        method: "POST", headers, body: JSON.stringify(payload)
       });
       return res.json();
     },
@@ -61,7 +62,7 @@ const sb = {
       const session = auth.getSession();
       const headers = { apikey: SUPABASE_KEY, "Content-Type": "application/json", Prefer: "return=representation" };
       if (session) headers.Authorization = `Bearer ${session.token}`;
-      const params = Object.entries(match).map(([k,v]) => `${k}=eq.${v}`).join("&");
+      const params = Object.entries(match).map(([k, v]) => `${k}=eq.${v}`).join("&");
       const res = await fetch(`${SUPABASE_URL}/rest/v1/${table}?${params}`, {
         method: "PATCH", headers, body: JSON.stringify(data)
       });
@@ -71,7 +72,7 @@ const sb = {
       const session = auth.getSession();
       const headers = { apikey: SUPABASE_KEY, "Content-Type": "application/json" };
       if (session) headers.Authorization = `Bearer ${session.token}`;
-      const params = Object.entries(match).map(([k,v]) => `${k}=eq.${v}`).join("&");
+      const params = Object.entries(match).map(([k, v]) => `${k}=eq.${v}`).join("&");
       const res = await fetch(`${SUPABASE_URL}/rest/v1/${table}?${params}`, {
         method: "DELETE", headers
       });
@@ -297,37 +298,45 @@ const CSS = `
 const Icon = ({ name, size = 16 }) => {
   const s = { width: size, height: size, stroke: "currentColor", fill: "none", strokeWidth: 1.5, strokeLinecap: "round", strokeLinejoin: "round", flexShrink: 0 };
   const p = {
-    home:     <><path d="M3 9l9-7 9 7v11a2 2 0 01-2 2H5a2 2 0 01-2-2z"/><polyline points="9 22 9 12 15 12 15 22"/></>,
-    notes:    <><path d="M14 2H6a2 2 0 00-2 2v16a2 2 0 002 2h12a2 2 0 002-2V8z"/><polyline points="14 2 14 8 20 8"/><line x1="16" y1="13" x2="8" y2="13"/><line x1="16" y1="17" x2="8" y2="17"/></>,
-    calendar: <><rect x="3" y="4" width="18" height="18" rx="2"/><line x1="16" y1="2" x2="16" y2="6"/><line x1="8" y1="2" x2="8" y2="6"/><line x1="3" y1="10" x2="21" y2="10"/></>,
-    career:   <><rect x="2" y="7" width="20" height="14" rx="2"/><path d="M16 21V5a2 2 0 00-2-2h-4a2 2 0 00-2 2v16"/></>,
-    finance:  <><line x1="12" y1="1" x2="12" y2="23"/><path d="M17 5H9.5a3.5 3.5 0 000 7h5a3.5 3.5 0 010 7H6"/></>,
-    study:    <><path d="M2 3h6a4 4 0 014 4v14a3 3 0 00-3-3H2z"/><path d="M22 3h-6a4 4 0 00-4 4v14a3 3 0 013-3h7z"/></>,
-    travel:   <><path d="M21 10c0 7-9 13-9 13s-9-6-9-13a9 9 0 0118 0z"/><circle cx="12" cy="10" r="3"/></>,
-    pet:      <><path d="M20.84 4.61a5.5 5.5 0 00-7.78 0L12 5.67l-1.06-1.06a5.5 5.5 0 00-7.78 7.78l1.06 1.06L12 21.23l7.78-7.78 1.06-1.06a5.5 5.5 0 000-7.78z"/></>,
-    settings: <><circle cx="12" cy="12" r="3"/><path d="M19.4 15a1.65 1.65 0 00.33 1.82l.06.06a2 2 0 010 2.83 2 2 0 01-2.83 0l-.06-.06a1.65 1.65 0 00-1.82-.33 1.65 1.65 0 00-1 1.51V21a2 2 0 01-4 0v-.09A1.65 1.65 0 009 19.4a1.65 1.65 0 00-1.82.33l-.06.06a2 2 0 01-2.83-2.83l.06-.06A1.65 1.65 0 004.68 15a1.65 1.65 0 00-1.51-1H3a2 2 0 010-4h.09A1.65 1.65 0 004.6 9a1.65 1.65 0 00-.33-1.82l-.06-.06a2 2 0 012.83-2.83l.06.06A1.65 1.65 0 009 4.68a1.65 1.65 0 001-1.51V3a2 2 0 014 0v.09a1.65 1.65 0 001 1.51 1.65 1.65 0 001.82-.33l.06-.06a2 2 0 012.83 2.83l-.06.06A1.65 1.65 0 0019.4 9a1.65 1.65 0 001.51 1H21a2 2 0 010 4h-.09a1.65 1.65 0 00-1.51 1z"/></>,
-    plus:     <><line x1="12" y1="5" x2="12" y2="19"/><line x1="5" y1="12" x2="19" y2="12"/></>,
-    trash:    <><polyline points="3 6 5 6 21 6"/><path d="M19 6l-1 14a2 2 0 01-2 2H8a2 2 0 01-2-2L5 6"/><path d="M10 11v6M14 11v6M9 6V4a1 1 0 011-1h4a1 1 0 011 1v2"/></>,
-    lock:     <><rect x="3" y="11" width="18" height="11" rx="2"/><path d="M7 11V7a5 5 0 0110 0v4"/></>,
-    check:    <><polyline points="20 6 9 17 4 12"/></>,
-    x:        <><line x1="18" y1="6" x2="6" y2="18"/><line x1="6" y1="6" x2="18" y2="18"/></>,
-    chevL:    <><polyline points="15 18 9 12 15 6"/></>,
-    chevR:    <><polyline points="9 18 15 12 9 6"/></>,
-    logout:   <><path d="M9 21H5a2 2 0 01-2-2V5a2 2 0 012-2h4"/><polyline points="16 17 21 12 16 7"/><line x1="21" y1="12" x2="9" y2="12"/></>,
+    home: <><path d="M3 9l9-7 9 7v11a2 2 0 01-2 2H5a2 2 0 01-2-2z" /><polyline points="9 22 9 12 15 12 15 22" /></>,
+    notes: <><path d="M14 2H6a2 2 0 00-2 2v16a2 2 0 002 2h12a2 2 0 002-2V8z" /><polyline points="14 2 14 8 20 8" /><line x1="16" y1="13" x2="8" y2="13" /><line x1="16" y1="17" x2="8" y2="17" /></>,
+    calendar: <><rect x="3" y="4" width="18" height="18" rx="2" /><line x1="16" y1="2" x2="16" y2="6" /><line x1="8" y1="2" x2="8" y2="6" /><line x1="3" y1="10" x2="21" y2="10" /></>,
+    career: <><rect x="2" y="7" width="20" height="14" rx="2" /><path d="M16 21V5a2 2 0 00-2-2h-4a2 2 0 00-2 2v16" /></>,
+    finance: <><line x1="12" y1="1" x2="12" y2="23" /><path d="M17 5H9.5a3.5 3.5 0 000 7h5a3.5 3.5 0 010 7H6" /></>,
+    study: <><path d="M2 3h6a4 4 0 014 4v14a3 3 0 00-3-3H2z" /><path d="M22 3h-6a4 4 0 00-4 4v14a3 3 0 013-3h7z" /></>,
+    travel: <><path d="M21 10c0 7-9 13-9 13s-9-6-9-13a9 9 0 0118 0z" /><circle cx="12" cy="10" r="3" /></>,
+    pet: <><path d="M20.84 4.61a5.5 5.5 0 00-7.78 0L12 5.67l-1.06-1.06a5.5 5.5 0 00-7.78 7.78l1.06 1.06L12 21.23l7.78-7.78 1.06-1.06a5.5 5.5 0 000-7.78z" /></>,
+    settings: <><circle cx="12" cy="12" r="3" /><path d="M19.4 15a1.65 1.65 0 00.33 1.82l.06.06a2 2 0 010 2.83 2 2 0 01-2.83 0l-.06-.06a1.65 1.65 0 00-1.82-.33 1.65 1.65 0 00-1 1.51V21a2 2 0 01-4 0v-.09A1.65 1.65 0 009 19.4a1.65 1.65 0 00-1.82.33l-.06.06a2 2 0 01-2.83-2.83l.06-.06A1.65 1.65 0 004.68 15a1.65 1.65 0 00-1.51-1H3a2 2 0 010-4h.09A1.65 1.65 0 004.6 9a1.65 1.65 0 00-.33-1.82l-.06-.06a2 2 0 012.83-2.83l.06.06A1.65 1.65 0 009 4.68a1.65 1.65 0 001-1.51V3a2 2 0 014 0v.09a1.65 1.65 0 001 1.51 1.65 1.65 0 001.82-.33l.06-.06a2 2 0 012.83 2.83l-.06.06A1.65 1.65 0 0019.4 9a1.65 1.65 0 001.51 1H21a2 2 0 010 4h-.09a1.65 1.65 0 00-1.51 1z" /></>,
+    plus: <><line x1="12" y1="5" x2="12" y2="19" /><line x1="5" y1="12" x2="19" y2="12" /></>,
+    trash: <><polyline points="3 6 5 6 21 6" /><path d="M19 6l-1 14a2 2 0 01-2 2H8a2 2 0 01-2-2L5 6" /><path d="M10 11v6M14 11v6M9 6V4a1 1 0 011-1h4a1 1 0 011 1v2" /></>,
+    lock: <><rect x="3" y="11" width="18" height="11" rx="2" /><path d="M7 11V7a5 5 0 0110 0v4" /></>,
+    check: <><polyline points="20 6 9 17 4 12" /></>,
+    x: <><line x1="18" y1="6" x2="6" y2="18" /><line x1="6" y1="6" x2="18" y2="18" /></>,
+    chevL: <><polyline points="15 18 9 12 15 6" /></>,
+    chevR: <><polyline points="9 18 15 12 9 6" /></>,
+    logout: <><path d="M9 21H5a2 2 0 01-2-2V5a2 2 0 012-2h4" /><polyline points="16 17 21 12 16 7" /><line x1="21" y1="12" x2="9" y2="12" /></>,
   };
   return <svg viewBox="0 0 24 24" style={s}>{p[name]}</svg>;
 };
 
 // ─── NOTEBOOKS CONFIG ────────────────────────────────────────────────────────
 const NOTEBOOKS = [
-  { id: "finance",  label: "Finance",  icon: "finance",  color: "#3fb950",
-    sections: [{ id: "mortgage", label: "Mortgage & House" }, { id: "expenses", label: "Monthly Expenses" }, { id: "goals", label: "Financial Goals" }] },
-  { id: "travel",   label: "Travel",   icon: "travel",   color: "#388bfd",
-    sections: [{ id: "scotland", label: "Scotland Sep 2026" }, { id: "italy", label: "Italy Jun 2026" }, { id: "wishlist", label: "Wish List" }] },
-  { id: "career",   label: "Career",   icon: "career",   color: "#d29922",
-    sections: [{ id: "applications", label: "Applications" }, { id: "pmp", label: "PMP Study" }, { id: "networking", label: "Networking" }] },
-  { id: "personal", label: "Personal", icon: "pet",      color: "#f85149",
-    sections: [{ id: "health", label: "Health & Fitness" }, { id: "reading", label: "Reading List" }, { id: "home", label: "Home & House" }, { id: "ozzy", label: "Ozzy" }] },
+  {
+    id: "finance", label: "Finance", icon: "finance", color: "#3fb950",
+    sections: [{ id: "mortgage", label: "Mortgage & House" }, { id: "expenses", label: "Monthly Expenses" }, { id: "goals", label: "Financial Goals" }]
+  },
+  {
+    id: "travel", label: "Travel", icon: "travel", color: "#388bfd",
+    sections: [{ id: "scotland", label: "Scotland Sep 2026" }, { id: "italy", label: "Italy Jun 2026" }, { id: "wishlist", label: "Wish List" }]
+  },
+  {
+    id: "career", label: "Career", icon: "career", color: "#d29922",
+    sections: [{ id: "applications", label: "Applications" }, { id: "pmp", label: "PMP Study" }, { id: "networking", label: "Networking" }]
+  },
+  {
+    id: "personal", label: "Personal", icon: "pet", color: "#f85149",
+    sections: [{ id: "health", label: "Health & Fitness" }, { id: "reading", label: "Reading List" }, { id: "home", label: "Home & House" }, { id: "ozzy", label: "Ozzy" }]
+  },
 ];
 
 const STATUS_COLORS = { submitted: "blue", interview: "amber", offer: "green", rejected: "red", withdrawn: "muted" };
@@ -349,11 +358,11 @@ function Modal({ title, onClose, children }) {
 
 // ─── LOGIN ───────────────────────────────────────────────────────────────────
 function Login({ onLogin }) {
-  const [email, setEmail]       = useState("");
+  const [email, setEmail] = useState("");
   const [password, setPassword] = useState("");
-  const [error, setError]       = useState("");
-  const [loading, setLoading]   = useState(false);
-  const [mode, setMode]         = useState("login"); // login | signup
+  const [error, setError] = useState("");
+  const [loading, setLoading] = useState(false);
+  const [mode, setMode] = useState("login"); // login | signup
 
   const handleSubmit = async () => {
     if (!email || !password) return setError("Please enter your email and password.");
@@ -419,7 +428,7 @@ function Login({ onLogin }) {
 
 // ─── DASHBOARD ───────────────────────────────────────────────────────────────
 function Dashboard({ onNavigate }) {
-  const [tasks, setTasks]   = useState([]);
+  const [tasks, setTasks] = useState([]);
   const [loading, setLoading] = useState(true);
   const [showAdd, setShowAdd] = useState(false);
   const [newTask, setNewTask] = useState({ text: "", tag: "" });
@@ -434,10 +443,10 @@ function Dashboard({ onNavigate }) {
       else throw new Error();
     } catch {
       setTasks([
-        { id: "t1", text: "Submit PMP application", tag: "PMP",    done: false },
-        { id: "t2", text: "Follow up — Google app",  tag: "Career", done: false },
-        { id: "t3", text: "Book Scotland Airbnb",    tag: "Travel", done: false },
-        { id: "t4", text: "Ozzy vet checkup",         tag: "Ozzy",   done: true  },
+        { id: "t1", text: "Submit PMP application", tag: "PMP", done: false },
+        { id: "t2", text: "Follow up — Google app", tag: "Career", done: false },
+        { id: "t3", text: "Book Scotland Airbnb", tag: "Travel", done: false },
+        { id: "t4", text: "Ozzy vet checkup", tag: "Ozzy", done: true },
       ]);
     }
     setLoading(false);
@@ -445,7 +454,7 @@ function Dashboard({ onNavigate }) {
 
   const toggleTask = async (t) => {
     setTasks(prev => prev.map(x => x.id === t.id ? { ...x, done: !x.done } : x));
-    try { await sb.from("tasks").update({ done: !t.done }, { id: t.id }); } catch {}
+    try { await sb.from("tasks").update({ done: !t.done }, { id: t.id }); } catch { }
   };
 
   const addTask = async () => {
@@ -460,15 +469,15 @@ function Dashboard({ onNavigate }) {
     setShowAdd(false);
   };
 
-  const DAYS = ["Mon","Tue","Wed","Thu","Fri","Sat","Sun"];
+  const DAYS = ["Mon", "Tue", "Wed", "Thu", "Fri", "Sat", "Sun"];
   const done = tasks.filter(t => t.done).length;
 
   return (
     <div className="page-body">
       {showAdd && (
         <Modal title="Add task" onClose={() => setShowAdd(false)}>
-          <div className="form-row"><label className="form-label">Task</label><input className="inp" value={newTask.text} onChange={e => setNewTask(n => ({...n, text: e.target.value}))} placeholder="What needs doing?" onKeyDown={e => e.key === "Enter" && addTask()} autoFocus /></div>
-          <div className="form-row"><label className="form-label">Tag</label><input className="inp" value={newTask.tag} onChange={e => setNewTask(n => ({...n, tag: e.target.value}))} placeholder="Career, PMP, Travel..." /></div>
+          <div className="form-row"><label className="form-label">Task</label><input className="inp" value={newTask.text} onChange={e => setNewTask(n => ({ ...n, text: e.target.value }))} placeholder="What needs doing?" onKeyDown={e => e.key === "Enter" && addTask()} autoFocus /></div>
+          <div className="form-row"><label className="form-label">Tag</label><input className="inp" value={newTask.tag} onChange={e => setNewTask(n => ({ ...n, tag: e.target.value }))} placeholder="Career, PMP, Travel..." /></div>
           <div className="modal-actions"><button className="btn" onClick={() => setShowAdd(false)}>Cancel</button><button className="btn primary" onClick={addTask}>Add task</button></div>
         </Modal>
       )}
@@ -506,7 +515,7 @@ function Dashboard({ onNavigate }) {
         </div>
         <div className="card">
           <div className="card-header"><div className="card-title">Quick notes</div><button className="btn sm" onClick={() => onNavigate("notes")}>Open →</button></div>
-          {["Scotland Sep 7–13 — accommodation needed","BOI mortgage review Q3","Ozzy vet checkup — done ✓"].map((n,i) => (
+          {["Scotland Sep 7–13 — accommodation needed", "BOI mortgage review Q3", "Ozzy vet checkup — done ✓"].map((n, i) => (
             <div key={i} style={{ padding: "8px 0", borderBottom: "1px solid var(--b1)", fontSize: 13, color: "var(--t2)" }}>{n}</div>
           ))}
           <div style={{ display: "flex", alignItems: "center", gap: 6, marginTop: 10 }}>
@@ -525,13 +534,13 @@ function Dashboard({ onNavigate }) {
 
 // ─── NOTES ───────────────────────────────────────────────────────────────────
 function Notes() {
-  const [activeNB, setActiveNB]     = useState("finance");
+  const [activeNB, setActiveNB] = useState("finance");
   const [activeSection, setSection] = useState("mortgage");
-  const [notes, setNotes]           = useState([]);
+  const [notes, setNotes] = useState([]);
   const [activeNote, setActiveNote] = useState(null);
-  const [editTitle, setEditTitle]   = useState("");
-  const [editBody, setEditBody]     = useState("");
-  const [loading, setLoading]       = useState(false);
+  const [editTitle, setEditTitle] = useState("");
+  const [editBody, setEditBody] = useState("");
+  const [loading, setLoading] = useState(false);
   const notebook = NOTEBOOKS.find(n => n.id === activeNB);
 
   useEffect(() => { loadNotes(); }, [activeSection]);
@@ -555,13 +564,13 @@ function Notes() {
 
   const saveNote = async () => {
     if (!activeNote) return;
-    const updated = new Date().toISOString().slice(0,10);
+    const updated = new Date().toISOString().slice(0, 10);
     setNotes(prev => prev.map(n => n.id === activeNote ? { ...n, title: editTitle, body: editBody, updated_at: updated } : n));
-    try { await sb.from("notes").update({ title: editTitle, body: editBody, updated_at: updated }, { id: activeNote }); } catch {}
+    try { await sb.from("notes").update({ title: editTitle, body: editBody, updated_at: updated }, { id: activeNote }); } catch { }
   };
 
   const newNote = async () => {
-    const note = { notebook: activeNB, section: activeSection, title: "New note", body: "", updated_at: new Date().toISOString().slice(0,10) };
+    const note = { notebook: activeNB, section: activeSection, title: "New note", body: "", updated_at: new Date().toISOString().slice(0, 10) };
     try {
       const res = await sb.from("notes").insert(note);
       const created = Array.isArray(res) && res[0] ? res[0] : { ...note, id: Date.now().toString() };
@@ -574,7 +583,7 @@ function Notes() {
     const remaining = notes.filter(n => n.id !== activeNote);
     setNotes(remaining); setActiveNote(remaining[0]?.id || null);
     if (remaining[0]) { setEditTitle(remaining[0].title || ""); setEditBody(remaining[0].body || ""); }
-    try { await sb.from("notes").delete({ id: activeNote }); } catch {}
+    try { await sb.from("notes").delete({ id: activeNote }); } catch { }
   };
 
   const selectSection = (sid, nbid) => {
@@ -614,7 +623,7 @@ function Notes() {
         {notes.map(n => (
           <div key={n.id} className={`note-list-item${activeNote === n.id ? " active" : ""}`} onClick={() => selectNote(n)}>
             <div className="nli-title">{n.title || "Untitled"}</div>
-            <div className="nli-preview">{(n.body || "").replace(/\n/g," ").slice(0,50)}</div>
+            <div className="nli-preview">{(n.body || "").replace(/\n/g, " ").slice(0, 50)}</div>
             <div className="nli-date">{n.updated_at}</div>
           </div>
         ))}
@@ -645,14 +654,14 @@ function Notes() {
 
 // ─── CALENDAR ────────────────────────────────────────────────────────────────
 function Calendar() {
-  const [year, setYear]     = useState(2026);
-  const [month, setMonth]   = useState(3);
+  const [year, setYear] = useState(2026);
+  const [month, setMonth] = useState(3);
   const [events, setEvents] = useState([]);
-  const [showAdd, setShowAdd]   = useState(false);
+  const [showAdd, setShowAdd] = useState(false);
   const [selectedDay, setSelectedDay] = useState(null);
   const [newEvent, setNewEvent] = useState({ title: "", category: "personal" });
-  const MONTHS = ["January","February","March","April","May","June","July","August","September","October","November","December"];
-  const CATS   = [{ id: "personal", label: "Personal", color: "#388bfd" }, { id: "career", label: "Career", color: "#d29922" }, { id: "travel", label: "Travel", color: "#3fb950" }, { id: "study", label: "Study", color: "#a371f7" }];
+  const MONTHS = ["January", "February", "March", "April", "May", "June", "July", "August", "September", "October", "November", "December"];
+  const CATS = [{ id: "personal", label: "Personal", color: "#388bfd" }, { id: "career", label: "Career", color: "#d29922" }, { id: "travel", label: "Travel", color: "#3fb950" }, { id: "study", label: "Study", color: "#a371f7" }];
 
   useEffect(() => { loadEvents(); }, []);
 
@@ -663,17 +672,17 @@ function Calendar() {
       else throw new Error();
     } catch {
       setEvents([
-        { id: "e1", title: "PMP Application due", date: "2026-04-15", category: "study",   color: "#a371f7" },
-        { id: "e2", title: "Italy trip",           date: "2026-06-12", category: "travel",  color: "#3fb950" },
-        { id: "e3", title: "Scotland trip",        date: "2026-09-07", category: "travel",  color: "#3fb950" },
-        { id: "e4", title: "MSc starts — SETU",    date: "2026-09-14", category: "study",   color: "#a371f7" },
+        { id: "e1", title: "PMP Application due", date: "2026-04-15", category: "study", color: "#a371f7" },
+        { id: "e2", title: "Italy trip", date: "2026-06-12", category: "travel", color: "#3fb950" },
+        { id: "e3", title: "Scotland trip", date: "2026-09-07", category: "travel", color: "#3fb950" },
+        { id: "e4", title: "MSc starts — SETU", date: "2026-09-14", category: "study", color: "#a371f7" },
       ]);
     }
   };
 
   const addEvent = async () => {
     if (!newEvent.title.trim() || !selectedDay) return;
-    const dateStr = `${year}-${String(month+1).padStart(2,"0")}-${String(selectedDay).padStart(2,"0")}`;
+    const dateStr = `${year}-${String(month + 1).padStart(2, "0")}-${String(selectedDay).padStart(2, "0")}`;
     const cat = CATS.find(c => c.id === newEvent.category);
     const ev = { title: newEvent.title, date: dateStr, category: newEvent.category, color: cat?.color || "#388bfd" };
     try {
@@ -686,7 +695,7 @@ function Calendar() {
 
   const firstDay = new Date(year, month, 1).getDay();
   const daysInMonth = new Date(year, month + 1, 0).getDate();
-  const daysInPrev  = new Date(year, month, 0).getDate();
+  const daysInPrev = new Date(year, month, 0).getDate();
   const startOffset = firstDay === 0 ? 6 : firstDay - 1;
   const cells = [];
   for (let i = startOffset - 1; i >= 0; i--) cells.push({ day: daysInPrev - i, current: false });
@@ -695,20 +704,20 @@ function Calendar() {
 
   const eventsOnDay = (day) => {
     if (!day.current) return [];
-    const dateStr = `${year}-${String(month+1).padStart(2,"0")}-${String(day.day).padStart(2,"0")}`;
+    const dateStr = `${year}-${String(month + 1).padStart(2, "0")}-${String(day.day).padStart(2, "0")}`;
     return events.filter(e => e.date === dateStr);
   };
   const isToday = (day) => day.current && year === 2026 && month === 3 && day.day === 11;
-  const prev = () => { if (month === 0) { setMonth(11); setYear(y => y-1); } else setMonth(m => m-1); };
-  const next = () => { if (month === 11) { setMonth(0); setYear(y => y+1); } else setMonth(m => m+1); };
+  const prev = () => { if (month === 0) { setMonth(11); setYear(y => y - 1); } else setMonth(m => m - 1); };
+  const next = () => { if (month === 11) { setMonth(0); setYear(y => y + 1); } else setMonth(m => m + 1); };
 
   return (
     <div className="page-body">
       {showAdd && (
         <Modal title={`Add event — ${selectedDay} ${MONTHS[month]}`} onClose={() => setShowAdd(false)}>
-          <div className="form-row"><label className="form-label">Title</label><input className="inp" value={newEvent.title} onChange={e => setNewEvent(n => ({...n, title: e.target.value}))} placeholder="Event title" autoFocus onKeyDown={e => e.key === "Enter" && addEvent()} /></div>
+          <div className="form-row"><label className="form-label">Title</label><input className="inp" value={newEvent.title} onChange={e => setNewEvent(n => ({ ...n, title: e.target.value }))} placeholder="Event title" autoFocus onKeyDown={e => e.key === "Enter" && addEvent()} /></div>
           <div className="form-row"><label className="form-label">Category</label>
-            <select className="inp" value={newEvent.category} onChange={e => setNewEvent(n => ({...n, category: e.target.value}))}>
+            <select className="inp" value={newEvent.category} onChange={e => setNewEvent(n => ({ ...n, category: e.target.value }))}>
               {CATS.map(c => <option key={c.id} value={c.id}>{c.label}</option>)}
             </select>
           </div>
@@ -727,7 +736,7 @@ function Calendar() {
           </div>
         </div>
         <div className="cal-grid" style={{ marginBottom: 4 }}>
-          {["Mon","Tue","Wed","Thu","Fri","Sat","Sun"].map(d => <div key={d} className="cal-header-cell">{d}</div>)}
+          {["Mon", "Tue", "Wed", "Thu", "Fri", "Sat", "Sun"].map(d => <div key={d} className="cal-header-cell">{d}</div>)}
         </div>
         <div className="cal-grid">
           {cells.map((cell, i) => (
@@ -747,11 +756,11 @@ function Calendar() {
 
 // ─── CAREER ──────────────────────────────────────────────────────────────────
 function Career() {
-  const [apps, setApps]       = useState([]);
+  const [apps, setApps] = useState([]);
   const [loading, setLoading] = useState(true);
   const [showAdd, setShowAdd] = useState(false);
-  const [newApp, setNewApp]   = useState({ company: "", role: "", status: "submitted", applied_date: "", notes: "" });
-  const STATUSES = ["submitted","interview","offer","rejected","withdrawn"];
+  const [newApp, setNewApp] = useState({ company: "", role: "", status: "submitted", applied_date: "", notes: "" });
+  const STATUSES = ["submitted", "interview", "offer", "rejected", "withdrawn"];
 
   useEffect(() => { loadApps(); }, []);
 
@@ -763,9 +772,9 @@ function Career() {
       else throw new Error();
     } catch {
       setApps([
-        { id: "a1", company: "Anthropic", role: "Copyright Ops PM",          status: "submitted", applied_date: "2026-03-10", notes: "Cover letter tailored" },
-        { id: "a2", company: "Google",    role: "Sr Analyst Trust & Safety",  status: "submitted", applied_date: "2026-03-15", notes: "EU HQ Dublin" },
-        { id: "a3", company: "Google",    role: "TPM Analytics EU",           status: "submitted", applied_date: "2026-03-18", notes: "TPM track" },
+        { id: "a1", company: "Anthropic", role: "Copyright Ops PM", status: "submitted", applied_date: "2026-03-10", notes: "Cover letter tailored" },
+        { id: "a2", company: "Google", role: "Sr Analyst Trust & Safety", status: "submitted", applied_date: "2026-03-15", notes: "EU HQ Dublin" },
+        { id: "a3", company: "Google", role: "TPM Analytics EU", status: "submitted", applied_date: "2026-03-18", notes: "TPM track" },
       ]);
     }
     setLoading(false);
@@ -783,22 +792,22 @@ function Career() {
 
   const updateStatus = async (id, status) => {
     setApps(prev => prev.map(a => a.id === id ? { ...a, status } : a));
-    try { await sb.from("applications").update({ status }, { id }); } catch {}
+    try { await sb.from("applications").update({ status }, { id }); } catch { }
   };
 
   return (
     <div className="page-body">
       {showAdd && (
         <Modal title="Add application" onClose={() => setShowAdd(false)}>
-          <div className="form-row"><label className="form-label">Company</label><input className="inp" value={newApp.company} onChange={e => setNewApp(n => ({...n, company: e.target.value}))} autoFocus /></div>
-          <div className="form-row"><label className="form-label">Role</label><input className="inp" value={newApp.role} onChange={e => setNewApp(n => ({...n, role: e.target.value}))} /></div>
-          <div className="form-row"><label className="form-label">Applied date</label><input className="inp" type="date" value={newApp.applied_date} onChange={e => setNewApp(n => ({...n, applied_date: e.target.value}))} /></div>
-          <div className="form-row"><label className="form-label">Notes</label><textarea className="inp" value={newApp.notes} onChange={e => setNewApp(n => ({...n, notes: e.target.value}))} /></div>
+          <div className="form-row"><label className="form-label">Company</label><input className="inp" value={newApp.company} onChange={e => setNewApp(n => ({ ...n, company: e.target.value }))} autoFocus /></div>
+          <div className="form-row"><label className="form-label">Role</label><input className="inp" value={newApp.role} onChange={e => setNewApp(n => ({ ...n, role: e.target.value }))} /></div>
+          <div className="form-row"><label className="form-label">Applied date</label><input className="inp" type="date" value={newApp.applied_date} onChange={e => setNewApp(n => ({ ...n, applied_date: e.target.value }))} /></div>
+          <div className="form-row"><label className="form-label">Notes</label><textarea className="inp" value={newApp.notes} onChange={e => setNewApp(n => ({ ...n, notes: e.target.value }))} /></div>
           <div className="modal-actions"><button className="btn" onClick={() => setShowAdd(false)}>Cancel</button><button className="btn primary" onClick={addApp}>Add</button></div>
         </Modal>
       )}
       <div className="grid-3 mb16">
-        <div className="stat"><div className="stat-label">Active</div><div className="stat-value">{apps.filter(a => ["submitted","interview"].includes(a.status)).length}</div><div className="stat-sub">In progress</div></div>
+        <div className="stat"><div className="stat-label">Active</div><div className="stat-value">{apps.filter(a => ["submitted", "interview"].includes(a.status)).length}</div><div className="stat-sub">In progress</div></div>
         <div className="stat"><div className="stat-label">Interviews</div><div className="stat-value">{apps.filter(a => a.status === "interview").length}</div><div className="stat-sub">Scheduled</div></div>
         <div className="stat"><div className="stat-label">Total</div><div className="stat-value">{apps.length}</div><div className="stat-sub">All time</div></div>
       </div>
@@ -808,7 +817,7 @@ function Career() {
           <button className="btn sm primary" onClick={() => setShowAdd(true)}><Icon name="plus" size={12} /> Add</button>
         </div>
         <div className="app-row" style={{ paddingTop: 0 }}>
-          {["Company","Role","Status","Applied",""].map(h => <div key={h} className="app-row-header">{h}</div>)}
+          {["Company", "Role", "Status", "Applied", ""].map(h => <div key={h} className="app-row-header">{h}</div>)}
         </div>
         {loading ? <div className="loading">Loading...</div> : apps.map(a => (
           <div key={a.id} className="app-row">
@@ -832,7 +841,7 @@ function Finance() {
   const [loading, setLoading] = useState(true);
   const [showAdd, setShowAdd] = useState(false);
   const [newEntry, setNewEntry] = useState({ label: "", amount: "", category: "expense", month: "April 2026" });
-  const CATS = ["expense","income","mortgage","insurance","subscription","savings"];
+  const CATS = ["expense", "income", "mortgage", "insurance", "subscription", "savings"];
 
   useEffect(() => { loadFinance(); }, []);
 
@@ -844,14 +853,14 @@ function Finance() {
       else throw new Error();
     } catch {
       setEntries([
-        { id: "f1", label: "BOI Mortgage",     amount: 1450, category: "mortgage",     month: "April 2026" },
-        { id: "f2", label: "Groceries",         amount: 320,  category: "expense",      month: "April 2026" },
-        { id: "f3", label: "Utilities",         amount: 180,  category: "expense",      month: "April 2026" },
-        { id: "f4", label: "Ozzy expenses",     amount: 120,  category: "expense",      month: "April 2026" },
-        { id: "f5", label: "Subscriptions",     amount: 65,   category: "subscription", month: "April 2026" },
-        { id: "f6", label: "AXA Car Insurance", amount: 121,  category: "insurance",    month: "April 2026" },
-        { id: "f7", label: "Salary",            amount: 5800, category: "income",       month: "April 2026" },
-        { id: "f8", label: "Savings",           amount: 500,  category: "savings",      month: "April 2026" },
+        { id: "f1", label: "BOI Mortgage", amount: 1450, category: "mortgage", month: "April 2026" },
+        { id: "f2", label: "Groceries", amount: 320, category: "expense", month: "April 2026" },
+        { id: "f3", label: "Utilities", amount: 180, category: "expense", month: "April 2026" },
+        { id: "f4", label: "Ozzy expenses", amount: 120, category: "expense", month: "April 2026" },
+        { id: "f5", label: "Subscriptions", amount: 65, category: "subscription", month: "April 2026" },
+        { id: "f6", label: "AXA Car Insurance", amount: 121, category: "insurance", month: "April 2026" },
+        { id: "f7", label: "Salary", amount: 5800, category: "income", month: "April 2026" },
+        { id: "f8", label: "Savings", amount: 500, category: "savings", month: "April 2026" },
       ]);
     }
     setLoading(false);
@@ -868,29 +877,29 @@ function Finance() {
     setNewEntry({ label: "", amount: "", category: "expense", month: "April 2026" }); setShowAdd(false);
   };
 
-  const income   = entries.filter(e => e.category === "income").reduce((s, e) => s + Number(e.amount), 0);
+  const income = entries.filter(e => e.category === "income").reduce((s, e) => s + Number(e.amount), 0);
   const expenses = entries.filter(e => e.category !== "income").reduce((s, e) => s + Number(e.amount), 0);
-  const balance  = income - expenses;
+  const balance = income - expenses;
 
   return (
     <div className="page-body">
       {showAdd && (
         <Modal title="Add entry" onClose={() => setShowAdd(false)}>
-          <div className="form-row"><label className="form-label">Label</label><input className="inp" value={newEntry.label} onChange={e => setNewEntry(n => ({...n, label: e.target.value}))} autoFocus /></div>
-          <div className="form-row"><label className="form-label">Amount (€)</label><input className="inp" type="number" value={newEntry.amount} onChange={e => setNewEntry(n => ({...n, amount: e.target.value}))} /></div>
+          <div className="form-row"><label className="form-label">Label</label><input className="inp" value={newEntry.label} onChange={e => setNewEntry(n => ({ ...n, label: e.target.value }))} autoFocus /></div>
+          <div className="form-row"><label className="form-label">Amount (€)</label><input className="inp" type="number" value={newEntry.amount} onChange={e => setNewEntry(n => ({ ...n, amount: e.target.value }))} /></div>
           <div className="form-row"><label className="form-label">Category</label>
-            <select className="inp" value={newEntry.category} onChange={e => setNewEntry(n => ({...n, category: e.target.value}))}>
+            <select className="inp" value={newEntry.category} onChange={e => setNewEntry(n => ({ ...n, category: e.target.value }))}>
               {CATS.map(c => <option key={c} value={c}>{c.charAt(0).toUpperCase() + c.slice(1)}</option>)}
             </select>
           </div>
-          <div className="form-row"><label className="form-label">Month</label><input className="inp" value={newEntry.month} onChange={e => setNewEntry(n => ({...n, month: e.target.value}))} /></div>
+          <div className="form-row"><label className="form-label">Month</label><input className="inp" value={newEntry.month} onChange={e => setNewEntry(n => ({ ...n, month: e.target.value }))} /></div>
           <div className="modal-actions"><button className="btn" onClick={() => setShowAdd(false)}>Cancel</button><button className="btn primary" onClick={addEntry}>Add</button></div>
         </Modal>
       )}
       <div className="grid-3 mb16">
         <div className="stat"><div className="stat-label">Income</div><div className="stat-value" style={{ color: "var(--grn)" }}>€{income.toLocaleString()}</div><div className="stat-sub">April 2026</div></div>
         <div className="stat"><div className="stat-label">Expenses</div><div className="stat-value" style={{ color: "var(--red)" }}>€{expenses.toLocaleString()}</div><div className="stat-sub">All outgoings</div></div>
-        <div className="stat"><div className="stat-label">Balance</div><div className="stat-value" style={{ color: balance >= 0 ? "var(--grn)" : "var(--red)" }}>€{balance.toLocaleString()}</div><div className="stat-sub">After all expenses</div><div className="stat-bar"><div className="stat-fill grn" style={{ width: `${Math.min((balance/income)*100,100)}%` }} /></div></div>
+        <div className="stat"><div className="stat-label">Balance</div><div className="stat-value" style={{ color: balance >= 0 ? "var(--grn)" : "var(--red)" }}>€{balance.toLocaleString()}</div><div className="stat-sub">After all expenses</div><div className="stat-bar"><div className="stat-fill grn" style={{ width: `${Math.min((balance / income) * 100, 100)}%` }} /></div></div>
       </div>
       <div className="card">
         <div className="card-header">
@@ -922,23 +931,23 @@ function PlaceholderPage({ label }) {
 
 // ─── NAV ─────────────────────────────────────────────────────────────────────
 const NAV = [
-  { id: "dashboard", label: "Dashboard", icon: "home",     group: "main" },
-  { id: "notes",     label: "Notes",     icon: "notes",    group: "main" },
-  { id: "calendar",  label: "Calendar",  icon: "calendar", group: "main" },
-  { id: "career",    label: "Career",    icon: "career",   group: "work" },
-  { id: "study",     label: "Study",     icon: "study",    group: "work" },
-  { id: "finance",   label: "Finance",   icon: "finance",  group: "life" },
-  { id: "travel",    label: "Travel",    icon: "travel",   group: "life" },
-  { id: "pet",       label: "Ozzy",      icon: "pet",      group: "life" },
-  { id: "settings",  label: "Settings",  icon: "settings", group: "system" },
+  { id: "dashboard", label: "Dashboard", icon: "home", group: "main" },
+  { id: "notes", label: "Notes", icon: "notes", group: "main" },
+  { id: "calendar", label: "Calendar", icon: "calendar", group: "main" },
+  { id: "career", label: "Career", icon: "career", group: "work" },
+  { id: "study", label: "Study", icon: "study", group: "work" },
+  { id: "finance", label: "Finance", icon: "finance", group: "life" },
+  { id: "travel", label: "Travel", icon: "travel", group: "life" },
+  { id: "pet", label: "Ozzy", icon: "pet", group: "life" },
+  { id: "settings", label: "Settings", icon: "settings", group: "system" },
 ];
-const GROUPS = [{ key:"main", label:"Main" }, { key:"work", label:"Work" }, { key:"life", label:"Life" }, { key:"system", label:"System" }];
-const TITLES = { dashboard:"Dashboard", notes:"Notes", calendar:"Calendar", career:"Career", study:"Study & PMP", finance:"Finance", travel:"Travel", pet:"Ozzy", settings:"Settings" };
+const GROUPS = [{ key: "main", label: "Main" }, { key: "work", label: "Work" }, { key: "life", label: "Life" }, { key: "system", label: "System" }];
+const TITLES = { dashboard: "Dashboard", notes: "Notes", calendar: "Calendar", career: "Career", study: "Study & PMP", finance: "Finance", travel: "Travel", pet: "Ozzy", settings: "Settings" };
 
 // ─── APP ─────────────────────────────────────────────────────────────────────
 export default function App() {
-  const [user, setUser]   = useState(null);
-  const [page, setPage]   = useState("dashboard");
+  const [user, setUser] = useState(null);
+  const [page, setPage] = useState("dashboard");
   const [checking, setChecking] = useState(true);
 
   useEffect(() => {
@@ -960,15 +969,15 @@ export default function App() {
 
   const renderPage = () => {
     if (page === "dashboard") return <Dashboard onNavigate={setPage} />;
-    if (page === "notes")     return <Notes />;
-    if (page === "calendar")  return <Calendar />;
-    if (page === "career")    return <Career />;
-    if (page === "finance")   return <Finance />;
+    if (page === "notes") return <Notes />;
+    if (page === "calendar") return <Calendar />;
+    if (page === "career") return <Career />;
+    if (page === "finance") return <Finance />;
     return <PlaceholderPage label={TITLES[page]} />;
   };
 
   const email = user?.email || "";
-  const initials = email.slice(0,2).toUpperCase();
+  const initials = email.slice(0, 2).toUpperCase();
 
   return (
     <>
