@@ -609,7 +609,7 @@ const Icon = ({ name, size = 16, color = "currentColor" }) => {
     edit:     <><path d="M11 4H4a2 2 0 00-2 2v14a2 2 0 002 2h14a2 2 0 002-2v-7"/><path d="M18.5 2.5a2.121 2.121 0 013 3L12 15l-4 1 1-4 9.5-9.5z"/></>,
     tag:      <><path d="M20.59 13.41l-7.17 7.17a2 2 0 01-2.83 0L2 12V2h10l8.59 8.59a2 2 0 010 2.82z"/><line x1="7" y1="7" x2="7.01" y2="7"/></>,
     search:   <><circle cx="11" cy="11" r="8"/><line x1="21" y1="21" x2="16.65" y2="16.65"/></>,
-    star:     <><polygon points="12 2 15.09 8.26 22 9.27 17 14.14 18.18 21.02 12 17.77 5.82 21.02 7 14.14 2 9.27 8.91 8.26 12 2"/></>,
+    ai:       <><path d="M12 2a10 10 0 110 20A10 10 0 0112 2z"/><path d="M12 8v4l3 3"/><circle cx="12" cy="12" r="1"/><path d="M16.24 7.76l-1.42 1.42M7.76 7.76l1.42 1.42M7.76 16.24l1.42-1.42M16.24 16.24l-1.42-1.42"/></>,
   };
   return <svg viewBox="0 0 24 24" style={s}>{p[name]}</svg>;
 };
@@ -2280,20 +2280,230 @@ function PlaceholderPage({ label, emoji }) {
   );
 }
 
+// ─── SETTINGS ────────────────────────────────────────────────────────────────
+function Settings({ user, onLogout }) {
+  const [displayName, setDisplayName] = useState(() => localStorage.getItem("sanctum_display_name") || "");
+  const [weeklyGoal, setWeeklyGoal]   = useState(() => localStorage.getItem("sanctum_weekly_goal") || "10");
+  const [saved, setSaved]             = useState(false);
+
+  const save = () => {
+    localStorage.setItem("sanctum_display_name", displayName);
+    localStorage.setItem("sanctum_weekly_goal", weeklyGoal);
+    setSaved(true);
+    setTimeout(() => setSaved(false), 2000);
+  };
+
+  return (
+    <div className="page-body animate-in">
+      <div className="grid-2 mb18">
+        <div className="card">
+          <div className="card-header"><div className="card-title">Profile</div></div>
+          <div style={{ display: "flex", alignItems: "center", gap: 16, marginBottom: 24 }}>
+            <div style={{ width: 56, height: 56, borderRadius: "50%", background: "linear-gradient(135deg, var(--blue), var(--purple))", display: "flex", alignItems: "center", justifyContent: "center", fontSize: 20, color: "#fff", fontWeight: 700, fontFamily: "var(--mono)", flexShrink: 0 }}>
+              {(displayName || user?.email || "?").slice(0,2).toUpperCase()}
+            </div>
+            <div>
+              <div style={{ fontSize: 15, fontWeight: 700, color: "var(--t1)" }}>{displayName || "Set your name"}</div>
+              <div style={{ fontSize: 12, color: "var(--t3)", fontFamily: "var(--mono)" }}>{user?.email}</div>
+            </div>
+          </div>
+          <div className="form-row">
+            <label className="form-label">Display name</label>
+            <input className="inp" value={displayName} onChange={e => setDisplayName(e.target.value)} placeholder="Michael" />
+          </div>
+          <div className="form-row">
+            <label className="form-label">Weekly study goal (hours)</label>
+            <input className="inp" type="number" min="1" max="40" value={weeklyGoal} onChange={e => setWeeklyGoal(e.target.value)} />
+          </div>
+          <button className="btn primary" onClick={save} style={{ marginTop: 8 }}>{saved ? "✓ Saved" : "Save changes"}</button>
+        </div>
+
+        <div className="card">
+          <div className="card-header"><div className="card-title">Account</div></div>
+          {[
+            { label: "Email",            value: user?.email },
+            { label: "Account created",  value: user?.created_at?.slice(0,10) || "—" },
+            { label: "Data location",    value: "EU — Frankfurt" },
+            { label: "Encryption",       value: "End-to-end" },
+            { label: "Plan",             value: "Personal" },
+          ].map(item => (
+            <div key={item.label} className="fin-row">
+              <span style={{ fontSize: 12, color: "var(--t3)", fontWeight: 600 }}>{item.label}</span>
+              <span style={{ fontSize: 13, color: "var(--t1)" }}>{item.value}</span>
+            </div>
+          ))}
+          <button className="btn danger" style={{ width: "100%", justifyContent: "center", marginTop: 16 }} onClick={onLogout}>
+            <Icon name="logout" size={14} /> Sign out
+          </button>
+        </div>
+      </div>
+
+      <div className="card" style={{ background: "rgba(16,185,129,0.05)", borderColor: "rgba(16,185,129,0.2)" }}>
+        <div className="card-header"><div className="card-title">🔒 Privacy & Security</div></div>
+        <div className="grid-3">
+          {[
+            { icon: "🚫", title: "No ads. Ever.",      body: "Sanctum will never show ads or sell your data." },
+            { icon: "🇪🇺", title: "EU data residency", body: "All data stored in Frankfurt, Germany. Fully GDPR compliant." },
+            { icon: "🔐", title: "Encrypted",           body: "Data encrypted in transit and at rest. We cannot read your notes." },
+          ].map(item => (
+            <div key={item.title} style={{ padding: 16, background: "var(--bg2)", borderRadius: 12, border: "1px solid var(--b1)" }}>
+              <div style={{ fontSize: 24, marginBottom: 8 }}>{item.icon}</div>
+              <div style={{ fontSize: 13, fontWeight: 600, color: "var(--t1)", marginBottom: 4 }}>{item.title}</div>
+              <div style={{ fontSize: 12, color: "var(--t3)", lineHeight: 1.5 }}>{item.body}</div>
+            </div>
+          ))}
+        </div>
+      </div>
+    </div>
+  );
+}
+
+// ─── AI ASSISTANT ─────────────────────────────────────────────────────────────
+function AIAssistant({ onAddTask, onNavigate }) {
+  const [messages, setMessages] = useState([
+    { role: "assistant", text: "Hi Michael! I'm your Sanctum AI. I can add tasks, log study sessions, or answer questions about your life. Try: \"add a task: call the vet\" or \"log 2 hours of PMP study on risk management\"." }
+  ]);
+  const [input, setInput]     = useState("");
+  const [loading, setLoading] = useState(false);
+  const bottomRef             = useRef(null);
+
+  useEffect(() => { bottomRef.current?.scrollIntoView({ behavior: "smooth" }); }, [messages]);
+
+  const send = async () => {
+    if (!input.trim() || loading) return;
+    const userMsg = input.trim();
+    setInput("");
+    setMessages(prev => [...prev, { role: "user", text: userMsg }]);
+    setLoading(true);
+
+    try {
+      const systemPrompt = `You are Sanctum AI, a personal life assistant embedded in a private life organiser app called Sanctum.
+The user is Michael Rodrigues Marques, based in Dublin, Ireland. He has a wife named Tamara and a Golden Retriever named Ozzy (born Nov 2025).
+He is pursuing PMP certification (August 2026 target) and starting an MSc in Cybersecurity at SETU in September 2026.
+Active job applications: Anthropic (Copyright Ops PM), Google (Sr Analyst Trust & Safety), Google (TPM Analytics EU).
+Upcoming trips: Italy Jun 12-17 2026, Scotland Sep 7-13 2026 (with Tamara and Ozzy).
+
+When asked to add/create/log something, respond ONLY with JSON:
+- Add task: {"action":"add_task","text":"task text","tag":"optional tag"}
+- Log study: {"action":"log_study","topic":"topic_id","hours":1.5,"notes":"optional"}
+- Navigate: {"action":"navigate","page":"dashboard|notes|calendar|career|finance|study|travel|pet|settings"}
+
+Topic IDs for study: integration, scope, schedule, cost, quality, resource, communications, risk, procurement, stakeholder, agile, ethics
+
+For everything else respond naturally in plain text. Be warm, concise, and personal. You know Michael well.`;
+
+      const response = await fetch("https://api.anthropic.com/v1/messages", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          model: "claude-sonnet-4-20250514",
+          max_tokens: 1000,
+          system: systemPrompt,
+          messages: [
+            ...messages.map(m => ({ role: m.role, content: m.text })),
+            { role: "user", content: userMsg }
+          ]
+        })
+      });
+
+      const data = await response.json();
+      const reply = data.content?.[0]?.text || "Sorry, I couldn't process that.";
+
+      try {
+        const action = JSON.parse(reply);
+        if (action.action === "add_task") {
+          await onAddTask(action.text, action.tag || "");
+          setMessages(prev => [...prev, { role: "assistant", text: `✓ Task added: "${action.text}"${action.tag ? ` [${action.tag}]` : ""}` }]);
+        } else if (action.action === "log_study") {
+          const sessions = JSON.parse(localStorage.getItem("sanctum_study_sessions") || "[]");
+          const s = { id: Date.now().toString(), topic: action.topic, hours: action.hours, notes: action.notes || "", date: new Date().toISOString().slice(0,10) };
+          localStorage.setItem("sanctum_study_sessions", JSON.stringify([s, ...sessions]));
+          setMessages(prev => [...prev, { role: "assistant", text: `✓ Logged ${action.hours}h of study — ${action.topic}.` }]);
+        } else if (action.action === "navigate") {
+          onNavigate(action.page);
+          setMessages(prev => [...prev, { role: "assistant", text: `Opening ${action.page}...` }]);
+        } else {
+          setMessages(prev => [...prev, { role: "assistant", text: reply }]);
+        }
+      } catch {
+        setMessages(prev => [...prev, { role: "assistant", text: reply }]);
+      }
+    } catch {
+      setMessages(prev => [...prev, { role: "assistant", text: "Connection error. Try again." }]);
+    }
+    setLoading(false);
+  };
+
+  const SUGGESTIONS = [
+    "Add a task: book Scotland accommodation",
+    "Log 1.5h PMP study on risk management",
+    "What should I focus on this week?",
+    "What trips are coming up?",
+  ];
+
+  return (
+    <div style={{ display: "flex", flexDirection: "column", height: "calc(100vh - 56px)" }}>
+      <div style={{ flex: 1, overflowY: "auto", padding: "24px 28px" }}>
+        {messages.map((m, i) => (
+          <div key={i} style={{ display: "flex", justifyContent: m.role === "user" ? "flex-end" : "flex-start", marginBottom: 16 }}>
+            {m.role === "assistant" && (
+              <div style={{ width: 28, height: 28, borderRadius: "50%", background: "linear-gradient(135deg, var(--blue), var(--purple))", display: "flex", alignItems: "center", justifyContent: "center", fontSize: 13, marginRight: 10, flexShrink: 0, marginTop: 2 }}>✦</div>
+            )}
+            <div style={{
+              maxWidth: "70%", padding: "12px 16px",
+              borderRadius: m.role === "user" ? "16px 16px 4px 16px" : "16px 16px 16px 4px",
+              background: m.role === "user" ? "var(--blue)" : "var(--bg1)",
+              border: m.role === "user" ? "none" : "1px solid var(--b1)",
+              color: m.role === "user" ? "#fff" : "var(--t1)",
+              fontSize: 14, lineHeight: 1.6,
+            }}>{m.text}</div>
+          </div>
+        ))}
+        {loading && (
+          <div style={{ display: "flex", alignItems: "center", gap: 10, marginBottom: 16 }}>
+            <div style={{ width: 28, height: 28, borderRadius: "50%", background: "linear-gradient(135deg, var(--blue), var(--purple))", display: "flex", alignItems: "center", justifyContent: "center", fontSize: 13 }}>✦</div>
+            <div style={{ padding: "12px 16px", background: "var(--bg1)", border: "1px solid var(--b1)", borderRadius: "16px 16px 16px 4px", color: "var(--t3)", fontSize: 13 }}>Thinking...</div>
+          </div>
+        )}
+        <div ref={bottomRef} />
+      </div>
+
+      {messages.length === 1 && (
+        <div style={{ padding: "0 28px 16px", display: "flex", gap: 8, flexWrap: "wrap" }}>
+          {SUGGESTIONS.map(s => (
+            <button key={s} className="btn sm" style={{ fontSize: 11 }} onClick={() => setInput(s)}>{s}</button>
+          ))}
+        </div>
+      )}
+
+      <div style={{ padding: "16px 28px", borderTop: "1px solid var(--b1)", background: "var(--bg1)", display: "flex", gap: 10 }}>
+        <input className="inp" value={input} onChange={e => setInput(e.target.value)}
+          onKeyDown={e => e.key === "Enter" && send()}
+          placeholder="Tell me what to do, or ask me anything..."
+          style={{ flex: 1 }} autoFocus />
+        <button className="btn primary" onClick={send} disabled={loading || !input.trim()} style={{ padding: "8px 18px", flexShrink: 0 }}>
+          {loading ? "..." : "Send"}
+        </button>
+      </div>
+    </div>
+  );
+}
+
 // ─── NAV ─────────────────────────────────────────────────────────────────────
 const NAV = [
-  { id: "dashboard", label: "Dashboard", icon: "home",     group: "main", emoji: "🏠" },
-  { id: "notes",     label: "Notes",     icon: "notes",    group: "main", emoji: "📝" },
-  { id: "calendar",  label: "Calendar",  icon: "calendar", group: "main", emoji: "📅" },
-  { id: "career",    label: "Career",    icon: "career",   group: "work", emoji: "💼" },
-  { id: "study",     label: "Study",     icon: "study",    group: "work", emoji: "📚" },
-  { id: "finance",   label: "Finance",   icon: "finance",  group: "life", emoji: "💰" },
-  { id: "travel",    label: "Travel",    icon: "travel",   group: "life", emoji: "✈️" },
-  { id: "pet",       label: "Ozzy 🐾",   icon: "pet",      group: "life", emoji: "🐾" },
-  { id: "settings",  label: "Settings",  icon: "settings", group: "system", emoji: "⚙️" },
+  { id: "dashboard", label: "Dashboard", icon: "home",     group: "main" },
+  { id: "notes",     label: "Notes",     icon: "notes",    group: "main" },
+  { id: "calendar",  label: "Calendar",  icon: "calendar", group: "main" },
+  { id: "ai",        label: "AI",        icon: "ai",       group: "main" },
+  { id: "career",    label: "Career",    icon: "career",   group: "work" },
+  { id: "study",     label: "Study",     icon: "study",    group: "work" },
+  { id: "finance",   label: "Finance",   icon: "finance",  group: "life" },
+  { id: "travel",    label: "Travel",    icon: "travel",   group: "life" },
+  { id: "pet",       label: "Ozzy 🐾",   icon: "pet",      group: "life" },
+  { id: "settings",  label: "Settings",  icon: "settings", group: "system" },
 ];
 const GROUPS = [{ key:"main", label:"Main" }, { key:"work", label:"Work" }, { key:"life", label:"Life" }, { key:"system", label:"System" }];
-const TITLES = { dashboard:"Dashboard", notes:"Notes", calendar:"Calendar", career:"Career", study:"Study & PMP", finance:"Finance", travel:"Travel", pet:"Ozzy", settings:"Settings" };
+const TITLES = { dashboard:"Dashboard", notes:"Notes", calendar:"Calendar", ai:"AI Assistant", career:"Career", study:"Study & PMP", finance:"Finance", travel:"Travel", pet:"Ozzy", settings:"Settings" };
 
 // ─── APP ─────────────────────────────────────────────────────────────────────
 export default function App() {
@@ -2332,16 +2542,24 @@ export default function App() {
   const username = email.split("@")[0];
   const initials = username.slice(0,2).toUpperCase();
 
+  const addTaskFromAI = async (text, tag) => {
+    const task = { text, tag, done: false };
+    try {
+      await sb.from("tasks").insert(task);
+    } catch {}
+  };
+
   const renderPage = () => {
     if (page === "dashboard") return <Dashboard onNavigate={navigate} onGoToCalendarDay={goToCalendarDay} />;
     if (page === "notes")     return <Notes />;
     if (page === "calendar")  return <Calendar initialDate={calDate} />;
+    if (page === "ai")        return <AIAssistant onAddTask={addTaskFromAI} onNavigate={navigate} />;
     if (page === "career")    return <Career />;
     if (page === "finance")   return <Finance />;
     if (page === "study")     return <Study />;
     if (page === "travel")    return <Travel />;
     if (page === "pet")       return <Ozzy />;
-    if (page === "settings")  return <PlaceholderPage label="Settings" emoji="⚙️" />;
+    if (page === "settings")  return <Settings user={user} onLogout={handleLogout} />;
   };
 
   const today = new Date().toLocaleDateString("en-IE", { weekday: "short", day: "numeric", month: "short", year: "numeric" });
@@ -2349,9 +2567,9 @@ export default function App() {
   const BOTTOM_NAV = [
     { id: "dashboard", label: "Home",     icon: "home"     },
     { id: "notes",     label: "Notes",    icon: "notes"    },
+    { id: "ai",        label: "AI",       icon: "ai"       },
     { id: "calendar",  label: "Calendar", icon: "calendar" },
-    { id: "career",    label: "Career",   icon: "career"   },
-    { id: "finance",   label: "Finance",  icon: "finance"  },
+    { id: "settings",  label: "Settings", icon: "settings" },
   ];
 
   return (
