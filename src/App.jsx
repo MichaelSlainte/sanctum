@@ -1613,6 +1613,643 @@ function Finance() {
   );
 }
 
+function Study() {
+  const EXAM_DATE = new Date("2026-08-31");
+  const today     = new Date();
+  const daysLeft  = Math.ceil((EXAM_DATE - today) / (1000 * 60 * 60 * 24));
+  const weeklyGoal = 10; // hours
+
+  const [sessions, setSessions]   = useState([]);
+  const [showAdd, setShowAdd]     = useState(false);
+  const [showArchived, setShowArchived] = useState(false);
+  const [newSession, setNewSession] = useState({ topic: "", hours: "", notes: "", date: today.toISOString().slice(0,10) });
+
+  const TOPICS = [
+    { id: "integration",   label: "Integration Management",   icon: "🔗" },
+    { id: "scope",         label: "Scope Management",         icon: "📐" },
+    { id: "schedule",      label: "Schedule Management",      icon: "📅" },
+    { id: "cost",          label: "Cost Management",          icon: "💰" },
+    { id: "quality",       label: "Quality Management",       icon: "⭐" },
+    { id: "resource",      label: "Resource Management",      icon: "👥" },
+    { id: "communications",label: "Communications Management", icon: "📢" },
+    { id: "risk",          label: "Risk Management",          icon: "⚠️" },
+    { id: "procurement",   label: "Procurement Management",   icon: "📦" },
+    { id: "stakeholder",   label: "Stakeholder Management",   icon: "🤝" },
+    { id: "agile",         label: "Agile & Hybrid",           icon: "🔄" },
+    { id: "ethics",        label: "Ethics & Professional",    icon: "🎯" },
+  ];
+
+  useEffect(() => {
+    // Load from localStorage for now
+    const saved = localStorage.getItem("sanctum_study_sessions");
+    if (saved) setSessions(JSON.parse(saved));
+  }, []);
+
+  const saveSessions = (updated) => {
+    setSessions(updated);
+    localStorage.setItem("sanctum_study_sessions", JSON.stringify(updated));
+  };
+
+  const addSession = () => {
+    if (!newSession.topic || !newSession.hours) return;
+    const session = { ...newSession, id: Date.now().toString(), hours: parseFloat(newSession.hours) };
+    saveSessions([session, ...sessions]);
+    setNewSession({ topic: "", hours: "", notes: "", date: today.toISOString().slice(0,10) });
+    setShowAdd(false);
+  };
+
+  const deleteSession = (id) => saveSessions(sessions.filter(s => s.id !== id));
+
+  const totalHours  = sessions.reduce((s, x) => s + x.hours, 0);
+  const targetHours = 150; // PMP recommended study hours
+
+  // Hours this week
+  const weekStart = new Date(today);
+  weekStart.setDate(today.getDate() - today.getDay() + 1);
+  const thisWeekHours = sessions
+    .filter(s => new Date(s.date) >= weekStart)
+    .reduce((s, x) => s + x.hours, 0);
+
+  // Hours per topic
+  const topicHours = TOPICS.map(t => ({
+    ...t,
+    hours: sessions.filter(s => s.topic === t.id).reduce((s, x) => s + x.hours, 0)
+  }));
+
+  const recentSessions = sessions.slice(0, 10);
+
+  return (
+    <div className="page-body animate-in">
+      {showAdd && (
+        <Modal title="Log study session" onClose={() => setShowAdd(false)} wide>
+          <div className="grid-2" style={{ gap: 12 }}>
+            <div className="form-row">
+              <label className="form-label">Topic</label>
+              <select className="inp" value={newSession.topic} onChange={e => setNewSession(n => ({...n, topic: e.target.value}))}>
+                <option value="">Select topic...</option>
+                {TOPICS.map(t => <option key={t.id} value={t.id}>{t.icon} {t.label}</option>)}
+              </select>
+            </div>
+            <div className="form-row">
+              <label className="form-label">Hours studied</label>
+              <input className="inp" type="number" step="0.5" min="0.5" max="12"
+                value={newSession.hours} onChange={e => setNewSession(n => ({...n, hours: e.target.value}))}
+                placeholder="e.g. 1.5" />
+            </div>
+          </div>
+          <div className="form-row">
+            <label className="form-label">Date</label>
+            <input className="inp" type="date" value={newSession.date} onChange={e => setNewSession(n => ({...n, date: e.target.value}))} />
+          </div>
+          <div className="form-row">
+            <label className="form-label">Notes (optional)</label>
+            <textarea className="inp" value={newSession.notes} onChange={e => setNewSession(n => ({...n, notes: e.target.value}))} placeholder="What did you cover? Key takeaways..." style={{ minHeight: 70 }} />
+          </div>
+          <div className="modal-actions">
+            <button className="btn" onClick={() => setShowAdd(false)}>Cancel</button>
+            <button className="btn primary" onClick={addSession}>Log session</button>
+          </div>
+        </Modal>
+      )}
+
+      {/* Top stats */}
+      <div className="grid-4 mb18">
+        <div className="stat">
+          <div className="stat-icon" style={{ background: "rgba(239,68,68,0.15)" }}>⏰</div>
+          <div className="stat-label">Days to exam</div>
+          <div className="stat-value" style={{ color: daysLeft < 60 ? "var(--red)" : daysLeft < 120 ? "var(--amber)" : "var(--t1)" }}>{daysLeft}</div>
+          <div className="stat-sub">PMP — Aug 2026</div>
+          <div className="stat-bar"><div className="stat-fill red" style={{ width: `${Math.max(0, 100 - (daysLeft/365)*100)}%` }} /></div>
+        </div>
+        <div className="stat">
+          <div className="stat-icon" style={{ background: "rgba(139,92,246,0.15)" }}>📚</div>
+          <div className="stat-label">Total hours</div>
+          <div className="stat-value">{totalHours.toFixed(1)}h</div>
+          <div className="stat-sub">Target: {targetHours}h</div>
+          <div className="stat-bar"><div className="stat-fill" style={{ width: `${Math.min((totalHours/targetHours)*100, 100)}%` }} /></div>
+        </div>
+        <div className="stat">
+          <div className="stat-icon" style={{ background: "rgba(16,185,129,0.15)" }}>📅</div>
+          <div className="stat-label">This week</div>
+          <div className="stat-value" style={{ color: thisWeekHours >= weeklyGoal ? "var(--grn)" : "var(--t1)" }}>{thisWeekHours.toFixed(1)}h</div>
+          <div className="stat-sub">Goal: {weeklyGoal}h/week</div>
+          <div className="stat-bar"><div className="stat-fill grn" style={{ width: `${Math.min((thisWeekHours/weeklyGoal)*100, 100)}%` }} /></div>
+        </div>
+        <div className="stat">
+          <div className="stat-icon" style={{ background: "rgba(245,158,11,0.15)" }}>🎯</div>
+          <div className="stat-label">Sessions logged</div>
+          <div className="stat-value">{sessions.length}</div>
+          <div className="stat-sub">Keep the momentum</div>
+        </div>
+      </div>
+
+      <div className="grid-2 mb18">
+        {/* Topic breakdown */}
+        <div className="card">
+          <div className="card-header">
+            <div><div className="card-title">PMBOK Topics</div><div className="card-sub">Hours per knowledge area</div></div>
+          </div>
+          {topicHours.map(t => (
+            <div key={t.id} style={{ marginBottom: 10 }}>
+              <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: 4 }}>
+                <span style={{ fontSize: 12, color: "var(--t2)", display: "flex", alignItems: "center", gap: 6 }}>
+                  <span>{t.icon}</span>{t.label}
+                </span>
+                <span style={{ fontSize: 11, fontFamily: "var(--mono)", color: t.hours > 0 ? "var(--blue)" : "var(--t3)" }}>{t.hours.toFixed(1)}h</span>
+              </div>
+              <div className="stat-bar" style={{ margin: 0 }}>
+                <div className="stat-fill" style={{ width: `${Math.min((t.hours / Math.max(totalHours, 1)) * 100 * TOPICS.length / 2, 100)}%`, background: t.hours > 0 ? "var(--blue)" : "var(--b3)" }} />
+              </div>
+            </div>
+          ))}
+        </div>
+
+        {/* Recent sessions */}
+        <div className="card">
+          <div className="card-header">
+            <div><div className="card-title">Study log</div><div className="card-sub">Recent sessions</div></div>
+            <button className="btn sm primary" onClick={() => setShowAdd(true)}><Icon name="plus" size={13} /> Log</button>
+          </div>
+          {sessions.length === 0 && (
+            <div style={{ color: "var(--t3)", fontSize: 13, textAlign: "center", padding: "24px 0" }}>
+              No sessions yet.<br />
+              <button className="btn sm primary" style={{ marginTop: 12 }} onClick={() => setShowAdd(true)}>Log your first session</button>
+            </div>
+          )}
+          {recentSessions.map(s => {
+            const topic = TOPICS.find(t => t.id === s.topic);
+            return (
+              <div key={s.id} className="fin-row">
+                <div style={{ display: "flex", alignItems: "center", gap: 10, flex: 1 }}>
+                  <div style={{ fontSize: 20 }}>{topic?.icon || "📖"}</div>
+                  <div>
+                    <div style={{ fontSize: 13, fontWeight: 600, color: "var(--t1)" }}>{topic?.label || s.topic}</div>
+                    <div style={{ fontSize: 11, color: "var(--t3)", fontFamily: "var(--mono)" }}>{s.date}{s.notes ? ` · ${s.notes.slice(0,40)}` : ""}</div>
+                  </div>
+                </div>
+                <div style={{ display: "flex", alignItems: "center", gap: 10 }}>
+                  <span style={{ fontSize: 14, fontWeight: 700, fontFamily: "var(--mono)", color: "var(--blue)" }}>{s.hours}h</span>
+                  <button className="btn xs danger" onClick={() => deleteSession(s.id)}><Icon name="trash" size={11} /></button>
+                </div>
+              </div>
+            );
+          })}
+          {sessions.length > 10 && (
+            <button className="btn sm ghost" style={{ width: "100%", justifyContent: "center", marginTop: 8, color: "var(--t3)", fontSize: 11 }}
+              onClick={() => setShowArchived(s => !s)}>
+              {showArchived ? "▲ Show less" : `▼ Show all ${sessions.length} sessions`}
+            </button>
+          )}
+        </div>
+      </div>
+
+      {/* Study tip */}
+      <div className="card" style={{ background: "rgba(139,92,246,0.08)", borderColor: "rgba(139,92,246,0.2)" }}>
+        <div style={{ display: "flex", alignItems: "flex-start", gap: 14 }}>
+          <div style={{ fontSize: 24, flexShrink: 0 }}>💡</div>
+          <div>
+            <div style={{ fontSize: 13, fontWeight: 600, color: "var(--t1)", marginBottom: 4 }}>Study plan to hit August</div>
+            <div style={{ fontSize: 13, color: "var(--t2)", lineHeight: 1.6 }}>
+              You need <strong style={{ color: "var(--purple)" }}>{Math.max(0, targetHours - totalHours).toFixed(0)}h</strong> more to reach the {targetHours}h target.
+              With {daysLeft} days left, that's <strong style={{ color: "var(--purple)" }}>{((targetHours - totalHours) / (daysLeft / 7)).toFixed(1)}h/week</strong> — 
+              {((targetHours - totalHours) / (daysLeft / 7)) <= weeklyGoal ? " within your weekly goal. You're on track. 🎉" : " above your current goal. Consider increasing weekly hours."}
+            </div>
+          </div>
+        </div>
+      </div>
+    </div>
+  );
+}
+
+function Ozzy() {
+  const [showAdd, setShowAdd] = useState(false);
+  const [activeTab, setActiveTab] = useState("overview");
+  const [vets, setVets]       = useState(() => JSON.parse(localStorage.getItem("sanctum_ozzy_vets") || "[]"));
+  const [newVet, setNewVet]   = useState({ date: "", type: "", notes: "", next_due: "" });
+  const [weight, setWeight]   = useState(() => JSON.parse(localStorage.getItem("sanctum_ozzy_weight") || "[]"));
+  const [newWeight, setNewWeight] = useState({ date: new Date().toISOString().slice(0,10), kg: "" });
+  const [showAddWeight, setShowAddWeight] = useState(false);
+
+  const saveVets = (v) => { setVets(v); localStorage.setItem("sanctum_ozzy_vets", JSON.stringify(v)); };
+  const saveWeight = (w) => { setWeight(w); localStorage.setItem("sanctum_ozzy_weight", JSON.stringify(w)); };
+
+  const addVet = () => {
+    if (!newVet.date || !newVet.type) return;
+    saveVets([{ ...newVet, id: Date.now().toString() }, ...vets]);
+    setNewVet({ date: "", type: "", notes: "", next_due: "" });
+    setShowAdd(false);
+  };
+
+  const addWeight = () => {
+    if (!newWeight.kg) return;
+    saveWeight([{ ...newWeight, id: Date.now().toString() }, ...weight]);
+    setNewWeight({ date: new Date().toISOString().slice(0,10), kg: "" });
+    setShowAddWeight(false);
+  };
+
+  const VET_TYPES = ["Annual checkup","Vaccination","Grooming","Dental","Emergency","Medication","Other"];
+
+  const tabs = [
+    { id: "overview",  label: "Overview",  emoji: "🐾" },
+    { id: "health",    label: "Health",    emoji: "🏥" },
+    { id: "diet",      label: "Diet",      emoji: "🍖" },
+    { id: "documents", label: "Documents", emoji: "📋" },
+  ];
+
+  return (
+    <div className="page-body animate-in">
+      {showAdd && (
+        <Modal title="Log vet visit" onClose={() => setShowAdd(false)} wide>
+          <div className="grid-2" style={{ gap: 12 }}>
+            <div className="form-row"><label className="form-label">Date</label><input className="inp" type="date" value={newVet.date} onChange={e => setNewVet(n => ({...n, date: e.target.value}))} autoFocus /></div>
+            <div className="form-row"><label className="form-label">Type</label>
+              <select className="inp" value={newVet.type} onChange={e => setNewVet(n => ({...n, type: e.target.value}))}>
+                <option value="">Select type...</option>
+                {VET_TYPES.map(t => <option key={t} value={t}>{t}</option>)}
+              </select>
+            </div>
+          </div>
+          <div className="form-row"><label className="form-label">Next due</label><input className="inp" type="date" value={newVet.next_due} onChange={e => setNewVet(n => ({...n, next_due: e.target.value}))} /></div>
+          <div className="form-row"><label className="form-label">Notes</label><textarea className="inp" value={newVet.notes} onChange={e => setNewVet(n => ({...n, notes: e.target.value}))} placeholder="What was discussed, medications prescribed..." style={{ minHeight: 70 }} /></div>
+          <div className="modal-actions"><button className="btn" onClick={() => setShowAdd(false)}>Cancel</button><button className="btn primary" onClick={addVet}>Save</button></div>
+        </Modal>
+      )}
+
+      {showAddWeight && (
+        <Modal title="Log weight" onClose={() => setShowAddWeight(false)}>
+          <div className="form-row"><label className="form-label">Date</label><input className="inp" type="date" value={newWeight.date} onChange={e => setNewWeight(n => ({...n, date: e.target.value}))} /></div>
+          <div className="form-row"><label className="form-label">Weight (kg)</label><input className="inp" type="number" step="0.1" value={newWeight.kg} onChange={e => setNewWeight(n => ({...n, kg: e.target.value}))} placeholder="e.g. 28.5" autoFocus /></div>
+          <div className="modal-actions"><button className="btn" onClick={() => setShowAddWeight(false)}>Cancel</button><button className="btn primary" onClick={addWeight}>Save</button></div>
+        </Modal>
+      )}
+
+      {/* Ozzy profile card */}
+      <div className="card mb18" style={{ background: "linear-gradient(135deg, rgba(245,158,11,0.1), rgba(16,185,129,0.08))", borderColor: "rgba(245,158,11,0.2)" }}>
+        <div style={{ display: "flex", alignItems: "center", gap: 20 }}>
+          <div style={{ fontSize: 56, flexShrink: 0 }}>🐕</div>
+          <div style={{ flex: 1 }}>
+            <div style={{ fontSize: 22, fontWeight: 700, color: "var(--t1)", marginBottom: 4 }}>Ozzy</div>
+            <div style={{ fontSize: 13, color: "var(--t2)", marginBottom: 12 }}>Golden Retriever · Born November 2025 · Dublin, Ireland</div>
+            <div style={{ display: "flex", gap: 8, flexWrap: "wrap" }}>
+              <span className="badge amber">🏠 Belarmine</span>
+              <span className="badge green">✅ Vaccinated</span>
+              <span className="badge blue">🔖 Microchipped</span>
+              <span className="badge muted">🍖 600 kcal/day</span>
+              <span className="badge purple">💉 Insurance: €25/mo</span>
+            </div>
+          </div>
+          <div style={{ textAlign: "right", flexShrink: 0 }}>
+            <div style={{ fontSize: 11, color: "var(--t3)", fontFamily: "var(--mono)", marginBottom: 4 }}>Age</div>
+            <div style={{ fontSize: 28, fontWeight: 700, fontFamily: "var(--mono)", color: "var(--amber)" }}>
+              {Math.floor((new Date() - new Date("2025-11-01")) / (1000*60*60*24*30))}mo
+            </div>
+          </div>
+        </div>
+      </div>
+
+      {/* Tabs */}
+      <div style={{ display: "flex", gap: 6, marginBottom: 18 }}>
+        {tabs.map(t => (
+          <button key={t.id} className={`btn${activeTab === t.id ? " primary" : ""}`}
+            onClick={() => setActiveTab(t.id)}>
+            {t.emoji} {t.label}
+          </button>
+        ))}
+      </div>
+
+      {activeTab === "overview" && (
+        <div className="grid-2">
+          <div className="card">
+            <div className="card-header">
+              <div><div className="card-title">Key info</div></div>
+            </div>
+            {[
+              { label: "Breed", value: "Golden Retriever" },
+              { label: "Born", value: "November 2025" },
+              { label: "Chip number", value: "Check vet records" },
+              { label: "Vet", value: "Local Dublin vet" },
+              { label: "Insurance", value: "€25/month" },
+              { label: "Daily calories", value: "600 kcal max" },
+              { label: "Diet", value: "Dry kibble" },
+            ].map(item => (
+              <div key={item.label} className="fin-row">
+                <span style={{ fontSize: 12, color: "var(--t3)", fontWeight: 600 }}>{item.label}</span>
+                <span style={{ fontSize: 13, color: "var(--t1)", fontWeight: 500 }}>{item.value}</span>
+              </div>
+            ))}
+          </div>
+
+          <div className="card">
+            <div className="card-header">
+              <div><div className="card-title">Weight tracker</div></div>
+              <button className="btn sm primary" onClick={() => setShowAddWeight(true)}><Icon name="plus" size={13} /> Log</button>
+            </div>
+            {weight.length === 0 && (
+              <div style={{ color: "var(--t3)", fontSize: 13, textAlign: "center", padding: "20px 0" }}>No weight logs yet</div>
+            )}
+            {weight.slice(0,8).map(w => (
+              <div key={w.id} className="fin-row">
+                <span style={{ fontSize: 12, color: "var(--t3)", fontFamily: "var(--mono)" }}>{w.date}</span>
+                <span style={{ fontSize: 14, fontWeight: 700, fontFamily: "var(--mono)", color: "var(--amber)" }}>{w.kg} kg</span>
+              </div>
+            ))}
+          </div>
+        </div>
+      )}
+
+      {activeTab === "health" && (
+        <div className="card">
+          <div className="card-header">
+            <div><div className="card-title">Vet visits & health log</div></div>
+            <button className="btn sm primary" onClick={() => setShowAdd(true)}><Icon name="plus" size={13} /> Log visit</button>
+          </div>
+          {vets.length === 0 && (
+            <div style={{ color: "var(--t3)", fontSize: 13, textAlign: "center", padding: "24px 0" }}>
+              No vet visits logged yet.<br />
+              <button className="btn sm primary" style={{ marginTop: 12 }} onClick={() => setShowAdd(true)}>Log first visit</button>
+            </div>
+          )}
+          {vets.map(v => (
+            <div key={v.id} style={{ padding: "14px 0", borderBottom: "1px solid var(--b1)" }}>
+              <div style={{ display: "flex", justifyContent: "space-between", alignItems: "flex-start" }}>
+                <div>
+                  <div style={{ fontSize: 13, fontWeight: 600, color: "var(--t1)", marginBottom: 4 }}>{v.type}</div>
+                  {v.notes && <div style={{ fontSize: 12, color: "var(--t2)", marginBottom: 4 }}>{v.notes}</div>}
+                  {v.next_due && <div style={{ fontSize: 11, color: "var(--amber)", fontFamily: "var(--mono)" }}>Next due: {v.next_due}</div>}
+                </div>
+                <div style={{ display: "flex", alignItems: "center", gap: 8, flexShrink: 0 }}>
+                  <span style={{ fontSize: 11, color: "var(--t3)", fontFamily: "var(--mono)" }}>{v.date}</span>
+                  <button className="btn xs danger" onClick={() => saveVets(vets.filter(x => x.id !== v.id))}><Icon name="trash" size={11} /></button>
+                </div>
+              </div>
+            </div>
+          ))}
+        </div>
+      )}
+
+      {activeTab === "diet" && (
+        <div className="grid-2">
+          <div className="card">
+            <div className="card-header"><div className="card-title">Daily diet plan</div></div>
+            {[
+              { meal: "Morning", food: "Dry kibble", amount: "200g", time: "7:00am" },
+              { meal: "Evening", food: "Dry kibble", amount: "200g", time: "6:00pm" },
+              { meal: "Treats",  food: "Low calorie treats", amount: "Max 50g", time: "During training" },
+            ].map(m => (
+              <div key={m.meal} className="fin-row">
+                <div>
+                  <div style={{ fontSize: 13, fontWeight: 600, color: "var(--t1)" }}>{m.meal}</div>
+                  <div style={{ fontSize: 11, color: "var(--t3)" }}>{m.food} · {m.time}</div>
+                </div>
+                <span style={{ fontSize: 13, fontWeight: 600, color: "var(--amber)", fontFamily: "var(--mono)" }}>{m.amount}</span>
+              </div>
+            ))}
+            <div style={{ marginTop: 14, padding: 12, background: "rgba(245,158,11,0.08)", borderRadius: 10, border: "1px solid rgba(245,158,11,0.2)" }}>
+              <div style={{ fontSize: 11, color: "var(--amber)", fontWeight: 600, marginBottom: 4 }}>⚠️ Daily limit</div>
+              <div style={{ fontSize: 13, color: "var(--t2)" }}>Maximum 600 kcal per day. No human food. Fresh water always available.</div>
+            </div>
+          </div>
+          <div className="card">
+            <div className="card-header"><div className="card-title">Foods to avoid 🚫</div></div>
+            {["Chocolate","Grapes & raisins","Onions & garlic","Macadamia nuts","Xylitol (sugar-free products)","Alcohol","Cooked bones","Avocado"].map(food => (
+              <div key={food} style={{ display: "flex", alignItems: "center", gap: 10, padding: "8px 0", borderBottom: "1px solid var(--b1)" }}>
+                <span style={{ color: "var(--red)" }}>✕</span>
+                <span style={{ fontSize: 13, color: "var(--t2)" }}>{food}</span>
+              </div>
+            ))}
+          </div>
+        </div>
+      )}
+
+      {activeTab === "documents" && (
+        <div className="card">
+          <div className="card-header"><div className="card-title">Documents & records</div></div>
+          {[
+            { label: "Vaccination certificate", status: "✅ Up to date", color: "var(--grn)" },
+            { label: "Microchip registration",  status: "✅ Registered", color: "var(--grn)" },
+            { label: "Pet insurance",            status: "✅ Active — €25/mo", color: "var(--grn)" },
+            { label: "Vet registration",         status: "✅ Registered", color: "var(--grn)" },
+            { label: "Passport (if travelling)", status: "⏳ Check requirements", color: "var(--amber)" },
+          ].map(doc => (
+            <div key={doc.label} className="fin-row">
+              <span style={{ fontSize: 13, color: "var(--t1)", fontWeight: 500 }}>📄 {doc.label}</span>
+              <span style={{ fontSize: 12, color: doc.color, fontWeight: 600 }}>{doc.status}</span>
+            </div>
+          ))}
+        </div>
+      )}
+    </div>
+  );
+}
+
+function Travel() {
+  const [showAdd, setShowAdd]   = useState(false);
+  const [activeTrip, setActiveTrip] = useState(null);
+  const [trips, setTrips]       = useState(() => JSON.parse(localStorage.getItem("sanctum_trips") || JSON.stringify([
+    {
+      id: "scotland-2026", name: "Scotland Road Trip", emoji: "🏴󠁧󠁢󠁳󠁣󠁴󠁿",
+      start: "2026-09-07", end: "2026-09-13",
+      status: "planning", budget: 2000, spent: 0,
+      travelers: "Michael, Tamara, Ozzy 🐾",
+      notes: "Edinburgh → Highlands → Skye. Dog-friendly accommodation needed.",
+      checklist: [
+        { id: "c1", text: "Book accommodation", done: false },
+        { id: "c2", text: "Book ferry/route", done: false },
+        { id: "c3", text: "Dog-friendly hotels check", done: false },
+        { id: "c4", text: "Travel insurance", done: false },
+        { id: "c5", text: "Ozzy travel docs", done: false },
+      ]
+    },
+    {
+      id: "italy-2026", name: "Italy Trip", emoji: "🇮🇹",
+      start: "2026-06-12", end: "2026-06-17",
+      status: "booked", budget: 1500, spent: 344,
+      travelers: "Michael, Tamara",
+      notes: "Flights booked — €344. Accommodation TBC.",
+      checklist: [
+        { id: "c1", text: "Flights", done: true },
+        { id: "c2", text: "Hotel/Airbnb", done: false },
+        { id: "c3", text: "Travel insurance", done: false },
+        { id: "c4", text: "Activities plan", done: false },
+      ]
+    },
+  ])));
+
+  const [newTrip, setNewTrip] = useState({ name: "", emoji: "✈️", start: "", end: "", budget: "", travelers: "", notes: "" });
+
+  const saveTrips = (t) => { setTrips(t); localStorage.setItem("sanctum_trips", JSON.stringify(t)); };
+
+  const addTrip = () => {
+    if (!newTrip.name || !newTrip.start) return;
+    const trip = { ...newTrip, id: Date.now().toString(), status: "planning", spent: 0, budget: parseFloat(newTrip.budget) || 0, checklist: [] };
+    saveTrips([trip, ...trips]);
+    setNewTrip({ name: "", emoji: "✈️", start: "", end: "", budget: "", travelers: "", notes: "" });
+    setShowAdd(false);
+  };
+
+  const toggleCheck = (tripId, checkId) => {
+    saveTrips(trips.map(t => t.id === tripId ? {
+      ...t, checklist: t.checklist.map(c => c.id === checkId ? { ...c, done: !c.done } : c)
+    } : t));
+  };
+
+  const deleteTrip = (id) => { saveTrips(trips.filter(t => t.id !== id)); if (activeTrip?.id === id) setActiveTrip(null); };
+
+  const STATUS_STYLE = {
+    planning: { color: "var(--amber)", bg: "rgba(245,158,11,0.12)", label: "Planning" },
+    booked:   { color: "var(--blue)",  bg: "rgba(59,130,246,0.12)",  label: "Booked" },
+    ongoing:  { color: "var(--grn)",   bg: "rgba(16,185,129,0.12)",  label: "Ongoing" },
+    completed:{ color: "var(--t3)",    bg: "var(--bg3)",              label: "Completed" },
+  };
+
+  const daysUntil = (dateStr) => {
+    const diff = Math.ceil((new Date(dateStr) - new Date()) / (1000*60*60*24));
+    return diff > 0 ? `${diff}d away` : diff === 0 ? "Today!" : "Past";
+  };
+
+  const selected = activeTrip ? trips.find(t => t.id === activeTrip) : null;
+
+  return (
+    <div className="page-body animate-in">
+      {showAdd && (
+        <Modal title="Add trip" onClose={() => setShowAdd(false)} wide>
+          <div className="grid-2" style={{ gap: 12 }}>
+            <div className="form-row"><label className="form-label">Trip name</label><input className="inp" value={newTrip.name} onChange={e => setNewTrip(n => ({...n, name: e.target.value}))} placeholder="Scotland Road Trip" autoFocus /></div>
+            <div className="form-row"><label className="form-label">Emoji</label><input className="inp" value={newTrip.emoji} onChange={e => setNewTrip(n => ({...n, emoji: e.target.value}))} placeholder="✈️" /></div>
+          </div>
+          <div className="grid-2" style={{ gap: 12 }}>
+            <div className="form-row"><label className="form-label">Start date</label><input className="inp" type="date" value={newTrip.start} onChange={e => setNewTrip(n => ({...n, start: e.target.value}))} /></div>
+            <div className="form-row"><label className="form-label">End date</label><input className="inp" type="date" value={newTrip.end} onChange={e => setNewTrip(n => ({...n, end: e.target.value}))} /></div>
+          </div>
+          <div className="grid-2" style={{ gap: 12 }}>
+            <div className="form-row"><label className="form-label">Budget (€)</label><input className="inp" type="number" value={newTrip.budget} onChange={e => setNewTrip(n => ({...n, budget: e.target.value}))} placeholder="2000" /></div>
+            <div className="form-row"><label className="form-label">Travellers</label><input className="inp" value={newTrip.travelers} onChange={e => setNewTrip(n => ({...n, travelers: e.target.value}))} placeholder="Michael, Tamara..." /></div>
+          </div>
+          <div className="form-row"><label className="form-label">Notes</label><textarea className="inp" value={newTrip.notes} onChange={e => setNewTrip(n => ({...n, notes: e.target.value}))} placeholder="Route ideas, accommodation notes..." style={{ minHeight: 70 }} /></div>
+          <div className="modal-actions"><button className="btn" onClick={() => setShowAdd(false)}>Cancel</button><button className="btn primary" onClick={addTrip}>Add trip</button></div>
+        </Modal>
+      )}
+
+      {/* Header stats */}
+      <div className="grid-3 mb18">
+        <div className="stat">
+          <div className="stat-icon" style={{ background: "rgba(59,130,246,0.15)" }}>✈️</div>
+          <div className="stat-label">Upcoming trips</div>
+          <div className="stat-value">{trips.filter(t => t.status !== "completed").length}</div>
+          <div className="stat-sub">Planned & booked</div>
+        </div>
+        <div className="stat">
+          <div className="stat-icon" style={{ background: "rgba(16,185,129,0.15)" }}>📅</div>
+          <div className="stat-label">Next trip</div>
+          <div className="stat-value" style={{ fontSize: 18 }}>{trips.filter(t => t.status !== "completed").sort((a,b) => a.start.localeCompare(b.start))[0]?.name || "None"}</div>
+          <div className="stat-sub">{trips.filter(t => t.status !== "completed").sort((a,b) => a.start.localeCompare(b.start))[0] ? daysUntil(trips.filter(t => t.status !== "completed").sort((a,b) => a.start.localeCompare(b.start))[0].start) : ""}</div>
+        </div>
+        <div className="stat">
+          <div className="stat-icon" style={{ background: "rgba(245,158,11,0.15)" }}>💶</div>
+          <div className="stat-label">Total budget</div>
+          <div className="stat-value">€{trips.reduce((s, t) => s + (t.budget || 0), 0).toLocaleString()}</div>
+          <div className="stat-sub">Across all trips</div>
+        </div>
+      </div>
+
+      <div className={selected ? "grid-2" : ""} style={{ gap: 18 }}>
+        {/* Trip list */}
+        <div>
+          <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: 14 }}>
+            <div style={{ fontSize: 14, fontWeight: 700, color: "var(--t1)" }}>All trips</div>
+            <button className="btn sm primary" onClick={() => setShowAdd(true)}><Icon name="plus" size={13} /> Add trip</button>
+          </div>
+          <div style={{ display: "flex", flexDirection: "column", gap: 10 }}>
+            {trips.map(trip => {
+              const st = STATUS_STYLE[trip.status] || STATUS_STYLE.planning;
+              const isActive = activeTrip === trip.id;
+              const doneChecks = trip.checklist.filter(c => c.done).length;
+              return (
+                <div key={trip.id}
+                  onClick={() => setActiveTrip(isActive ? null : trip.id)}
+                  style={{
+                    background: isActive ? "rgba(59,130,246,0.08)" : "var(--bg1)",
+                    border: `1px solid ${isActive ? "var(--blueb)" : "var(--b1)"}`,
+                    borderRadius: 14, padding: 18, cursor: "pointer",
+                    transition: "all .2s",
+                  }}>
+                  <div style={{ display: "flex", alignItems: "flex-start", justifyContent: "space-between", gap: 12 }}>
+                    <div style={{ display: "flex", alignItems: "center", gap: 14, flex: 1 }}>
+                      <div style={{ fontSize: 32, flexShrink: 0 }}>{trip.emoji}</div>
+                      <div style={{ flex: 1 }}>
+                        <div style={{ fontSize: 15, fontWeight: 700, color: "var(--t1)", marginBottom: 4 }}>{trip.name}</div>
+                        <div style={{ fontSize: 12, color: "var(--t3)", fontFamily: "var(--mono)", marginBottom: 6 }}>
+                          {trip.start} → {trip.end} · {trip.travelers}
+                        </div>
+                        <div style={{ display: "flex", gap: 8, alignItems: "center", flexWrap: "wrap" }}>
+                          <span style={{ fontSize: 11, padding: "2px 8px", borderRadius: 20, background: st.bg, color: st.color, fontWeight: 600 }}>{st.label}</span>
+                          <span className="badge muted">💶 €{(trip.budget||0).toLocaleString()}</span>
+                          {trip.checklist.length > 0 && <span className="badge muted">✓ {doneChecks}/{trip.checklist.length}</span>}
+                          <span style={{ fontSize: 11, color: "var(--blue)", fontFamily: "var(--mono)" }}>{daysUntil(trip.start)}</span>
+                        </div>
+                      </div>
+                    </div>
+                    <button className="btn xs danger" onClick={e => { e.stopPropagation(); deleteTrip(trip.id); }}><Icon name="trash" size={11} /></button>
+                  </div>
+                </div>
+              );
+            })}
+            {trips.length === 0 && (
+              <div style={{ color: "var(--t3)", fontSize: 13, textAlign: "center", padding: "32px 0" }}>No trips planned yet</div>
+            )}
+          </div>
+        </div>
+
+        {/* Trip detail */}
+        {selected && (
+          <div>
+            <div style={{ fontSize: 14, fontWeight: 700, color: "var(--t1)", marginBottom: 14 }}>{selected.emoji} {selected.name}</div>
+            <div className="card mb18">
+              <div className="card-header"><div className="card-title">Checklist</div>
+                <span className="badge green">{selected.checklist.filter(c=>c.done).length}/{selected.checklist.length}</span>
+              </div>
+              {selected.checklist.map(c => (
+                <div key={c.id} className="task-item" onClick={() => toggleCheck(selected.id, c.id)} style={{ cursor: "pointer" }}>
+                  <div className={`task-check${c.done ? " done" : ""}`}>
+                    {c.done && <Icon name="check" size={10} color="#fff" />}
+                  </div>
+                  <span className={`task-text${c.done ? " done" : ""}`}>{c.text}</span>
+                </div>
+              ))}
+            </div>
+
+            <div className="card mb18">
+              <div className="card-header"><div className="card-title">Budget</div></div>
+              <div className="fin-row">
+                <span style={{ fontSize: 13, color: "var(--t2)" }}>Total budget</span>
+                <span style={{ fontSize: 14, fontWeight: 700, fontFamily: "var(--mono)", color: "var(--t1)" }}>€{(selected.budget||0).toLocaleString()}</span>
+              </div>
+              <div className="fin-row">
+                <span style={{ fontSize: 13, color: "var(--t2)" }}>Spent so far</span>
+                <span style={{ fontSize: 14, fontWeight: 700, fontFamily: "var(--mono)", color: "var(--red)" }}>€{(selected.spent||0).toLocaleString()}</span>
+              </div>
+              <div className="fin-row">
+                <span style={{ fontSize: 13, color: "var(--t2)" }}>Remaining</span>
+                <span style={{ fontSize: 14, fontWeight: 700, fontFamily: "var(--mono)", color: "var(--grn)" }}>€{((selected.budget||0)-(selected.spent||0)).toLocaleString()}</span>
+              </div>
+              <div className="stat-bar" style={{ marginTop: 12 }}>
+                <div className="stat-fill red" style={{ width: `${Math.min(((selected.spent||0)/(selected.budget||1))*100,100)}%` }} />
+              </div>
+            </div>
+
+            {selected.notes && (
+              <div className="card" style={{ background: "rgba(59,130,246,0.05)", borderColor: "rgba(59,130,246,0.15)" }}>
+                <div className="card-title" style={{ marginBottom: 10 }}>Notes</div>
+                <div style={{ fontSize: 13, color: "var(--t2)", lineHeight: 1.7, whiteSpace: "pre-wrap" }}>{selected.notes}</div>
+              </div>
+            )}
+          </div>
+        )}
+      </div>
+    </div>
+  );
+}
+
 function PlaceholderPage({ label, emoji }) {
   return (
     <div className="page-body" style={{ display: "flex", alignItems: "center", justifyContent: "center", height: "100%", flexDirection: "column", gap: 16 }}>
@@ -1681,9 +2318,9 @@ export default function App() {
     if (page === "calendar")  return <Calendar initialDate={calDate} />;
     if (page === "career")    return <Career />;
     if (page === "finance")   return <Finance />;
-    if (page === "study")     return <PlaceholderPage label="Study & PMP" emoji="📚" />;
-    if (page === "travel")    return <PlaceholderPage label="Travel" emoji="✈️" />;
-    if (page === "pet")       return <PlaceholderPage label="Ozzy" emoji="🐾" />;
+    if (page === "study")     return <Study />;
+    if (page === "travel")    return <Travel />;
+    if (page === "pet")       return <Ozzy />;
     if (page === "settings")  return <PlaceholderPage label="Settings" emoji="⚙️" />;
   };
 
