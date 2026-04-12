@@ -1,39 +1,31 @@
-export const config = {
-  runtime: 'edge',
-};
+export default async function handler(req, res) {
+  res.setHeader("Access-Control-Allow-Origin", "*");
+  res.setHeader("Access-Control-Allow-Methods", "POST");
+  res.setHeader("Access-Control-Allow-Headers", "Content-Type");
 
-export default async function handler(req) {
-  if (req.method !== "POST") {
-    return new Response(JSON.stringify({ error: "Method not allowed" }), { status: 405 });
-  }
+  if (req.method === "OPTIONS") return res.status(200).end();
+  if (req.method !== "POST") return res.status(405).json({ error: "Method not allowed" });
 
   const apiKey = process.env.ANTHROPIC_API_KEY;
-  if (!apiKey) {
-    return new Response(JSON.stringify({ error: "API key not configured" }), { status: 500 });
-  }
+  if (!apiKey) return res.status(500).json({ error: "No API key" });
 
-  try {
-    const { messages, system } = await req.json();
+  const { messages, system } = req.body;
 
-    const response = await fetch("https://api.anthropic.com/v1/messages", {
-      method: "POST",
-      headers: {
-        "Content-Type":      "application/json",
-        "x-api-key":         apiKey,
-        "anthropic-version": "2023-06-01",
-      },
-      body: JSON.stringify({
-        model:      "claude-haiku-4-5-20251001",
-        max_tokens: 1000,
-        system,
-        messages,
-      }),
-    });
+  const r = await fetch("https://api.anthropic.com/v1/messages", {
+    method: "POST",
+    headers: {
+      "Content-Type": "application/json",
+      "x-api-key": apiKey,
+      "anthropic-version": "2023-06-01",
+    },
+    body: JSON.stringify({
+      model: "claude-haiku-4-5-20251001",
+      max_tokens: 500,
+      system,
+      messages,
+    }),
+  });
 
-    const data = await response.json();
-    return new Response(JSON.stringify(data), { status: response.status, headers: { "Content-Type": "application/json" } });
-
-  } catch (err) {
-    return new Response(JSON.stringify({ error: err.message }), { status: 500 });
-  }
+  const data = await r.json();
+  return res.status(r.status).json(data);
 }
