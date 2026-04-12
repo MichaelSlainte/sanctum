@@ -2407,8 +2407,12 @@ For everything else respond naturally in plain text. Be warm, concise, and perso
       const data = await response.json();
       const reply = data.content?.[0]?.text || "Sorry, I couldn't process that.";
 
+      // Clean up: extract JSON if wrapped in markdown code fences
+      const jsonMatch = reply.match(/```(?:json)?\s*(\{[\s\S]*?\})\s*```/);
+      const cleanReply = jsonMatch ? jsonMatch[1] : reply;
+
       try {
-        const action = JSON.parse(reply);
+        const action = JSON.parse(cleanReply);
         if (action.action === "add_task") {
           await onAddTask(action.text, action.tag || "");
           setMessages(prev => [...prev, { role: "assistant", text: `✓ Task added: "${action.text}"${action.tag ? ` [${action.tag}]` : ""}` }]);
@@ -2421,10 +2425,10 @@ For everything else respond naturally in plain text. Be warm, concise, and perso
           onNavigate(action.page);
           setMessages(prev => [...prev, { role: "assistant", text: `Opening ${action.page}...` }]);
         } else {
-          setMessages(prev => [...prev, { role: "assistant", text: reply }]);
+          setMessages(prev => [...prev, { role: "assistant", text: cleanReply }]);
         }
       } catch {
-        setMessages(prev => [...prev, { role: "assistant", text: reply }]);
+        setMessages(prev => [...prev, { role: "assistant", text: cleanReply }]);
       }
     } catch {
       setMessages(prev => [...prev, { role: "assistant", text: "Connection error. Try again." }]);
