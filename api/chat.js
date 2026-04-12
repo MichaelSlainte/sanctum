@@ -1,36 +1,39 @@
-export default async function handler(req, res) {
-    if (req.method !== "POST") {
-        return res.status(405).json({ error: "Method not allowed" });
-    }
+export const config = {
+  runtime: 'edge',
+};
 
-    const apiKey = process.env.ANTHROPIC_API_KEY;
-    if (!apiKey) {
-        return res.status(500).json({ error: "API key not configured" });
-    }
+export default async function handler(req) {
+  if (req.method !== "POST") {
+    return new Response(JSON.stringify({ error: "Method not allowed" }), { status: 405 });
+  }
 
-    try {
-        const { messages, system } = req.body;
+  const apiKey = process.env.ANTHROPIC_API_KEY;
+  if (!apiKey) {
+    return new Response(JSON.stringify({ error: "API key not configured" }), { status: 500 });
+  }
 
-        const response = await fetch("/api/chat", {
-            method: "POST",
-            headers: { "Content-Type": "application/json" },
-            body: JSON.stringify({
-                system: systemPrompt,
-                messages: [
-                    ...messages.map(m => ({ role: m.role, content: m.text })),
-                    { role: "user", content: userMsg }
-                ]
-            })
-        });
+  try {
+    const { messages, system } = await req.json();
 
-        const data = await response.json();
+    const response = await fetch("https://api.anthropic.com/v1/messages", {
+      method: "POST",
+      headers: {
+        "Content-Type":      "application/json",
+        "x-api-key":         apiKey,
+        "anthropic-version": "2023-06-01",
+      },
+      body: JSON.stringify({
+        model:      "claude-haiku-4-5-20251001",
+        max_tokens: 1000,
+        system,
+        messages,
+      }),
+    });
 
-        if (!response.ok) {
-            return res.status(response.status).json({ error: data.error?.message || "API error" });
-        }
+    const data = await response.json();
+    return new Response(JSON.stringify(data), { status: response.status, headers: { "Content-Type": "application/json" } });
 
-        return res.status(200).json(data);
-    } catch (err) {
-        return res.status(500).json({ error: "Server error: " + err.message });
-    }
+  } catch (err) {
+    return new Response(JSON.stringify({ error: err.message }), { status: 500 });
+  }
 }
