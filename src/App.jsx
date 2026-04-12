@@ -38,8 +38,10 @@ const sb = {
       const session = auth.getSession();
       const headers = { apikey: SUPABASE_KEY, "Content-Type": "application/json" };
       if (session) headers.Authorization = `Bearer ${session.token}`;
-      const res = await fetch(`${SUPABASE_URL}/rest/v1/${table}?select=${cols}${filters}`, { headers });
-      return res.json();
+      const res = await fetch(`${SUPABASE_URL}/rest/v1/${table}?select=${cols}&order=created_at.desc${filters}`, { headers });
+      if (!res.ok) return [];
+      const data = await res.json();
+      return Array.isArray(data) ? data : [];
     },
     insert: async (data) => {
       const session = auth.getSession();
@@ -530,7 +532,49 @@ const CSS = `
     box-shadow: 0 2px 8px rgba(59,130,246,0.3);
   }
 
-  /* ── Scrollbar ── */
+  /* ── Mobile responsive ── */
+  .bottom-nav {
+    display: none;
+    position: fixed; bottom: 0; left: 0; right: 0;
+    background: var(--bg1); border-top: 1px solid var(--b1);
+    padding: 8px 0 max(8px, env(safe-area-inset-bottom));
+    z-index: 100;
+    box-shadow: 0 -4px 24px rgba(0,0,0,0.3);
+  }
+  .bottom-nav-inner { display: flex; justify-content: space-around; align-items: center; }
+  .bottom-nav-item {
+    display: flex; flex-direction: column; align-items: center; gap: 3px;
+    padding: 6px 10px; border-radius: 10px; cursor: pointer;
+    color: var(--t3); font-size: 10px; font-weight: 600;
+    transition: all .15s; min-width: 52px; text-align: center;
+  }
+  .bottom-nav-item.active { color: var(--blue); }
+  .bottom-nav-item svg { width: 22px; height: 22px; }
+
+  @media (max-width: 768px) {
+    .sidebar { display: none; }
+    .bottom-nav { display: block; }
+    .page-body { padding: 16px; padding-bottom: 80px; }
+    .grid-4 { grid-template-columns: 1fr 1fr; }
+    .grid-3 { grid-template-columns: 1fr 1fr; }
+    .grid-2 { grid-template-columns: 1fr; }
+    .notes-shell { flex-direction: column; height: auto; min-height: calc(100vh - 56px - 70px); }
+    .notes-sidebar { width: 100%; min-width: unset; border-right: none; border-bottom: 1px solid var(--b1); max-height: 200px; overflow-x: auto; overflow-y: hidden; flex-direction: row; flex-wrap: nowrap; display: flex; }
+    .notes-list { width: 100%; min-width: unset; border-right: none; border-bottom: 1px solid var(--b1); max-height: 200px; }
+    .note-editor { min-height: 300px; }
+    .app-table th:nth-child(4), .app-table td:nth-child(4),
+    .app-table th:nth-child(5), .app-table td:nth-child(5) { display: none; }
+    .topbar { padding: 0 16px; }
+    .cal-cell { min-height: 60px; }
+    .cal-event { font-size: 9px; }
+    .modal { margin: 16px; max-width: calc(100vw - 32px); }
+  }
+
+  @media (max-width: 480px) {
+    .grid-4 { grid-template-columns: 1fr 1fr; }
+    .grid-3 { grid-template-columns: 1fr; }
+    .stat-value { font-size: 22px; }
+  }
   ::-webkit-scrollbar { width: 5px; height: 5px; }
   ::-webkit-scrollbar-track { background: transparent; }
   ::-webkit-scrollbar-thumb { background: var(--b2); border-radius: 3px; }
@@ -737,16 +781,9 @@ function Dashboard({ onNavigate, onGoToCalendarDay }) {
     setLoading(true);
     try {
       const data = await sb.from("tasks").select("*");
-      if (Array.isArray(data)) setTasks(data);
-      else throw new Error();
-    } catch {
-      setTasks([
-        { id: "t1", text: "Submit PMP application", tag: "PMP",    done: false },
-        { id: "t2", text: "Follow up — Google app",  tag: "Career", done: false },
-        { id: "t3", text: "Book Scotland Airbnb",    tag: "Travel", done: false },
-        { id: "t4", text: "Ozzy vet checkup",         tag: "Ozzy",   done: true  },
-      ]);
-    }
+      if (Array.isArray(data) && data.length > 0) setTasks(data);
+      else setTasks([]);
+    } catch { setTasks([]); }
     setLoading(false);
   };
 
@@ -1358,15 +1395,9 @@ function Career() {
     setLoading(true);
     try {
       const data = await sb.from("applications").select("*");
-      if (Array.isArray(data) && data.length) setApps(data);
-      else throw new Error();
-    } catch {
-      setApps([
-        { id: "a1", company: "Anthropic", role: "Copyright Ops PM",          status: "submitted", applied_date: "2026-03-10", notes: "Cover letter tailored — LEON migration" },
-        { id: "a2", company: "Google",    role: "Sr Analyst Trust & Safety",  status: "submitted", applied_date: "2026-03-15", notes: "EU HQ Dublin" },
-        { id: "a3", company: "Google",    role: "TPM Analytics EU",           status: "submitted", applied_date: "2026-03-18", notes: "TPM track" },
-      ]);
-    }
+      if (Array.isArray(data) && data.length > 0) setApps(data);
+      else setApps([]);
+    } catch { setApps([]); }
     setLoading(false);
   };
 
@@ -1493,20 +1524,9 @@ function Finance() {
     setLoading(true);
     try {
       const data = await sb.from("finance").select("*");
-      if (Array.isArray(data) && data.length) setEntries(data);
-      else throw new Error();
-    } catch {
-      setEntries([
-        { id: "f1", label: "BOI Mortgage",     amount: 1450, category: "mortgage",     month: "April 2026" },
-        { id: "f2", label: "Groceries",         amount: 320,  category: "expense",      month: "April 2026" },
-        { id: "f3", label: "Utilities",         amount: 180,  category: "expense",      month: "April 2026" },
-        { id: "f4", label: "Ozzy expenses",     amount: 120,  category: "expense",      month: "April 2026" },
-        { id: "f5", label: "Subscriptions",     amount: 65,   category: "subscription", month: "April 2026" },
-        { id: "f6", label: "AXA Car Insurance", amount: 121,  category: "insurance",    month: "April 2026" },
-        { id: "f7", label: "Salary",            amount: 5800, category: "income",       month: "April 2026" },
-        { id: "f8", label: "Savings",           amount: 500,  category: "savings",      month: "April 2026" },
-      ]);
-    }
+      if (Array.isArray(data) && data.length > 0) setEntries(data);
+      else setEntries([]);
+    } catch { setEntries([]); }
     setLoading(false);
   };
 
@@ -2326,6 +2346,14 @@ export default function App() {
 
   const today = new Date().toLocaleDateString("en-IE", { weekday: "short", day: "numeric", month: "short", year: "numeric" });
 
+  const BOTTOM_NAV = [
+    { id: "dashboard", label: "Home",     icon: "home"     },
+    { id: "notes",     label: "Notes",    icon: "notes"    },
+    { id: "calendar",  label: "Calendar", icon: "calendar" },
+    { id: "career",    label: "Career",   icon: "career"   },
+    { id: "finance",   label: "Finance",  icon: "finance"  },
+  ];
+
   return (
     <>
       <style>{CSS}</style>
@@ -2376,6 +2404,18 @@ export default function App() {
           {renderPage()}
         </div>
       </div>
+
+      {/* Mobile bottom nav */}
+      <nav className="bottom-nav">
+        <div className="bottom-nav-inner">
+          {BOTTOM_NAV.map(n => (
+            <div key={n.id} className={`bottom-nav-item${page === n.id ? " active" : ""}`} onClick={() => navigate(n.id)}>
+              <Icon name={n.icon} size={22} />
+              <span>{n.label}</span>
+            </div>
+          ))}
+        </div>
+      </nav>
     </>
   );
 }
