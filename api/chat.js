@@ -1,29 +1,17 @@
 import https from 'https';
 
 export default async function handler(req, res) {
-  // CORS headers — allow your Vercel domain
   res.setHeader('Access-Control-Allow-Origin', '*');
   res.setHeader('Access-Control-Allow-Methods', 'POST, OPTIONS');
   res.setHeader('Access-Control-Allow-Headers', 'Content-Type');
-
-  // Preflight
   if (req.method === 'OPTIONS') return res.status(200).end();
-
-  // Only POST allowed
-  if (req.method !== 'POST') {
-    return res.status(405).json({ error: 'Method not allowed' });
-  }
+  if (req.method !== 'POST') return res.status(405).json({ error: 'Method not allowed' });
 
   const apiKey = process.env.ANTHROPIC_API_KEY;
-  if (!apiKey) {
-    return res.status(500).json({ error: 'ANTHROPIC_API_KEY not set in Vercel environment variables' });
-  }
+  if (!apiKey) return res.status(500).json({ error: 'No API key' });
 
   const { messages, system } = req.body || {};
-
-  if (!messages || !Array.isArray(messages)) {
-    return res.status(400).json({ error: 'messages array required' });
-  }
+  if (!messages || !Array.isArray(messages)) return res.status(400).json({ error: 'messages array required' });
 
   const payload = JSON.stringify({
     model: 'claude-haiku-4-5-20251001',
@@ -33,7 +21,7 @@ export default async function handler(req, res) {
   });
 
   return new Promise((resolve) => {
-    const options = {
+    const req2 = https.request({
       hostname: 'api.anthropic.com',
       path: '/v1/messages',
       method: 'POST',
@@ -43,27 +31,17 @@ export default async function handler(req, res) {
         'anthropic-version': '2023-06-01',
         'Content-Length': Buffer.byteLength(payload),
       },
-    };
-
-    const apiReq = https.request(options, (apiRes) => {
+    }, (r) => {
       let data = '';
-      apiRes.on('data', (chunk) => { data += chunk; });
-      apiRes.on('end', () => {
-        try {
-          res.status(apiRes.statusCode).json(JSON.parse(data));
-        } catch {
-          res.status(500).json({ error: 'Invalid response from Anthropic API' });
-        }
+      r.on('data', c => { data += c; });
+      r.on('end', () => {
+        try { res.status(r.statusCode).json(JSON.parse(data)); }
+        catch { res.status(500).json({ error: 'Bad response' }); }
         resolve();
       });
     });
-
-    apiReq.on('error', (err) => {
-      res.status(500).json({ error: err.message });
-      resolve();
-    });
-
-    apiReq.write(payload);
-    apiReq.end();
+    req2.on('error', e => { res.status(500).json({ error: e.message }); resolve(); });
+    req2.write(payload);
+    req2.end();
   });
-};
+}
