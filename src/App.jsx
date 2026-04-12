@@ -22,7 +22,7 @@ const auth = {
   signOut: () => { localStorage.removeItem("sanctum_token"); localStorage.removeItem("sanctum_user"); },
   getSession: () => {
     const token = localStorage.getItem("sanctum_token");
-    const user  = localStorage.getItem("sanctum_user");
+    const user = localStorage.getItem("sanctum_user");
     if (token && user) return { token, user: JSON.parse(user) };
     return null;
   },
@@ -55,7 +55,7 @@ const sb = {
       const session = auth.getSession();
       const headers = { apikey: SUPABASE_KEY, "Content-Type": "application/json", Prefer: "return=representation" };
       if (session) headers.Authorization = `Bearer ${session.token}`;
-      const params = Object.entries(match).map(([k,v]) => `${k}=eq.${v}`).join("&");
+      const params = Object.entries(match).map(([k, v]) => `${k}=eq.${v}`).join("&");
       const res = await fetch(`${SUPABASE_URL}/rest/v1/${table}?${params}`, { method: "PATCH", headers, body: JSON.stringify(data) });
       return res.json();
     },
@@ -63,7 +63,7 @@ const sb = {
       const session = auth.getSession();
       const headers = { apikey: SUPABASE_KEY, "Content-Type": "application/json" };
       if (session) headers.Authorization = `Bearer ${session.token}`;
-      const params = Object.entries(match).map(([k,v]) => `${k}=eq.${v}`).join("&");
+      const params = Object.entries(match).map(([k, v]) => `${k}=eq.${v}`).join("&");
       const res = await fetch(`${SUPABASE_URL}/rest/v1/${table}?${params}`, { method: "DELETE", headers });
       return res.ok;
     }
@@ -589,27 +589,27 @@ const CSS = `
 const Icon = ({ name, size = 16, color = "currentColor" }) => {
   const s = { width: size, height: size, stroke: color, fill: "none", strokeWidth: 1.6, strokeLinecap: "round", strokeLinejoin: "round", flexShrink: 0 };
   const p = {
-    home:     <><path d="M3 9l9-7 9 7v11a2 2 0 01-2 2H5a2 2 0 01-2-2z"/><polyline points="9 22 9 12 15 12 15 22"/></>,
-    notes:    <><path d="M14 2H6a2 2 0 00-2 2v16a2 2 0 002 2h12a2 2 0 002-2V8z"/><polyline points="14 2 14 8 20 8"/><line x1="16" y1="13" x2="8" y2="13"/><line x1="16" y1="17" x2="8" y2="17"/></>,
-    calendar: <><rect x="3" y="4" width="18" height="18" rx="2"/><line x1="16" y1="2" x2="16" y2="6"/><line x1="8" y1="2" x2="8" y2="6"/><line x1="3" y1="10" x2="21" y2="10"/></>,
-    career:   <><rect x="2" y="7" width="20" height="14" rx="2"/><path d="M16 21V5a2 2 0 00-2-2h-4a2 2 0 00-2 2v16"/></>,
-    finance:  <><line x1="12" y1="1" x2="12" y2="23"/><path d="M17 5H9.5a3.5 3.5 0 000 7h5a3.5 3.5 0 010 7H6"/></>,
-    study:    <><path d="M2 3h6a4 4 0 014 4v14a3 3 0 00-3-3H2z"/><path d="M22 3h-6a4 4 0 00-4 4v14a3 3 0 013-3h7z"/></>,
-    travel:   <><path d="M21 10c0 7-9 13-9 13s-9-6-9-13a9 9 0 0118 0z"/><circle cx="12" cy="10" r="3"/></>,
-    pet:      <><path d="M20.84 4.61a5.5 5.5 0 00-7.78 0L12 5.67l-1.06-1.06a5.5 5.5 0 00-7.78 7.78l1.06 1.06L12 21.23l7.78-7.78 1.06-1.06a5.5 5.5 0 000-7.78z"/></>,
-    settings: <><circle cx="12" cy="12" r="3"/><path d="M19.4 15a1.65 1.65 0 00.33 1.82l.06.06a2 2 0 010 2.83 2 2 0 01-2.83 0l-.06-.06a1.65 1.65 0 00-1.82-.33 1.65 1.65 0 00-1 1.51V21a2 2 0 01-4 0v-.09A1.65 1.65 0 009 19.4a1.65 1.65 0 00-1.82.33l-.06.06a2 2 0 01-2.83-2.83l.06-.06A1.65 1.65 0 004.68 15a1.65 1.65 0 00-1.51-1H3a2 2 0 010-4h.09A1.65 1.65 0 004.6 9a1.65 1.65 0 00-.33-1.82l-.06-.06a2 2 0 012.83-2.83l.06.06A1.65 1.65 0 009 4.68a1.65 1.65 0 001-1.51V3a2 2 0 014 0v.09a1.65 1.65 0 001 1.51 1.65 1.65 0 001.82-.33l.06-.06a2 2 0 012.83 2.83l-.06.06A1.65 1.65 0 0019.4 9a1.65 1.65 0 001.51 1H21a2 2 0 010 4h-.09a1.65 1.65 0 00-1.51 1z"/></>,
-    plus:     <><line x1="12" y1="5" x2="12" y2="19"/><line x1="5" y1="12" x2="19" y2="12"/></>,
-    trash:    <><polyline points="3 6 5 6 21 6"/><path d="M19 6l-1 14a2 2 0 01-2 2H8a2 2 0 01-2-2L5 6"/><path d="M10 11v6M14 11v6M9 6V4a1 1 0 011-1h4a1 1 0 011 1v2"/></>,
-    lock:     <><rect x="3" y="11" width="18" height="11" rx="2"/><path d="M7 11V7a5 5 0 0110 0v4"/></>,
-    check:    <><polyline points="20 6 9 17 4 12"/></>,
-    x:        <><line x1="18" y1="6" x2="6" y2="18"/><line x1="6" y1="6" x2="18" y2="18"/></>,
-    chevL:    <><polyline points="15 18 9 12 15 6"/></>,
-    chevR:    <><polyline points="9 18 15 12 9 6"/></>,
-    logout:   <><path d="M9 21H5a2 2 0 01-2-2V5a2 2 0 012-2h4"/><polyline points="16 17 21 12 16 7"/><line x1="21" y1="12" x2="9" y2="12"/></>,
-    edit:     <><path d="M11 4H4a2 2 0 00-2 2v14a2 2 0 002 2h14a2 2 0 002-2v-7"/><path d="M18.5 2.5a2.121 2.121 0 013 3L12 15l-4 1 1-4 9.5-9.5z"/></>,
-    tag:      <><path d="M20.59 13.41l-7.17 7.17a2 2 0 01-2.83 0L2 12V2h10l8.59 8.59a2 2 0 010 2.82z"/><line x1="7" y1="7" x2="7.01" y2="7"/></>,
-    search:   <><circle cx="11" cy="11" r="8"/><line x1="21" y1="21" x2="16.65" y2="16.65"/></>,
-    ai:       <><path d="M12 2a10 10 0 110 20A10 10 0 0112 2z"/><path d="M12 8v4l3 3"/><circle cx="12" cy="12" r="1"/><path d="M16.24 7.76l-1.42 1.42M7.76 7.76l1.42 1.42M7.76 16.24l1.42-1.42M16.24 16.24l-1.42-1.42"/></>,
+    home: <><path d="M3 9l9-7 9 7v11a2 2 0 01-2 2H5a2 2 0 01-2-2z" /><polyline points="9 22 9 12 15 12 15 22" /></>,
+    notes: <><path d="M14 2H6a2 2 0 00-2 2v16a2 2 0 002 2h12a2 2 0 002-2V8z" /><polyline points="14 2 14 8 20 8" /><line x1="16" y1="13" x2="8" y2="13" /><line x1="16" y1="17" x2="8" y2="17" /></>,
+    calendar: <><rect x="3" y="4" width="18" height="18" rx="2" /><line x1="16" y1="2" x2="16" y2="6" /><line x1="8" y1="2" x2="8" y2="6" /><line x1="3" y1="10" x2="21" y2="10" /></>,
+    career: <><rect x="2" y="7" width="20" height="14" rx="2" /><path d="M16 21V5a2 2 0 00-2-2h-4a2 2 0 00-2 2v16" /></>,
+    finance: <><line x1="12" y1="1" x2="12" y2="23" /><path d="M17 5H9.5a3.5 3.5 0 000 7h5a3.5 3.5 0 010 7H6" /></>,
+    study: <><path d="M2 3h6a4 4 0 014 4v14a3 3 0 00-3-3H2z" /><path d="M22 3h-6a4 4 0 00-4 4v14a3 3 0 013-3h7z" /></>,
+    travel: <><path d="M21 10c0 7-9 13-9 13s-9-6-9-13a9 9 0 0118 0z" /><circle cx="12" cy="10" r="3" /></>,
+    pet: <><path d="M20.84 4.61a5.5 5.5 0 00-7.78 0L12 5.67l-1.06-1.06a5.5 5.5 0 00-7.78 7.78l1.06 1.06L12 21.23l7.78-7.78 1.06-1.06a5.5 5.5 0 000-7.78z" /></>,
+    settings: <><circle cx="12" cy="12" r="3" /><path d="M19.4 15a1.65 1.65 0 00.33 1.82l.06.06a2 2 0 010 2.83 2 2 0 01-2.83 0l-.06-.06a1.65 1.65 0 00-1.82-.33 1.65 1.65 0 00-1 1.51V21a2 2 0 01-4 0v-.09A1.65 1.65 0 009 19.4a1.65 1.65 0 00-1.82.33l-.06.06a2 2 0 01-2.83-2.83l.06-.06A1.65 1.65 0 004.68 15a1.65 1.65 0 00-1.51-1H3a2 2 0 010-4h.09A1.65 1.65 0 004.6 9a1.65 1.65 0 00-.33-1.82l-.06-.06a2 2 0 012.83-2.83l.06.06A1.65 1.65 0 009 4.68a1.65 1.65 0 001-1.51V3a2 2 0 014 0v.09a1.65 1.65 0 001 1.51 1.65 1.65 0 001.82-.33l.06-.06a2 2 0 012.83 2.83l-.06.06A1.65 1.65 0 0019.4 9a1.65 1.65 0 001.51 1H21a2 2 0 010 4h-.09a1.65 1.65 0 00-1.51 1z" /></>,
+    plus: <><line x1="12" y1="5" x2="12" y2="19" /><line x1="5" y1="12" x2="19" y2="12" /></>,
+    trash: <><polyline points="3 6 5 6 21 6" /><path d="M19 6l-1 14a2 2 0 01-2 2H8a2 2 0 01-2-2L5 6" /><path d="M10 11v6M14 11v6M9 6V4a1 1 0 011-1h4a1 1 0 011 1v2" /></>,
+    lock: <><rect x="3" y="11" width="18" height="11" rx="2" /><path d="M7 11V7a5 5 0 0110 0v4" /></>,
+    check: <><polyline points="20 6 9 17 4 12" /></>,
+    x: <><line x1="18" y1="6" x2="6" y2="18" /><line x1="6" y1="6" x2="18" y2="18" /></>,
+    chevL: <><polyline points="15 18 9 12 15 6" /></>,
+    chevR: <><polyline points="9 18 15 12 9 6" /></>,
+    logout: <><path d="M9 21H5a2 2 0 01-2-2V5a2 2 0 012-2h4" /><polyline points="16 17 21 12 16 7" /><line x1="21" y1="12" x2="9" y2="12" /></>,
+    edit: <><path d="M11 4H4a2 2 0 00-2 2v14a2 2 0 002 2h14a2 2 0 002-2v-7" /><path d="M18.5 2.5a2.121 2.121 0 013 3L12 15l-4 1 1-4 9.5-9.5z" /></>,
+    tag: <><path d="M20.59 13.41l-7.17 7.17a2 2 0 01-2.83 0L2 12V2h10l8.59 8.59a2 2 0 010 2.82z" /><line x1="7" y1="7" x2="7.01" y2="7" /></>,
+    search: <><circle cx="11" cy="11" r="8" /><line x1="21" y1="21" x2="16.65" y2="16.65" /></>,
+    ai: <><path d="M12 2a10 10 0 110 20A10 10 0 0112 2z" /><path d="M12 8v4l3 3" /><circle cx="12" cy="12" r="1" /><path d="M16.24 7.76l-1.42 1.42M7.76 7.76l1.42 1.42M7.76 16.24l1.42-1.42M16.24 16.24l-1.42-1.42" /></>,
   };
   return <svg viewBox="0 0 24 24" style={s}>{p[name]}</svg>;
 };
@@ -621,7 +621,7 @@ const NOTEBOOKS = [
     sections: [
       { id: "mortgage", label: "Mortgage & House" },
       { id: "expenses", label: "Monthly Expenses" },
-      { id: "goals",    label: "Financial Goals" },
+      { id: "goals", label: "Financial Goals" },
       { id: "investments", label: "Investments" },
     ]
   },
@@ -629,27 +629,27 @@ const NOTEBOOKS = [
     id: "travel", label: "Travel", emoji: "✈️", color: "#3b82f6", bg: "rgba(59,130,246,0.15)",
     sections: [
       { id: "scotland", label: "Scotland Sep 2026" },
-      { id: "italy",    label: "Italy Jun 2026" },
+      { id: "italy", label: "Italy Jun 2026" },
       { id: "wishlist", label: "Wish List" },
-      { id: "packing",  label: "Packing Lists" },
+      { id: "packing", label: "Packing Lists" },
     ]
   },
   {
     id: "career", label: "Career", emoji: "💼", color: "#f59e0b", bg: "rgba(245,158,11,0.15)",
     sections: [
       { id: "applications", label: "Applications" },
-      { id: "pmp",          label: "PMP Study" },
-      { id: "networking",   label: "Networking" },
-      { id: "interview",    label: "Interview Prep" },
+      { id: "pmp", label: "PMP Study" },
+      { id: "networking", label: "Networking" },
+      { id: "interview", label: "Interview Prep" },
     ]
   },
   {
     id: "personal", label: "Personal", emoji: "🌿", color: "#ec4899", bg: "rgba(236,72,153,0.15)",
     sections: [
-      { id: "health",  label: "Health & Fitness" },
+      { id: "health", label: "Health & Fitness" },
       { id: "reading", label: "Reading List" },
-      { id: "home",    label: "Home & House" },
-      { id: "ozzy",    label: "Ozzy 🐾" },
+      { id: "home", label: "Home & House" },
+      { id: "ozzy", label: "Ozzy 🐾" },
     ]
   },
   {
@@ -657,7 +657,7 @@ const NOTEBOOKS = [
     sections: [
       { id: "sanctum", label: "Sanctum App" },
       { id: "projects", label: "Projects" },
-      { id: "random",  label: "Random" },
+      { id: "random", label: "Random" },
     ]
   },
 ];
@@ -665,18 +665,18 @@ const NOTEBOOKS = [
 const STATUS_COLORS = { submitted: "blue", interview: "amber", offer: "green", rejected: "red", withdrawn: "muted" };
 const CAT_ICONS = {
   expense: { emoji: "💳", color: "#ef4444", bg: "rgba(239,68,68,0.15)" },
-  income:  { emoji: "💰", color: "#10b981", bg: "rgba(16,185,129,0.15)" },
-  mortgage:{ emoji: "🏠", color: "#3b82f6", bg: "rgba(59,130,246,0.15)" },
-  insurance:{ emoji: "🛡️", color: "#f59e0b", bg: "rgba(245,158,11,0.15)" },
-  subscription:{ emoji: "📱", color: "#8b5cf6", bg: "rgba(139,92,246,0.15)" },
+  income: { emoji: "💰", color: "#10b981", bg: "rgba(16,185,129,0.15)" },
+  mortgage: { emoji: "🏠", color: "#3b82f6", bg: "rgba(59,130,246,0.15)" },
+  insurance: { emoji: "🛡️", color: "#f59e0b", bg: "rgba(245,158,11,0.15)" },
+  subscription: { emoji: "📱", color: "#8b5cf6", bg: "rgba(139,92,246,0.15)" },
   savings: { emoji: "🏦", color: "#10b981", bg: "rgba(16,185,129,0.15)" },
 };
 const EVENT_COLORS = {
   personal: { color: "#3b82f6", bg: "rgba(59,130,246,0.2)" },
-  career:   { color: "#f59e0b", bg: "rgba(245,158,11,0.2)" },
-  travel:   { color: "#10b981", bg: "rgba(16,185,129,0.2)" },
-  study:    { color: "#8b5cf6", bg: "rgba(139,92,246,0.2)" },
-  family:   { color: "#ec4899", bg: "rgba(236,72,153,0.2)" },
+  career: { color: "#f59e0b", bg: "rgba(245,158,11,0.2)" },
+  travel: { color: "#10b981", bg: "rgba(16,185,129,0.2)" },
+  study: { color: "#8b5cf6", bg: "rgba(139,92,246,0.2)" },
+  family: { color: "#ec4899", bg: "rgba(236,72,153,0.2)" },
 };
 
 // ─── MODAL ───────────────────────────────────────────────────────────────────
@@ -701,11 +701,11 @@ function Modal({ title, onClose, children, wide }) {
 
 // ─── LOGIN ───────────────────────────────────────────────────────────────────
 function Login({ onLogin }) {
-  const [email, setEmail]       = useState("");
+  const [email, setEmail] = useState("");
   const [password, setPassword] = useState("");
-  const [error, setError]       = useState("");
-  const [loading, setLoading]   = useState(false);
-  const [mode, setMode]         = useState("login");
+  const [error, setError] = useState("");
+  const [loading, setLoading] = useState(false);
+  const [mode, setMode] = useState("login");
 
   const handle = async () => {
     if (!email || !password) return setError("Please enter your email and password.");
@@ -757,17 +757,17 @@ function Login({ onLogin }) {
 
 // ─── DASHBOARD ───────────────────────────────────────────────────────────────
 function Dashboard({ onNavigate, onGoToCalendarDay }) {
-  const [tasks, setTasks]     = useState([]);
+  const [tasks, setTasks] = useState([]);
   const [loading, setLoading] = useState(true);
   const [showAdd, setShowAdd] = useState(false);
   const [editingId, setEditingId] = useState(null);
-  const [editText, setEditText]   = useState("");
-  const [newTask, setNewTask]     = useState({ text: "", tag: "" });
-  const [events, setEvents]       = useState([]);
+  const [editText, setEditText] = useState("");
+  const [newTask, setNewTask] = useState({ text: "", tag: "" });
+  const [events, setEvents] = useState([]);
   const [showArchived, setShowArchived] = useState(false);
 
   const today = new Date();
-  const DAYS  = ["Mon","Tue","Wed","Thu","Fri","Sat","Sun"];
+  const DAYS = ["Mon", "Tue", "Wed", "Thu", "Fri", "Sat", "Sun"];
   const todayDow = today.getDay() === 0 ? 6 : today.getDay() - 1;
   const weekDates = DAYS.map((_, i) => {
     const d = new Date(today);
@@ -791,17 +791,17 @@ function Dashboard({ onNavigate, onGoToCalendarDay }) {
     try {
       const data = await sb.from("events").select("*");
       if (Array.isArray(data)) setEvents(data);
-    } catch {}
+    } catch { }
   };
 
   const toggleTask = async (t) => {
     setTasks(prev => prev.map(x => x.id === t.id ? { ...x, done: !x.done } : x));
-    try { await sb.from("tasks").update({ done: !t.done }, { id: t.id }); } catch {}
+    try { await sb.from("tasks").update({ done: !t.done }, { id: t.id }); } catch { }
   };
 
   const deleteTask = async (id) => {
     setTasks(prev => prev.filter(t => t.id !== id));
-    try { await sb.from("tasks").delete({ id }); } catch {}
+    try { await sb.from("tasks").delete({ id }); } catch { }
   };
 
   const startEdit = (t) => { setEditingId(t.id); setEditText(t.text); };
@@ -810,7 +810,7 @@ function Dashboard({ onNavigate, onGoToCalendarDay }) {
     if (!editText.trim()) return;
     setTasks(prev => prev.map(t => t.id === id ? { ...t, text: editText } : t));
     setEditingId(null);
-    try { await sb.from("tasks").update({ text: editText }, { id }); } catch {}
+    try { await sb.from("tasks").update({ text: editText }, { id }); } catch { }
   };
 
   const addTask = async () => {
@@ -825,12 +825,12 @@ function Dashboard({ onNavigate, onGoToCalendarDay }) {
   };
 
   const eventsOnDate = (date) => {
-    const ds = `${date.getFullYear()}-${String(date.getMonth()+1).padStart(2,"0")}-${String(date.getDate()).padStart(2,"0")}`;
+    const ds = `${date.getFullYear()}-${String(date.getMonth() + 1).padStart(2, "0")}-${String(date.getDate()).padStart(2, "0")}`;
     return events.filter(e => e.date === ds);
   };
 
   const done = tasks.filter(t => t.done).length;
-  const activeTasks   = tasks.filter(t => !t.done);
+  const activeTasks = tasks.filter(t => !t.done);
   const archivedTasks = tasks.filter(t => t.done);
 
   return (
@@ -838,10 +838,10 @@ function Dashboard({ onNavigate, onGoToCalendarDay }) {
       {showAdd && (
         <Modal title="Add task" onClose={() => setShowAdd(false)}>
           <div className="form-row"><label className="form-label">Task</label>
-            <input className="inp" value={newTask.text} onChange={e => setNewTask(n => ({...n, text: e.target.value}))}
+            <input className="inp" value={newTask.text} onChange={e => setNewTask(n => ({ ...n, text: e.target.value }))}
               placeholder="What needs doing?" onKeyDown={e => e.key === "Enter" && addTask()} autoFocus /></div>
           <div className="form-row"><label className="form-label">Tag</label>
-            <input className="inp" value={newTask.tag} onChange={e => setNewTask(n => ({...n, tag: e.target.value}))}
+            <input className="inp" value={newTask.tag} onChange={e => setNewTask(n => ({ ...n, tag: e.target.value }))}
               placeholder="Career, PMP, Travel..." /></div>
           <div className="modal-actions">
             <button className="btn" onClick={() => setShowAdd(false)}>Cancel</button>
@@ -869,7 +869,7 @@ function Dashboard({ onNavigate, onGoToCalendarDay }) {
                 <div className="day-name">{DAYS[i]}</div>
                 <div className="day-num">{date.getDate()}</div>
                 <div className="day-dots">
-                  {dayEvents.slice(0,3).map((ev, j) => (
+                  {dayEvents.slice(0, 3).map((ev, j) => (
                     <div key={j} className="day-dot" style={{ background: EVENT_COLORS[ev.category]?.color || "var(--blue)" }} />
                   ))}
                 </div>
@@ -1028,19 +1028,19 @@ function Dashboard({ onNavigate, onGoToCalendarDay }) {
 
 // ─── NOTES ───────────────────────────────────────────────────────────────────
 function Notes() {
-  const [activeNB, setActiveNB]     = useState("finance");
+  const [activeNB, setActiveNB] = useState("finance");
   const [activeSection, setSection] = useState("mortgage");
-  const [notes, setNotes]           = useState([]);
+  const [notes, setNotes] = useState([]);
   const [activeNote, setActiveNote] = useState(null);
-  const [editTitle, setEditTitle]   = useState("");
-  const [editBody, setEditBody]     = useState("");
-  const [editTags, setEditTags]     = useState("");
-  const [loading, setLoading]       = useState(false);
-  const [search, setSearch]         = useState("");
+  const [editTitle, setEditTitle] = useState("");
+  const [editBody, setEditBody] = useState("");
+  const [editTags, setEditTags] = useState("");
+  const [loading, setLoading] = useState(false);
+  const [search, setSearch] = useState("");
   const saveTimer = useRef(null);
 
   const notebook = NOTEBOOKS.find(n => n.id === activeNB);
-  const section  = notebook?.sections.find(s => s.id === activeSection);
+  const section = notebook?.sections.find(s => s.id === activeSection);
 
   useEffect(() => { loadNotes(); }, [activeSection]);
 
@@ -1065,18 +1065,18 @@ function Notes() {
   const autoSave = useCallback((id, title, body, tags) => {
     if (saveTimer.current) clearTimeout(saveTimer.current);
     saveTimer.current = setTimeout(async () => {
-      const updated = new Date().toISOString().slice(0,10);
+      const updated = new Date().toISOString().slice(0, 10);
       setNotes(prev => prev.map(n => n.id === id ? { ...n, title, body, tags, updated_at: updated } : n));
-      try { await sb.from("notes").update({ title, body, tags, updated_at: updated }, { id }); } catch {}
+      try { await sb.from("notes").update({ title, body, tags, updated_at: updated }, { id }); } catch { }
     }, 800);
   }, []);
 
   const onTitleChange = (v) => { setEditTitle(v); if (activeNote) autoSave(activeNote, v, editBody, editTags); };
-  const onBodyChange  = (v) => { setEditBody(v);  if (activeNote) autoSave(activeNote, editTitle, v, editTags); };
-  const onTagsChange  = (v) => { setEditTags(v);  if (activeNote) autoSave(activeNote, editTitle, editBody, v); };
+  const onBodyChange = (v) => { setEditBody(v); if (activeNote) autoSave(activeNote, editTitle, v, editTags); };
+  const onTagsChange = (v) => { setEditTags(v); if (activeNote) autoSave(activeNote, editTitle, editBody, v); };
 
   const newNote = async () => {
-    const note = { notebook: activeNB, section: activeSection, title: "Untitled", body: "", tags: "", updated_at: new Date().toISOString().slice(0,10) };
+    const note = { notebook: activeNB, section: activeSection, title: "Untitled", body: "", tags: "", updated_at: new Date().toISOString().slice(0, 10) };
     try {
       const res = await sb.from("notes").insert(note);
       const created = Array.isArray(res) && res[0] ? res[0] : { ...note, id: Date.now().toString() };
@@ -1091,7 +1091,7 @@ function Notes() {
     setNotes(remaining);
     if (remaining[0]) { setActiveNote(remaining[0].id); setEditTitle(remaining[0].title || ""); setEditBody(remaining[0].body || ""); setEditTags(remaining[0].tags || ""); }
     else { setActiveNote(null); setEditTitle(""); setEditBody(""); setEditTags(""); }
-    try { await sb.from("notes").delete({ id: activeNote }); } catch {}
+    try { await sb.from("notes").delete({ id: activeNote }); } catch { }
   };
 
   const selectSection = (sid, nbid) => {
@@ -1154,7 +1154,7 @@ function Notes() {
         {filteredNotes.map(n => (
           <div key={n.id} className={`note-list-item${activeNote === n.id ? " active" : ""}`} onClick={() => selectNote(n)}>
             <div className="nli-title">{n.title || "Untitled"}</div>
-            <div className="nli-preview">{(n.body || "").replace(/\n/g," ").slice(0,60) || "No content"}</div>
+            <div className="nli-preview">{(n.body || "").replace(/\n/g, " ").slice(0, 60) || "No content"}</div>
             {n.tags && (
               <div className="nli-tags">
                 {n.tags.split(",").filter(Boolean).map(tag => (
@@ -1209,21 +1209,21 @@ function Notes() {
 // ─── CALENDAR ────────────────────────────────────────────────────────────────
 function Calendar({ initialDate }) {
   const now = new Date();
-  const [year, setYear]   = useState(initialDate ? initialDate.getFullYear() : now.getFullYear());
+  const [year, setYear] = useState(initialDate ? initialDate.getFullYear() : now.getFullYear());
   const [month, setMonth] = useState(initialDate ? initialDate.getMonth() : now.getMonth());
   const [events, setEvents] = useState([]);
-  const [showAdd, setShowAdd]     = useState(false);
+  const [showAdd, setShowAdd] = useState(false);
   const [selectedDay, setSelectedDay] = useState(initialDate ? initialDate.getDate() : null);
-  const [newEvent, setNewEvent]   = useState({ title: "", category: "personal", time: "" });
-  const [viewMode, setViewMode]   = useState("month");
+  const [newEvent, setNewEvent] = useState({ title: "", category: "personal", time: "" });
+  const [viewMode, setViewMode] = useState("month");
 
-  const MONTHS = ["January","February","March","April","May","June","July","August","September","October","November","December"];
-  const CATS   = [
+  const MONTHS = ["January", "February", "March", "April", "May", "June", "July", "August", "September", "October", "November", "December"];
+  const CATS = [
     { id: "personal", label: "Personal", color: "#3b82f6" },
-    { id: "career",   label: "Career",   color: "#f59e0b" },
-    { id: "travel",   label: "Travel",   color: "#10b981" },
-    { id: "study",    label: "Study",    color: "#8b5cf6" },
-    { id: "family",   label: "Family",   color: "#ec4899" },
+    { id: "career", label: "Career", color: "#f59e0b" },
+    { id: "travel", label: "Travel", color: "#10b981" },
+    { id: "study", label: "Study", color: "#8b5cf6" },
+    { id: "family", label: "Family", color: "#ec4899" },
   ];
 
   useEffect(() => { loadEvents(); }, []);
@@ -1235,18 +1235,18 @@ function Calendar({ initialDate }) {
       else throw new Error();
     } catch {
       setEvents([
-        { id: "e1", title: "PMP Application due", date: "2026-04-15", category: "study",   color: "#8b5cf6" },
-        { id: "e2", title: "Italy trip begins",    date: "2026-06-12", category: "travel",  color: "#10b981" },
-        { id: "e3", title: "Scotland trip",        date: "2026-09-07", category: "travel",  color: "#10b981" },
-        { id: "e4", title: "MSc starts — SETU",    date: "2026-09-14", category: "study",   color: "#8b5cf6" },
-        { id: "e5", title: "Metallica Dublin",     date: "2026-06-20", category: "personal",color: "#3b82f6" },
+        { id: "e1", title: "PMP Application due", date: "2026-04-15", category: "study", color: "#8b5cf6" },
+        { id: "e2", title: "Italy trip begins", date: "2026-06-12", category: "travel", color: "#10b981" },
+        { id: "e3", title: "Scotland trip", date: "2026-09-07", category: "travel", color: "#10b981" },
+        { id: "e4", title: "MSc starts — SETU", date: "2026-09-14", category: "study", color: "#8b5cf6" },
+        { id: "e5", title: "Metallica Dublin", date: "2026-06-20", category: "personal", color: "#3b82f6" },
       ]);
     }
   };
 
   const addEvent = async () => {
     if (!newEvent.title.trim() || !selectedDay) return;
-    const dateStr = `${year}-${String(month+1).padStart(2,"0")}-${String(selectedDay).padStart(2,"0")}`;
+    const dateStr = `${year}-${String(month + 1).padStart(2, "0")}-${String(selectedDay).padStart(2, "0")}`;
     const cat = CATS.find(c => c.id === newEvent.category);
     const ev = { title: newEvent.title, date: dateStr, category: newEvent.category, color: cat?.color || "#3b82f6", time: newEvent.time };
     try {
@@ -1259,13 +1259,13 @@ function Calendar({ initialDate }) {
 
   const deleteEvent = async (id) => {
     setEvents(prev => prev.filter(e => e.id !== id));
-    try { await sb.from("events").delete({ id }); } catch {}
+    try { await sb.from("events").delete({ id }); } catch { }
   };
 
   // Build grid
   const firstDay = new Date(year, month, 1).getDay();
   const daysInMonth = new Date(year, month + 1, 0).getDate();
-  const daysInPrev  = new Date(year, month, 0).getDate();
+  const daysInPrev = new Date(year, month, 0).getDate();
   const startOffset = firstDay === 0 ? 6 : firstDay - 1;
   const cells = [];
   for (let i = startOffset - 1; i >= 0; i--) cells.push({ day: daysInPrev - i, current: false });
@@ -1274,7 +1274,7 @@ function Calendar({ initialDate }) {
 
   const eventsOnDay = (day) => {
     if (!day.current) return [];
-    const ds = `${year}-${String(month+1).padStart(2,"0")}-${String(day.day).padStart(2,"0")}`;
+    const ds = `${year}-${String(month + 1).padStart(2, "0")}-${String(day.day).padStart(2, "0")}`;
     return events.filter(e => e.date === ds);
   };
   const isToday = (day) => {
@@ -1282,27 +1282,27 @@ function Calendar({ initialDate }) {
     return day.current && year === t.getFullYear() && month === t.getMonth() && day.day === t.getDate();
   };
 
-  const prev = () => { if (month === 0) { setMonth(11); setYear(y => y-1); } else setMonth(m => m-1); };
-  const next = () => { if (month === 11) { setMonth(0); setYear(y => y+1); } else setMonth(m => m+1); };
+  const prev = () => { if (month === 0) { setMonth(11); setYear(y => y - 1); } else setMonth(m => m - 1); };
+  const next = () => { if (month === 11) { setMonth(0); setYear(y => y + 1); } else setMonth(m => m + 1); };
 
   const monthEvents = events.filter(e => {
     const [ey, em] = e.date.split("-").map(Number);
     return ey === year && em === month + 1;
-  }).sort((a,b) => a.date.localeCompare(b.date));
+  }).sort((a, b) => a.date.localeCompare(b.date));
 
   return (
     <div className="page-body animate-in">
       {showAdd && (
         <Modal title={`Add event — ${selectedDay} ${MONTHS[month]}`} onClose={() => setShowAdd(false)}>
           <div className="form-row"><label className="form-label">Title</label>
-            <input className="inp" value={newEvent.title} onChange={e => setNewEvent(n => ({...n, title: e.target.value}))}
+            <input className="inp" value={newEvent.title} onChange={e => setNewEvent(n => ({ ...n, title: e.target.value }))}
               placeholder="Event title" autoFocus onKeyDown={e => e.key === "Enter" && addEvent()} /></div>
           <div className="form-row"><label className="form-label">Category</label>
-            <select className="inp" value={newEvent.category} onChange={e => setNewEvent(n => ({...n, category: e.target.value}))}>
+            <select className="inp" value={newEvent.category} onChange={e => setNewEvent(n => ({ ...n, category: e.target.value }))}>
               {CATS.map(c => <option key={c.id} value={c.id}>{c.label}</option>)}
             </select></div>
           <div className="form-row"><label className="form-label">Time (optional)</label>
-            <input className="inp" type="time" value={newEvent.time} onChange={e => setNewEvent(n => ({...n, time: e.target.value}))} /></div>
+            <input className="inp" type="time" value={newEvent.time} onChange={e => setNewEvent(n => ({ ...n, time: e.target.value }))} /></div>
           <div className="modal-actions">
             <button className="btn" onClick={() => setShowAdd(false)}>Cancel</button>
             <button className="btn primary" onClick={addEvent}>Add event</button>
@@ -1330,7 +1330,7 @@ function Calendar({ initialDate }) {
         </div>
 
         <div className="cal-grid-header">
-          {["Mon","Tue","Wed","Thu","Fri","Sat","Sun"].map(d => <div key={d} className="cal-day-header">{d}</div>)}
+          {["Mon", "Tue", "Wed", "Thu", "Fri", "Sat", "Sun"].map(d => <div key={d} className="cal-day-header">{d}</div>)}
         </div>
         <div className="cal-grid">
           {cells.map((cell, i) => {
@@ -1340,7 +1340,7 @@ function Calendar({ initialDate }) {
                 onClick={() => { if (cell.current) { setSelectedDay(cell.day); setShowAdd(true); } }}>
                 <div className="cal-day-num">{cell.day}</div>
                 <div className="cal-events">
-                  {dayEvents.slice(0,3).map(ev => (
+                  {dayEvents.slice(0, 3).map(ev => (
                     <div key={ev.id} className="cal-event"
                       style={{ background: EVENT_COLORS[ev.category]?.bg || "rgba(59,130,246,0.2)", color: EVENT_COLORS[ev.category]?.color || "#3b82f6" }}
                       onClick={e => { e.stopPropagation(); if (window.confirm(`Delete "${ev.title}"?`)) deleteEvent(ev.id); }}>
@@ -1382,12 +1382,12 @@ function Calendar({ initialDate }) {
 
 // ─── CAREER ──────────────────────────────────────────────────────────────────
 function Career() {
-  const [apps, setApps]       = useState([]);
+  const [apps, setApps] = useState([]);
   const [loading, setLoading] = useState(true);
   const [showAdd, setShowAdd] = useState(false);
   const [showArchived, setShowArchived] = useState(false);
-  const [newApp, setNewApp]   = useState({ company: "", role: "", status: "submitted", applied_date: "", notes: "" });
-  const STATUSES = ["submitted","interview","offer","rejected","withdrawn"];
+  const [newApp, setNewApp] = useState({ company: "", role: "", status: "submitted", applied_date: "", notes: "" });
+  const STATUSES = ["submitted", "interview", "offer", "rejected", "withdrawn"];
 
   useEffect(() => { loadApps(); }, []);
 
@@ -1413,17 +1413,17 @@ function Career() {
 
   const updateStatus = async (id, status) => {
     setApps(prev => prev.map(a => a.id === id ? { ...a, status } : a));
-    try { await sb.from("applications").update({ status }, { id }); } catch {}
+    try { await sb.from("applications").update({ status }, { id }); } catch { }
   };
 
   const deleteApp = async (id) => {
     setApps(prev => prev.filter(a => a.id !== id));
-    try { await sb.from("applications").delete({ id }); } catch {}
+    try { await sb.from("applications").delete({ id }); } catch { }
   };
 
-  const activeApps   = apps.filter(a => !["rejected","withdrawn"].includes(a.status));
-  const archivedApps = apps.filter(a => ["rejected","withdrawn"].includes(a.status));
-  const active    = activeApps.length;
+  const activeApps = apps.filter(a => !["rejected", "withdrawn"].includes(a.status));
+  const archivedApps = apps.filter(a => ["rejected", "withdrawn"].includes(a.status));
+  const active = activeApps.length;
   const interviews = apps.filter(a => a.status === "interview").length;
 
   return (
@@ -1431,17 +1431,17 @@ function Career() {
       {showAdd && (
         <Modal title="Add application" onClose={() => setShowAdd(false)} wide>
           <div className="grid-2" style={{ gap: 12 }}>
-            <div className="form-row"><label className="form-label">Company</label><input className="inp" value={newApp.company} onChange={e => setNewApp(n => ({...n, company: e.target.value}))} autoFocus /></div>
-            <div className="form-row"><label className="form-label">Role</label><input className="inp" value={newApp.role} onChange={e => setNewApp(n => ({...n, role: e.target.value}))} /></div>
+            <div className="form-row"><label className="form-label">Company</label><input className="inp" value={newApp.company} onChange={e => setNewApp(n => ({ ...n, company: e.target.value }))} autoFocus /></div>
+            <div className="form-row"><label className="form-label">Role</label><input className="inp" value={newApp.role} onChange={e => setNewApp(n => ({ ...n, role: e.target.value }))} /></div>
           </div>
-          <div className="form-row"><label className="form-label">Applied date</label><input className="inp" type="date" value={newApp.applied_date} onChange={e => setNewApp(n => ({...n, applied_date: e.target.value}))} /></div>
-          <div className="form-row"><label className="form-label">Notes</label><textarea className="inp" value={newApp.notes} onChange={e => setNewApp(n => ({...n, notes: e.target.value}))} placeholder="Key notes, contacts, tailoring..." /></div>
+          <div className="form-row"><label className="form-label">Applied date</label><input className="inp" type="date" value={newApp.applied_date} onChange={e => setNewApp(n => ({ ...n, applied_date: e.target.value }))} /></div>
+          <div className="form-row"><label className="form-label">Notes</label><textarea className="inp" value={newApp.notes} onChange={e => setNewApp(n => ({ ...n, notes: e.target.value }))} placeholder="Key notes, contacts, tailoring..." /></div>
           <div className="modal-actions"><button className="btn" onClick={() => setShowAdd(false)}>Cancel</button><button className="btn primary" onClick={addApp}>Add application</button></div>
         </Modal>
       )}
 
       <div className="grid-3 mb18">
-        <div className="stat"><div className="stat-icon" style={{ background: "rgba(59,130,246,0.15)" }}>📨</div><div className="stat-label">Active</div><div className="stat-value">{active}</div><div className="stat-sub">In progress</div><div className="stat-bar"><div className="stat-fill" style={{ width: `${(active/Math.max(apps.length,1))*100}%` }} /></div></div>
+        <div className="stat"><div className="stat-icon" style={{ background: "rgba(59,130,246,0.15)" }}>📨</div><div className="stat-label">Active</div><div className="stat-value">{active}</div><div className="stat-sub">In progress</div><div className="stat-bar"><div className="stat-fill" style={{ width: `${(active / Math.max(apps.length, 1)) * 100}%` }} /></div></div>
         <div className="stat"><div className="stat-icon" style={{ background: "rgba(245,158,11,0.15)" }}>🎤</div><div className="stat-label">Interviews</div><div className="stat-value">{interviews}</div><div className="stat-sub">Scheduled or completed</div></div>
         <div className="stat"><div className="stat-icon" style={{ background: "rgba(16,185,129,0.15)" }}>📊</div><div className="stat-label">Total applied</div><div className="stat-value">{apps.length}</div><div className="stat-sub">All time</div></div>
       </div>
@@ -1516,7 +1516,7 @@ function Finance() {
   const [loading, setLoading] = useState(true);
   const [showAdd, setShowAdd] = useState(false);
   const [newEntry, setNewEntry] = useState({ label: "", amount: "", category: "expense", month: "April 2026" });
-  const CATS = ["expense","income","mortgage","insurance","subscription","savings"];
+  const CATS = ["expense", "income", "mortgage", "insurance", "subscription", "savings"];
 
   useEffect(() => { loadFinance(); }, []);
 
@@ -1543,12 +1543,12 @@ function Finance() {
 
   const deleteEntry = async (id) => {
     setEntries(prev => prev.filter(e => e.id !== id));
-    try { await sb.from("finance").delete({ id }); } catch {}
+    try { await sb.from("finance").delete({ id }); } catch { }
   };
 
-  const income   = entries.filter(e => e.category === "income").reduce((s, e) => s + Number(e.amount), 0);
+  const income = entries.filter(e => e.category === "income").reduce((s, e) => s + Number(e.amount), 0);
   const expenses = entries.filter(e => e.category !== "income").reduce((s, e) => s + Number(e.amount), 0);
-  const balance  = income - expenses;
+  const balance = income - expenses;
 
   // Group by category
   const grouped = CATS.filter(c => c !== "income").map(cat => ({
@@ -1559,13 +1559,13 @@ function Finance() {
     <div className="page-body animate-in">
       {showAdd && (
         <Modal title="Add entry" onClose={() => setShowAdd(false)}>
-          <div className="form-row"><label className="form-label">Label</label><input className="inp" value={newEntry.label} onChange={e => setNewEntry(n => ({...n, label: e.target.value}))} autoFocus /></div>
-          <div className="form-row"><label className="form-label">Amount (€)</label><input className="inp" type="number" value={newEntry.amount} onChange={e => setNewEntry(n => ({...n, amount: e.target.value}))} /></div>
+          <div className="form-row"><label className="form-label">Label</label><input className="inp" value={newEntry.label} onChange={e => setNewEntry(n => ({ ...n, label: e.target.value }))} autoFocus /></div>
+          <div className="form-row"><label className="form-label">Amount (€)</label><input className="inp" type="number" value={newEntry.amount} onChange={e => setNewEntry(n => ({ ...n, amount: e.target.value }))} /></div>
           <div className="form-row"><label className="form-label">Category</label>
-            <select className="inp" value={newEntry.category} onChange={e => setNewEntry(n => ({...n, category: e.target.value}))}>
+            <select className="inp" value={newEntry.category} onChange={e => setNewEntry(n => ({ ...n, category: e.target.value }))}>
               {CATS.map(c => <option key={c} value={c}>{c.charAt(0).toUpperCase() + c.slice(1)}</option>)}
             </select></div>
-          <div className="form-row"><label className="form-label">Month</label><input className="inp" value={newEntry.month} onChange={e => setNewEntry(n => ({...n, month: e.target.value}))} /></div>
+          <div className="form-row"><label className="form-label">Month</label><input className="inp" value={newEntry.month} onChange={e => setNewEntry(n => ({ ...n, month: e.target.value }))} /></div>
           <div className="modal-actions"><button className="btn" onClick={() => setShowAdd(false)}>Cancel</button><button className="btn primary" onClick={addEntry}>Add</button></div>
         </Modal>
       )}
@@ -1579,7 +1579,7 @@ function Finance() {
           <div className="stat-label">Balance</div>
           <div className="stat-value" style={{ color: balance >= 0 ? "var(--grn)" : "var(--red)" }}>€{balance.toLocaleString()}</div>
           <div className="stat-sub">After all expenses</div>
-          <div className="stat-bar"><div className={`stat-fill ${balance >= 0 ? "grn" : "red"}`} style={{ width: `${Math.min(Math.abs(balance/income)*100,100)}%` }} /></div>
+          <div className="stat-bar"><div className={`stat-fill ${balance >= 0 ? "grn" : "red"}`} style={{ width: `${Math.min(Math.abs(balance / income) * 100, 100)}%` }} /></div>
         </div>
       </div>
 
@@ -1635,28 +1635,28 @@ function Finance() {
 
 function Study() {
   const EXAM_DATE = new Date("2026-08-31");
-  const today     = new Date();
-  const daysLeft  = Math.ceil((EXAM_DATE - today) / (1000 * 60 * 60 * 24));
+  const today = new Date();
+  const daysLeft = Math.ceil((EXAM_DATE - today) / (1000 * 60 * 60 * 24));
   const weeklyGoal = 10; // hours
 
-  const [sessions, setSessions]   = useState([]);
-  const [showAdd, setShowAdd]     = useState(false);
+  const [sessions, setSessions] = useState([]);
+  const [showAdd, setShowAdd] = useState(false);
   const [showArchived, setShowArchived] = useState(false);
-  const [newSession, setNewSession] = useState({ topic: "", hours: "", notes: "", date: today.toISOString().slice(0,10) });
+  const [newSession, setNewSession] = useState({ topic: "", hours: "", notes: "", date: today.toISOString().slice(0, 10) });
 
   const TOPICS = [
-    { id: "integration",   label: "Integration Management",   icon: "🔗" },
-    { id: "scope",         label: "Scope Management",         icon: "📐" },
-    { id: "schedule",      label: "Schedule Management",      icon: "📅" },
-    { id: "cost",          label: "Cost Management",          icon: "💰" },
-    { id: "quality",       label: "Quality Management",       icon: "⭐" },
-    { id: "resource",      label: "Resource Management",      icon: "👥" },
-    { id: "communications",label: "Communications Management", icon: "📢" },
-    { id: "risk",          label: "Risk Management",          icon: "⚠️" },
-    { id: "procurement",   label: "Procurement Management",   icon: "📦" },
-    { id: "stakeholder",   label: "Stakeholder Management",   icon: "🤝" },
-    { id: "agile",         label: "Agile & Hybrid",           icon: "🔄" },
-    { id: "ethics",        label: "Ethics & Professional",    icon: "🎯" },
+    { id: "integration", label: "Integration Management", icon: "🔗" },
+    { id: "scope", label: "Scope Management", icon: "📐" },
+    { id: "schedule", label: "Schedule Management", icon: "📅" },
+    { id: "cost", label: "Cost Management", icon: "💰" },
+    { id: "quality", label: "Quality Management", icon: "⭐" },
+    { id: "resource", label: "Resource Management", icon: "👥" },
+    { id: "communications", label: "Communications Management", icon: "📢" },
+    { id: "risk", label: "Risk Management", icon: "⚠️" },
+    { id: "procurement", label: "Procurement Management", icon: "📦" },
+    { id: "stakeholder", label: "Stakeholder Management", icon: "🤝" },
+    { id: "agile", label: "Agile & Hybrid", icon: "🔄" },
+    { id: "ethics", label: "Ethics & Professional", icon: "🎯" },
   ];
 
   useEffect(() => {
@@ -1674,13 +1674,13 @@ function Study() {
     if (!newSession.topic || !newSession.hours) return;
     const session = { ...newSession, id: Date.now().toString(), hours: parseFloat(newSession.hours) };
     saveSessions([session, ...sessions]);
-    setNewSession({ topic: "", hours: "", notes: "", date: today.toISOString().slice(0,10) });
+    setNewSession({ topic: "", hours: "", notes: "", date: today.toISOString().slice(0, 10) });
     setShowAdd(false);
   };
 
   const deleteSession = (id) => saveSessions(sessions.filter(s => s.id !== id));
 
-  const totalHours  = sessions.reduce((s, x) => s + x.hours, 0);
+  const totalHours = sessions.reduce((s, x) => s + x.hours, 0);
   const targetHours = 150; // PMP recommended study hours
 
   // Hours this week
@@ -1705,7 +1705,7 @@ function Study() {
           <div className="grid-2" style={{ gap: 12 }}>
             <div className="form-row">
               <label className="form-label">Topic</label>
-              <select className="inp" value={newSession.topic} onChange={e => setNewSession(n => ({...n, topic: e.target.value}))}>
+              <select className="inp" value={newSession.topic} onChange={e => setNewSession(n => ({ ...n, topic: e.target.value }))}>
                 <option value="">Select topic...</option>
                 {TOPICS.map(t => <option key={t.id} value={t.id}>{t.icon} {t.label}</option>)}
               </select>
@@ -1713,17 +1713,17 @@ function Study() {
             <div className="form-row">
               <label className="form-label">Hours studied</label>
               <input className="inp" type="number" step="0.5" min="0.5" max="12"
-                value={newSession.hours} onChange={e => setNewSession(n => ({...n, hours: e.target.value}))}
+                value={newSession.hours} onChange={e => setNewSession(n => ({ ...n, hours: e.target.value }))}
                 placeholder="e.g. 1.5" />
             </div>
           </div>
           <div className="form-row">
             <label className="form-label">Date</label>
-            <input className="inp" type="date" value={newSession.date} onChange={e => setNewSession(n => ({...n, date: e.target.value}))} />
+            <input className="inp" type="date" value={newSession.date} onChange={e => setNewSession(n => ({ ...n, date: e.target.value }))} />
           </div>
           <div className="form-row">
             <label className="form-label">Notes (optional)</label>
-            <textarea className="inp" value={newSession.notes} onChange={e => setNewSession(n => ({...n, notes: e.target.value}))} placeholder="What did you cover? Key takeaways..." style={{ minHeight: 70 }} />
+            <textarea className="inp" value={newSession.notes} onChange={e => setNewSession(n => ({ ...n, notes: e.target.value }))} placeholder="What did you cover? Key takeaways..." style={{ minHeight: 70 }} />
           </div>
           <div className="modal-actions">
             <button className="btn" onClick={() => setShowAdd(false)}>Cancel</button>
@@ -1739,21 +1739,21 @@ function Study() {
           <div className="stat-label">Days to exam</div>
           <div className="stat-value" style={{ color: daysLeft < 60 ? "var(--red)" : daysLeft < 120 ? "var(--amber)" : "var(--t1)" }}>{daysLeft}</div>
           <div className="stat-sub">PMP — Aug 2026</div>
-          <div className="stat-bar"><div className="stat-fill red" style={{ width: `${Math.max(0, 100 - (daysLeft/365)*100)}%` }} /></div>
+          <div className="stat-bar"><div className="stat-fill red" style={{ width: `${Math.max(0, 100 - (daysLeft / 365) * 100)}%` }} /></div>
         </div>
         <div className="stat">
           <div className="stat-icon" style={{ background: "rgba(139,92,246,0.15)" }}>📚</div>
           <div className="stat-label">Total hours</div>
           <div className="stat-value">{totalHours.toFixed(1)}h</div>
           <div className="stat-sub">Target: {targetHours}h</div>
-          <div className="stat-bar"><div className="stat-fill" style={{ width: `${Math.min((totalHours/targetHours)*100, 100)}%` }} /></div>
+          <div className="stat-bar"><div className="stat-fill" style={{ width: `${Math.min((totalHours / targetHours) * 100, 100)}%` }} /></div>
         </div>
         <div className="stat">
           <div className="stat-icon" style={{ background: "rgba(16,185,129,0.15)" }}>📅</div>
           <div className="stat-label">This week</div>
           <div className="stat-value" style={{ color: thisWeekHours >= weeklyGoal ? "var(--grn)" : "var(--t1)" }}>{thisWeekHours.toFixed(1)}h</div>
           <div className="stat-sub">Goal: {weeklyGoal}h/week</div>
-          <div className="stat-bar"><div className="stat-fill grn" style={{ width: `${Math.min((thisWeekHours/weeklyGoal)*100, 100)}%` }} /></div>
+          <div className="stat-bar"><div className="stat-fill grn" style={{ width: `${Math.min((thisWeekHours / weeklyGoal) * 100, 100)}%` }} /></div>
         </div>
         <div className="stat">
           <div className="stat-icon" style={{ background: "rgba(245,158,11,0.15)" }}>🎯</div>
@@ -1804,7 +1804,7 @@ function Study() {
                   <div style={{ fontSize: 20 }}>{topic?.icon || "📖"}</div>
                   <div>
                     <div style={{ fontSize: 13, fontWeight: 600, color: "var(--t1)" }}>{topic?.label || s.topic}</div>
-                    <div style={{ fontSize: 11, color: "var(--t3)", fontFamily: "var(--mono)" }}>{s.date}{s.notes ? ` · ${s.notes.slice(0,40)}` : ""}</div>
+                    <div style={{ fontSize: 11, color: "var(--t3)", fontFamily: "var(--mono)" }}>{s.date}{s.notes ? ` · ${s.notes.slice(0, 40)}` : ""}</div>
                   </div>
                 </div>
                 <div style={{ display: "flex", alignItems: "center", gap: 10 }}>
@@ -1831,7 +1831,7 @@ function Study() {
             <div style={{ fontSize: 13, fontWeight: 600, color: "var(--t1)", marginBottom: 4 }}>Study plan to hit August</div>
             <div style={{ fontSize: 13, color: "var(--t2)", lineHeight: 1.6 }}>
               You need <strong style={{ color: "var(--purple)" }}>{Math.max(0, targetHours - totalHours).toFixed(0)}h</strong> more to reach the {targetHours}h target.
-              With {daysLeft} days left, that's <strong style={{ color: "var(--purple)" }}>{((targetHours - totalHours) / (daysLeft / 7)).toFixed(1)}h/week</strong> — 
+              With {daysLeft} days left, that's <strong style={{ color: "var(--purple)" }}>{((targetHours - totalHours) / (daysLeft / 7)).toFixed(1)}h/week</strong> —
               {((targetHours - totalHours) / (daysLeft / 7)) <= weeklyGoal ? " within your weekly goal. You're on track. 🎉" : " above your current goal. Consider increasing weekly hours."}
             </div>
           </div>
@@ -1844,10 +1844,10 @@ function Study() {
 function Ozzy() {
   const [showAdd, setShowAdd] = useState(false);
   const [activeTab, setActiveTab] = useState("overview");
-  const [vets, setVets]       = useState(() => JSON.parse(localStorage.getItem("sanctum_ozzy_vets") || "[]"));
-  const [newVet, setNewVet]   = useState({ date: "", type: "", notes: "", next_due: "" });
-  const [weight, setWeight]   = useState(() => JSON.parse(localStorage.getItem("sanctum_ozzy_weight") || "[]"));
-  const [newWeight, setNewWeight] = useState({ date: new Date().toISOString().slice(0,10), kg: "" });
+  const [vets, setVets] = useState(() => JSON.parse(localStorage.getItem("sanctum_ozzy_vets") || "[]"));
+  const [newVet, setNewVet] = useState({ date: "", type: "", notes: "", next_due: "" });
+  const [weight, setWeight] = useState(() => JSON.parse(localStorage.getItem("sanctum_ozzy_weight") || "[]"));
+  const [newWeight, setNewWeight] = useState({ date: new Date().toISOString().slice(0, 10), kg: "" });
   const [showAddWeight, setShowAddWeight] = useState(false);
 
   const saveVets = (v) => { setVets(v); localStorage.setItem("sanctum_ozzy_vets", JSON.stringify(v)); };
@@ -1863,16 +1863,16 @@ function Ozzy() {
   const addWeight = () => {
     if (!newWeight.kg) return;
     saveWeight([{ ...newWeight, id: Date.now().toString() }, ...weight]);
-    setNewWeight({ date: new Date().toISOString().slice(0,10), kg: "" });
+    setNewWeight({ date: new Date().toISOString().slice(0, 10), kg: "" });
     setShowAddWeight(false);
   };
 
-  const VET_TYPES = ["Annual checkup","Vaccination","Grooming","Dental","Emergency","Medication","Other"];
+  const VET_TYPES = ["Annual checkup", "Vaccination", "Grooming", "Dental", "Emergency", "Medication", "Other"];
 
   const tabs = [
-    { id: "overview",  label: "Overview",  emoji: "🐾" },
-    { id: "health",    label: "Health",    emoji: "🏥" },
-    { id: "diet",      label: "Diet",      emoji: "🍖" },
+    { id: "overview", label: "Overview", emoji: "🐾" },
+    { id: "health", label: "Health", emoji: "🏥" },
+    { id: "diet", label: "Diet", emoji: "🍖" },
     { id: "documents", label: "Documents", emoji: "📋" },
   ];
 
@@ -1881,24 +1881,24 @@ function Ozzy() {
       {showAdd && (
         <Modal title="Log vet visit" onClose={() => setShowAdd(false)} wide>
           <div className="grid-2" style={{ gap: 12 }}>
-            <div className="form-row"><label className="form-label">Date</label><input className="inp" type="date" value={newVet.date} onChange={e => setNewVet(n => ({...n, date: e.target.value}))} autoFocus /></div>
+            <div className="form-row"><label className="form-label">Date</label><input className="inp" type="date" value={newVet.date} onChange={e => setNewVet(n => ({ ...n, date: e.target.value }))} autoFocus /></div>
             <div className="form-row"><label className="form-label">Type</label>
-              <select className="inp" value={newVet.type} onChange={e => setNewVet(n => ({...n, type: e.target.value}))}>
+              <select className="inp" value={newVet.type} onChange={e => setNewVet(n => ({ ...n, type: e.target.value }))}>
                 <option value="">Select type...</option>
                 {VET_TYPES.map(t => <option key={t} value={t}>{t}</option>)}
               </select>
             </div>
           </div>
-          <div className="form-row"><label className="form-label">Next due</label><input className="inp" type="date" value={newVet.next_due} onChange={e => setNewVet(n => ({...n, next_due: e.target.value}))} /></div>
-          <div className="form-row"><label className="form-label">Notes</label><textarea className="inp" value={newVet.notes} onChange={e => setNewVet(n => ({...n, notes: e.target.value}))} placeholder="What was discussed, medications prescribed..." style={{ minHeight: 70 }} /></div>
+          <div className="form-row"><label className="form-label">Next due</label><input className="inp" type="date" value={newVet.next_due} onChange={e => setNewVet(n => ({ ...n, next_due: e.target.value }))} /></div>
+          <div className="form-row"><label className="form-label">Notes</label><textarea className="inp" value={newVet.notes} onChange={e => setNewVet(n => ({ ...n, notes: e.target.value }))} placeholder="What was discussed, medications prescribed..." style={{ minHeight: 70 }} /></div>
           <div className="modal-actions"><button className="btn" onClick={() => setShowAdd(false)}>Cancel</button><button className="btn primary" onClick={addVet}>Save</button></div>
         </Modal>
       )}
 
       {showAddWeight && (
         <Modal title="Log weight" onClose={() => setShowAddWeight(false)}>
-          <div className="form-row"><label className="form-label">Date</label><input className="inp" type="date" value={newWeight.date} onChange={e => setNewWeight(n => ({...n, date: e.target.value}))} /></div>
-          <div className="form-row"><label className="form-label">Weight (kg)</label><input className="inp" type="number" step="0.1" value={newWeight.kg} onChange={e => setNewWeight(n => ({...n, kg: e.target.value}))} placeholder="e.g. 28.5" autoFocus /></div>
+          <div className="form-row"><label className="form-label">Date</label><input className="inp" type="date" value={newWeight.date} onChange={e => setNewWeight(n => ({ ...n, date: e.target.value }))} /></div>
+          <div className="form-row"><label className="form-label">Weight (kg)</label><input className="inp" type="number" step="0.1" value={newWeight.kg} onChange={e => setNewWeight(n => ({ ...n, kg: e.target.value }))} placeholder="e.g. 28.5" autoFocus /></div>
           <div className="modal-actions"><button className="btn" onClick={() => setShowAddWeight(false)}>Cancel</button><button className="btn primary" onClick={addWeight}>Save</button></div>
         </Modal>
       )}
@@ -1921,7 +1921,7 @@ function Ozzy() {
           <div style={{ textAlign: "right", flexShrink: 0 }}>
             <div style={{ fontSize: 11, color: "var(--t3)", fontFamily: "var(--mono)", marginBottom: 4 }}>Age</div>
             <div style={{ fontSize: 28, fontWeight: 700, fontFamily: "var(--mono)", color: "var(--amber)" }}>
-              {Math.floor((new Date() - new Date("2025-11-01")) / (1000*60*60*24*30))}mo
+              {Math.floor((new Date() - new Date("2025-11-01")) / (1000 * 60 * 60 * 24 * 30))}mo
             </div>
           </div>
         </div>
@@ -1967,7 +1967,7 @@ function Ozzy() {
             {weight.length === 0 && (
               <div style={{ color: "var(--t3)", fontSize: 13, textAlign: "center", padding: "20px 0" }}>No weight logs yet</div>
             )}
-            {weight.slice(0,8).map(w => (
+            {weight.slice(0, 8).map(w => (
               <div key={w.id} className="fin-row">
                 <span style={{ fontSize: 12, color: "var(--t3)", fontFamily: "var(--mono)" }}>{w.date}</span>
                 <span style={{ fontSize: 14, fontWeight: 700, fontFamily: "var(--mono)", color: "var(--amber)" }}>{w.kg} kg</span>
@@ -2014,7 +2014,7 @@ function Ozzy() {
             {[
               { meal: "Morning", food: "Dry kibble", amount: "200g", time: "7:00am" },
               { meal: "Evening", food: "Dry kibble", amount: "200g", time: "6:00pm" },
-              { meal: "Treats",  food: "Low calorie treats", amount: "Max 50g", time: "During training" },
+              { meal: "Treats", food: "Low calorie treats", amount: "Max 50g", time: "During training" },
             ].map(m => (
               <div key={m.meal} className="fin-row">
                 <div>
@@ -2031,7 +2031,7 @@ function Ozzy() {
           </div>
           <div className="card">
             <div className="card-header"><div className="card-title">Foods to avoid 🚫</div></div>
-            {["Chocolate","Grapes & raisins","Onions & garlic","Macadamia nuts","Xylitol (sugar-free products)","Alcohol","Cooked bones","Avocado"].map(food => (
+            {["Chocolate", "Grapes & raisins", "Onions & garlic", "Macadamia nuts", "Xylitol (sugar-free products)", "Alcohol", "Cooked bones", "Avocado"].map(food => (
               <div key={food} style={{ display: "flex", alignItems: "center", gap: 10, padding: "8px 0", borderBottom: "1px solid var(--b1)" }}>
                 <span style={{ color: "var(--red)" }}>✕</span>
                 <span style={{ fontSize: 13, color: "var(--t2)" }}>{food}</span>
@@ -2046,9 +2046,9 @@ function Ozzy() {
           <div className="card-header"><div className="card-title">Documents & records</div></div>
           {[
             { label: "Vaccination certificate", status: "✅ Up to date", color: "var(--grn)" },
-            { label: "Microchip registration",  status: "✅ Registered", color: "var(--grn)" },
-            { label: "Pet insurance",            status: "✅ Active — €25/mo", color: "var(--grn)" },
-            { label: "Vet registration",         status: "✅ Registered", color: "var(--grn)" },
+            { label: "Microchip registration", status: "✅ Registered", color: "var(--grn)" },
+            { label: "Pet insurance", status: "✅ Active — €25/mo", color: "var(--grn)" },
+            { label: "Vet registration", status: "✅ Registered", color: "var(--grn)" },
             { label: "Passport (if travelling)", status: "⏳ Check requirements", color: "var(--amber)" },
           ].map(doc => (
             <div key={doc.label} className="fin-row">
@@ -2063,9 +2063,9 @@ function Ozzy() {
 }
 
 function Travel() {
-  const [showAdd, setShowAdd]   = useState(false);
+  const [showAdd, setShowAdd] = useState(false);
   const [activeTrip, setActiveTrip] = useState(null);
-  const [trips, setTrips]       = useState(() => JSON.parse(localStorage.getItem("sanctum_trips") || JSON.stringify([
+  const [trips, setTrips] = useState(() => JSON.parse(localStorage.getItem("sanctum_trips") || JSON.stringify([
     {
       id: "scotland-2026", name: "Scotland Road Trip", emoji: "🏴󠁧󠁢󠁳󠁣󠁴󠁿",
       start: "2026-09-07", end: "2026-09-13",
@@ -2117,13 +2117,13 @@ function Travel() {
 
   const STATUS_STYLE = {
     planning: { color: "var(--amber)", bg: "rgba(245,158,11,0.12)", label: "Planning" },
-    booked:   { color: "var(--blue)",  bg: "rgba(59,130,246,0.12)",  label: "Booked" },
-    ongoing:  { color: "var(--grn)",   bg: "rgba(16,185,129,0.12)",  label: "Ongoing" },
-    completed:{ color: "var(--t3)",    bg: "var(--bg3)",              label: "Completed" },
+    booked: { color: "var(--blue)", bg: "rgba(59,130,246,0.12)", label: "Booked" },
+    ongoing: { color: "var(--grn)", bg: "rgba(16,185,129,0.12)", label: "Ongoing" },
+    completed: { color: "var(--t3)", bg: "var(--bg3)", label: "Completed" },
   };
 
   const daysUntil = (dateStr) => {
-    const diff = Math.ceil((new Date(dateStr) - new Date()) / (1000*60*60*24));
+    const diff = Math.ceil((new Date(dateStr) - new Date()) / (1000 * 60 * 60 * 24));
     return diff > 0 ? `${diff}d away` : diff === 0 ? "Today!" : "Past";
   };
 
@@ -2134,18 +2134,18 @@ function Travel() {
       {showAdd && (
         <Modal title="Add trip" onClose={() => setShowAdd(false)} wide>
           <div className="grid-2" style={{ gap: 12 }}>
-            <div className="form-row"><label className="form-label">Trip name</label><input className="inp" value={newTrip.name} onChange={e => setNewTrip(n => ({...n, name: e.target.value}))} placeholder="Scotland Road Trip" autoFocus /></div>
-            <div className="form-row"><label className="form-label">Emoji</label><input className="inp" value={newTrip.emoji} onChange={e => setNewTrip(n => ({...n, emoji: e.target.value}))} placeholder="✈️" /></div>
+            <div className="form-row"><label className="form-label">Trip name</label><input className="inp" value={newTrip.name} onChange={e => setNewTrip(n => ({ ...n, name: e.target.value }))} placeholder="Scotland Road Trip" autoFocus /></div>
+            <div className="form-row"><label className="form-label">Emoji</label><input className="inp" value={newTrip.emoji} onChange={e => setNewTrip(n => ({ ...n, emoji: e.target.value }))} placeholder="✈️" /></div>
           </div>
           <div className="grid-2" style={{ gap: 12 }}>
-            <div className="form-row"><label className="form-label">Start date</label><input className="inp" type="date" value={newTrip.start} onChange={e => setNewTrip(n => ({...n, start: e.target.value}))} /></div>
-            <div className="form-row"><label className="form-label">End date</label><input className="inp" type="date" value={newTrip.end} onChange={e => setNewTrip(n => ({...n, end: e.target.value}))} /></div>
+            <div className="form-row"><label className="form-label">Start date</label><input className="inp" type="date" value={newTrip.start} onChange={e => setNewTrip(n => ({ ...n, start: e.target.value }))} /></div>
+            <div className="form-row"><label className="form-label">End date</label><input className="inp" type="date" value={newTrip.end} onChange={e => setNewTrip(n => ({ ...n, end: e.target.value }))} /></div>
           </div>
           <div className="grid-2" style={{ gap: 12 }}>
-            <div className="form-row"><label className="form-label">Budget (€)</label><input className="inp" type="number" value={newTrip.budget} onChange={e => setNewTrip(n => ({...n, budget: e.target.value}))} placeholder="2000" /></div>
-            <div className="form-row"><label className="form-label">Travellers</label><input className="inp" value={newTrip.travelers} onChange={e => setNewTrip(n => ({...n, travelers: e.target.value}))} placeholder="Michael, Tamara..." /></div>
+            <div className="form-row"><label className="form-label">Budget (€)</label><input className="inp" type="number" value={newTrip.budget} onChange={e => setNewTrip(n => ({ ...n, budget: e.target.value }))} placeholder="2000" /></div>
+            <div className="form-row"><label className="form-label">Travellers</label><input className="inp" value={newTrip.travelers} onChange={e => setNewTrip(n => ({ ...n, travelers: e.target.value }))} placeholder="Michael, Tamara..." /></div>
           </div>
-          <div className="form-row"><label className="form-label">Notes</label><textarea className="inp" value={newTrip.notes} onChange={e => setNewTrip(n => ({...n, notes: e.target.value}))} placeholder="Route ideas, accommodation notes..." style={{ minHeight: 70 }} /></div>
+          <div className="form-row"><label className="form-label">Notes</label><textarea className="inp" value={newTrip.notes} onChange={e => setNewTrip(n => ({ ...n, notes: e.target.value }))} placeholder="Route ideas, accommodation notes..." style={{ minHeight: 70 }} /></div>
           <div className="modal-actions"><button className="btn" onClick={() => setShowAdd(false)}>Cancel</button><button className="btn primary" onClick={addTrip}>Add trip</button></div>
         </Modal>
       )}
@@ -2161,8 +2161,8 @@ function Travel() {
         <div className="stat">
           <div className="stat-icon" style={{ background: "rgba(16,185,129,0.15)" }}>📅</div>
           <div className="stat-label">Next trip</div>
-          <div className="stat-value" style={{ fontSize: 18 }}>{trips.filter(t => t.status !== "completed").sort((a,b) => a.start.localeCompare(b.start))[0]?.name || "None"}</div>
-          <div className="stat-sub">{trips.filter(t => t.status !== "completed").sort((a,b) => a.start.localeCompare(b.start))[0] ? daysUntil(trips.filter(t => t.status !== "completed").sort((a,b) => a.start.localeCompare(b.start))[0].start) : ""}</div>
+          <div className="stat-value" style={{ fontSize: 18 }}>{trips.filter(t => t.status !== "completed").sort((a, b) => a.start.localeCompare(b.start))[0]?.name || "None"}</div>
+          <div className="stat-sub">{trips.filter(t => t.status !== "completed").sort((a, b) => a.start.localeCompare(b.start))[0] ? daysUntil(trips.filter(t => t.status !== "completed").sort((a, b) => a.start.localeCompare(b.start))[0].start) : ""}</div>
         </div>
         <div className="stat">
           <div className="stat-icon" style={{ background: "rgba(245,158,11,0.15)" }}>💶</div>
@@ -2203,7 +2203,7 @@ function Travel() {
                         </div>
                         <div style={{ display: "flex", gap: 8, alignItems: "center", flexWrap: "wrap" }}>
                           <span style={{ fontSize: 11, padding: "2px 8px", borderRadius: 20, background: st.bg, color: st.color, fontWeight: 600 }}>{st.label}</span>
-                          <span className="badge muted">💶 €{(trip.budget||0).toLocaleString()}</span>
+                          <span className="badge muted">💶 €{(trip.budget || 0).toLocaleString()}</span>
                           {trip.checklist.length > 0 && <span className="badge muted">✓ {doneChecks}/{trip.checklist.length}</span>}
                           <span style={{ fontSize: 11, color: "var(--blue)", fontFamily: "var(--mono)" }}>{daysUntil(trip.start)}</span>
                         </div>
@@ -2226,7 +2226,7 @@ function Travel() {
             <div style={{ fontSize: 14, fontWeight: 700, color: "var(--t1)", marginBottom: 14 }}>{selected.emoji} {selected.name}</div>
             <div className="card mb18">
               <div className="card-header"><div className="card-title">Checklist</div>
-                <span className="badge green">{selected.checklist.filter(c=>c.done).length}/{selected.checklist.length}</span>
+                <span className="badge green">{selected.checklist.filter(c => c.done).length}/{selected.checklist.length}</span>
               </div>
               {selected.checklist.map(c => (
                 <div key={c.id} className="task-item" onClick={() => toggleCheck(selected.id, c.id)} style={{ cursor: "pointer" }}>
@@ -2242,18 +2242,18 @@ function Travel() {
               <div className="card-header"><div className="card-title">Budget</div></div>
               <div className="fin-row">
                 <span style={{ fontSize: 13, color: "var(--t2)" }}>Total budget</span>
-                <span style={{ fontSize: 14, fontWeight: 700, fontFamily: "var(--mono)", color: "var(--t1)" }}>€{(selected.budget||0).toLocaleString()}</span>
+                <span style={{ fontSize: 14, fontWeight: 700, fontFamily: "var(--mono)", color: "var(--t1)" }}>€{(selected.budget || 0).toLocaleString()}</span>
               </div>
               <div className="fin-row">
                 <span style={{ fontSize: 13, color: "var(--t2)" }}>Spent so far</span>
-                <span style={{ fontSize: 14, fontWeight: 700, fontFamily: "var(--mono)", color: "var(--red)" }}>€{(selected.spent||0).toLocaleString()}</span>
+                <span style={{ fontSize: 14, fontWeight: 700, fontFamily: "var(--mono)", color: "var(--red)" }}>€{(selected.spent || 0).toLocaleString()}</span>
               </div>
               <div className="fin-row">
                 <span style={{ fontSize: 13, color: "var(--t2)" }}>Remaining</span>
-                <span style={{ fontSize: 14, fontWeight: 700, fontFamily: "var(--mono)", color: "var(--grn)" }}>€{((selected.budget||0)-(selected.spent||0)).toLocaleString()}</span>
+                <span style={{ fontSize: 14, fontWeight: 700, fontFamily: "var(--mono)", color: "var(--grn)" }}>€{((selected.budget || 0) - (selected.spent || 0)).toLocaleString()}</span>
               </div>
               <div className="stat-bar" style={{ marginTop: 12 }}>
-                <div className="stat-fill red" style={{ width: `${Math.min(((selected.spent||0)/(selected.budget||1))*100,100)}%` }} />
+                <div className="stat-fill red" style={{ width: `${Math.min(((selected.spent || 0) / (selected.budget || 1)) * 100, 100)}%` }} />
               </div>
             </div>
 
@@ -2283,8 +2283,8 @@ function PlaceholderPage({ label, emoji }) {
 // ─── SETTINGS ────────────────────────────────────────────────────────────────
 function Settings({ user, onLogout }) {
   const [displayName, setDisplayName] = useState(() => localStorage.getItem("sanctum_display_name") || "");
-  const [weeklyGoal, setWeeklyGoal]   = useState(() => localStorage.getItem("sanctum_weekly_goal") || "10");
-  const [saved, setSaved]             = useState(false);
+  const [weeklyGoal, setWeeklyGoal] = useState(() => localStorage.getItem("sanctum_weekly_goal") || "10");
+  const [saved, setSaved] = useState(false);
 
   const save = () => {
     localStorage.setItem("sanctum_display_name", displayName);
@@ -2300,7 +2300,7 @@ function Settings({ user, onLogout }) {
           <div className="card-header"><div className="card-title">Profile</div></div>
           <div style={{ display: "flex", alignItems: "center", gap: 16, marginBottom: 24 }}>
             <div style={{ width: 56, height: 56, borderRadius: "50%", background: "linear-gradient(135deg, var(--blue), var(--purple))", display: "flex", alignItems: "center", justifyContent: "center", fontSize: 20, color: "#fff", fontWeight: 700, fontFamily: "var(--mono)", flexShrink: 0 }}>
-              {(displayName || user?.email || "?").slice(0,2).toUpperCase()}
+              {(displayName || user?.email || "?").slice(0, 2).toUpperCase()}
             </div>
             <div>
               <div style={{ fontSize: 15, fontWeight: 700, color: "var(--t1)" }}>{displayName || "Set your name"}</div>
@@ -2321,11 +2321,11 @@ function Settings({ user, onLogout }) {
         <div className="card">
           <div className="card-header"><div className="card-title">Account</div></div>
           {[
-            { label: "Email",            value: user?.email },
-            { label: "Account created",  value: user?.created_at?.slice(0,10) || "—" },
-            { label: "Data location",    value: "EU — Frankfurt" },
-            { label: "Encryption",       value: "End-to-end" },
-            { label: "Plan",             value: "Personal" },
+            { label: "Email", value: user?.email },
+            { label: "Account created", value: user?.created_at?.slice(0, 10) || "—" },
+            { label: "Data location", value: "EU — Frankfurt" },
+            { label: "Encryption", value: "End-to-end" },
+            { label: "Plan", value: "Personal" },
           ].map(item => (
             <div key={item.label} className="fin-row">
               <span style={{ fontSize: 12, color: "var(--t3)", fontWeight: 600 }}>{item.label}</span>
@@ -2342,9 +2342,9 @@ function Settings({ user, onLogout }) {
         <div className="card-header"><div className="card-title">🔒 Privacy & Security</div></div>
         <div className="grid-3">
           {[
-            { icon: "🚫", title: "No ads. Ever.",      body: "Sanctum will never show ads or sell your data." },
+            { icon: "🚫", title: "No ads. Ever.", body: "Sanctum will never show ads or sell your data." },
             { icon: "🇪🇺", title: "EU data residency", body: "All data stored in Frankfurt, Germany. Fully GDPR compliant." },
-            { icon: "🔐", title: "Encrypted",           body: "Data encrypted in transit and at rest. We cannot read your notes." },
+            { icon: "🔐", title: "Encrypted", body: "Data encrypted in transit and at rest. We cannot read your notes." },
           ].map(item => (
             <div key={item.title} style={{ padding: 16, background: "var(--bg2)", borderRadius: 12, border: "1px solid var(--b1)" }}>
               <div style={{ fontSize: 24, marginBottom: 8 }}>{item.icon}</div>
@@ -2363,9 +2363,9 @@ function AIAssistant({ onAddTask, onNavigate }) {
   const [messages, setMessages] = useState([
     { role: "assistant", text: "Hi Michael! I'm your Sanctum AI. I can add tasks, log study sessions, or answer questions about your life. Try: \"add a task: call the vet\" or \"log 2 hours of PMP study on risk management\"." }
   ]);
-  const [input, setInput]     = useState("");
+  const [input, setInput] = useState("");
   const [loading, setLoading] = useState(false);
-  const bottomRef             = useRef(null);
+  const bottomRef = useRef(null);
 
   useEffect(() => { bottomRef.current?.scrollIntoView({ behavior: "smooth" }); }, [messages]);
 
@@ -2392,12 +2392,10 @@ Topic IDs for study: integration, scope, schedule, cost, quality, resource, comm
 
 For everything else respond naturally in plain text. Be warm, concise, and personal. You know Michael well.`;
 
-      const response = await fetch("https://api.anthropic.com/v1/messages", {
+      const response = await fetch("/api/chat", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({
-          model: "claude-sonnet-4-20250514",
-          max_tokens: 1000,
           system: systemPrompt,
           messages: [
             ...messages.map(m => ({ role: m.role, content: m.text })),
@@ -2416,7 +2414,7 @@ For everything else respond naturally in plain text. Be warm, concise, and perso
           setMessages(prev => [...prev, { role: "assistant", text: `✓ Task added: "${action.text}"${action.tag ? ` [${action.tag}]` : ""}` }]);
         } else if (action.action === "log_study") {
           const sessions = JSON.parse(localStorage.getItem("sanctum_study_sessions") || "[]");
-          const s = { id: Date.now().toString(), topic: action.topic, hours: action.hours, notes: action.notes || "", date: new Date().toISOString().slice(0,10) };
+          const s = { id: Date.now().toString(), topic: action.topic, hours: action.hours, notes: action.notes || "", date: new Date().toISOString().slice(0, 10) };
           localStorage.setItem("sanctum_study_sessions", JSON.stringify([s, ...sessions]));
           setMessages(prev => [...prev, { role: "assistant", text: `✓ Logged ${action.hours}h of study — ${action.topic}.` }]);
         } else if (action.action === "navigate") {
@@ -2491,25 +2489,25 @@ For everything else respond naturally in plain text. Be warm, concise, and perso
 
 // ─── NAV ─────────────────────────────────────────────────────────────────────
 const NAV = [
-  { id: "dashboard", label: "Dashboard", icon: "home",     group: "main" },
-  { id: "notes",     label: "Notes",     icon: "notes",    group: "main" },
-  { id: "calendar",  label: "Calendar",  icon: "calendar", group: "main" },
-  { id: "ai",        label: "AI",        icon: "ai",       group: "main" },
-  { id: "career",    label: "Career",    icon: "career",   group: "work" },
-  { id: "study",     label: "Study",     icon: "study",    group: "work" },
-  { id: "finance",   label: "Finance",   icon: "finance",  group: "life" },
-  { id: "travel",    label: "Travel",    icon: "travel",   group: "life" },
-  { id: "pet",       label: "Ozzy 🐾",   icon: "pet",      group: "life" },
-  { id: "settings",  label: "Settings",  icon: "settings", group: "system" },
+  { id: "dashboard", label: "Dashboard", icon: "home", group: "main" },
+  { id: "notes", label: "Notes", icon: "notes", group: "main" },
+  { id: "calendar", label: "Calendar", icon: "calendar", group: "main" },
+  { id: "ai", label: "AI", icon: "ai", group: "main" },
+  { id: "career", label: "Career", icon: "career", group: "work" },
+  { id: "study", label: "Study", icon: "study", group: "work" },
+  { id: "finance", label: "Finance", icon: "finance", group: "life" },
+  { id: "travel", label: "Travel", icon: "travel", group: "life" },
+  { id: "pet", label: "Ozzy 🐾", icon: "pet", group: "life" },
+  { id: "settings", label: "Settings", icon: "settings", group: "system" },
 ];
-const GROUPS = [{ key:"main", label:"Main" }, { key:"work", label:"Work" }, { key:"life", label:"Life" }, { key:"system", label:"System" }];
-const TITLES = { dashboard:"Dashboard", notes:"Notes", calendar:"Calendar", ai:"AI Assistant", career:"Career", study:"Study & PMP", finance:"Finance", travel:"Travel", pet:"Ozzy", settings:"Settings" };
+const GROUPS = [{ key: "main", label: "Main" }, { key: "work", label: "Work" }, { key: "life", label: "Life" }, { key: "system", label: "System" }];
+const TITLES = { dashboard: "Dashboard", notes: "Notes", calendar: "Calendar", ai: "AI Assistant", career: "Career", study: "Study & PMP", finance: "Finance", travel: "Travel", pet: "Ozzy", settings: "Settings" };
 
 // ─── APP ─────────────────────────────────────────────────────────────────────
 export default function App() {
-  const [user, setUser]         = useState(null);
+  const [user, setUser] = useState(null);
   const [checking, setChecking] = useState(true);
-  const [calDate, setCalDate]   = useState(null);
+  const [calDate, setCalDate] = useState(null);
 
   // Page persistence — save/restore from localStorage
   const [page, setPage] = useState(() => {
@@ -2532,44 +2530,44 @@ export default function App() {
     setChecking(false);
   }, []);
 
-  const handleLogin  = (u) => setUser(u);
+  const handleLogin = (u) => setUser(u);
   const handleLogout = () => { auth.signOut(); setUser(null); navigate("dashboard"); };
 
   if (checking) return null;
   if (!user) return <><style>{CSS}</style><Login onLogin={handleLogin} /></>;
 
-  const email    = user?.email || "";
+  const email = user?.email || "";
   const username = email.split("@")[0];
-  const initials = username.slice(0,2).toUpperCase();
+  const initials = username.slice(0, 2).toUpperCase();
 
   const addTaskFromAI = async (text, tag) => {
     const task = { text, tag, done: false };
     try {
       await sb.from("tasks").insert(task);
-    } catch {}
+    } catch { }
   };
 
   const renderPage = () => {
     if (page === "dashboard") return <Dashboard onNavigate={navigate} onGoToCalendarDay={goToCalendarDay} />;
-    if (page === "notes")     return <Notes />;
-    if (page === "calendar")  return <Calendar initialDate={calDate} />;
-    if (page === "ai")        return <AIAssistant onAddTask={addTaskFromAI} onNavigate={navigate} />;
-    if (page === "career")    return <Career />;
-    if (page === "finance")   return <Finance />;
-    if (page === "study")     return <Study />;
-    if (page === "travel")    return <Travel />;
-    if (page === "pet")       return <Ozzy />;
-    if (page === "settings")  return <Settings user={user} onLogout={handleLogout} />;
+    if (page === "notes") return <Notes />;
+    if (page === "calendar") return <Calendar initialDate={calDate} />;
+    if (page === "ai") return <AIAssistant onAddTask={addTaskFromAI} onNavigate={navigate} />;
+    if (page === "career") return <Career />;
+    if (page === "finance") return <Finance />;
+    if (page === "study") return <Study />;
+    if (page === "travel") return <Travel />;
+    if (page === "pet") return <Ozzy />;
+    if (page === "settings") return <Settings user={user} onLogout={handleLogout} />;
   };
 
   const today = new Date().toLocaleDateString("en-IE", { weekday: "short", day: "numeric", month: "short", year: "numeric" });
 
   const BOTTOM_NAV = [
-    { id: "dashboard", label: "Home",     icon: "home"     },
-    { id: "notes",     label: "Notes",    icon: "notes"    },
-    { id: "ai",        label: "AI",       icon: "ai"       },
-    { id: "calendar",  label: "Calendar", icon: "calendar" },
-    { id: "settings",  label: "Settings", icon: "settings" },
+    { id: "dashboard", label: "Home", icon: "home" },
+    { id: "notes", label: "Notes", icon: "notes" },
+    { id: "ai", label: "AI", icon: "ai" },
+    { id: "calendar", label: "Calendar", icon: "calendar" },
+    { id: "settings", label: "Settings", icon: "settings" },
   ];
 
   return (
