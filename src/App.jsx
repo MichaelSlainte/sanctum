@@ -718,14 +718,36 @@ function Login({ onLogin }) {
   const [loading, setLoading] = useState(false);
   const [mode, setMode] = useState("login");
 
+  const attempts = useRef(0);
+  const lockUntil = useRef(0);
+
   const handle = async () => {
+    if (Date.now() < lockUntil.current) {
+      const secs = Math.ceil((lockUntil.current - Date.now()) / 1000);
+      return setError(`Too many attempts. Try again in ${secs}s.`);
+    }
     if (!email || !password) return setError("Please enter your email and password.");
+    if (password.length < 8) return setError("Password must be at least 8 characters.");
     setLoading(true); setError("");
     try {
       const data = mode === "login" ? await auth.signIn(email, password) : await auth.signUp(email, password);
-      if (data.access_token) { auth.saveSession(data); onLogin(data.user); }
-      else if (data.id && mode === "signup") { setError("Account created. Check your email to confirm, then sign in."); setMode("login"); }
-      else setError(data.error_description || data.message || "Something went wrong.");
+      if (data.access_token) {
+        attempts.current = 0;
+        auth.saveSession(data);
+        onLogin(data.user);
+      } else if (data.id && mode === "signup") {
+        setError("Account created. Check your email to confirm, then sign in.");
+        setMode("login");
+      } else {
+        attempts.current += 1;
+        if (attempts.current >= 5) {
+          lockUntil.current = Date.now() + 30000;
+          attempts.current = 0;
+          setError("Too many failed attempts. Locked for 30 seconds.");
+        } else {
+          setError(data.error_description || data.message || "Invalid email or password.");
+        }
+      }
     } catch { setError("Connection error. Try again."); }
     setLoading(false);
   };
