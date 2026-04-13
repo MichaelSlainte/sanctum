@@ -777,7 +777,27 @@ function Login({ onLogin }) {
           {loading ? "Please wait..." : mode === "login" ? "Sign in" : "Create account"}
         </button>
         <div style={{ textAlign: "center", marginTop: 18, fontSize: 12, color: "var(--t3)" }}>
-          {mode === "login" ? "No account? " : "Already have one? "}
+          {mode === "login" && (
+          <div style={{ textAlign: "center", marginTop: 12 }}>
+            <button className="btn ghost" style={{ fontSize: 12, color: "var(--t3)", background: "none", border: "none", cursor: "pointer", textDecoration: "underline" }}
+              onClick={async () => {
+                if (!email) return setError("Enter your email address first, then click forgot password.");
+                setLoading(true); setError("");
+                try {
+                  const res = await fetch(`${SUPABASE_URL}/auth/v1/recover`, {
+                    method: "POST",
+                    headers: { apikey: SUPABASE_KEY, "Content-Type": "application/json" },
+                    body: JSON.stringify({ email })
+                  });
+                  if (res.ok) setError("✓ Password reset email sent. Check your inbox.");
+                  else setError("Could not send reset email. Check the address and try again.");
+                } catch { setError("Connection error. Try again."); }
+                setLoading(false);
+              }}>
+              Forgot password?
+            </button>
+          </div>
+        )}
           <span style={{ color: "var(--blue)", cursor: "pointer", fontWeight: 600 }}
             onClick={() => { setMode(mode === "login" ? "signup" : "login"); setError(""); }}>
             {mode === "login" ? "Create one" : "Sign in"}
