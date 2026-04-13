@@ -1049,7 +1049,7 @@ function Notes() {
     try {
       const data = await sb.from("notes").select("*");
       if (Array.isArray(data)) {
-        const filtered = data.filter(n => n.section === activeSection);
+        const filtered = activeSection ? data.filter(n => n.section === activeSection) : data;
         setNotes(filtered);
         if (filtered[0]) { setActiveNote(filtered[0].id); setEditTitle(filtered[0].title || ""); setEditBody(filtered[0].body || ""); setEditTags(filtered[0].tags || ""); }
         else { setActiveNote(null); setEditTitle(""); setEditBody(""); setEditTags(""); }
@@ -2415,7 +2415,7 @@ For everything else respond naturally in plain text. Be warm, concise, and perso
         const action = JSON.parse(cleanReply);
         if (action.action === "add_task") {
           await onAddTask(action.text, action.tag || "");
-          setMessages(prev => [...prev, { role: "assistant", text: `✓ Task added: "${action.text}"${action.tag ? ` [${action.tag}]` : ""}` }]);
+          setMessages(prev => [...prev, { role: "assistant", text: `✓ Task added: "${action.text}"${action.tag ? ` [${action.tag}]` : ""} — check your Dashboard` }]);
         } else if (action.action === "log_study") {
           const sessions = JSON.parse(localStorage.getItem("sanctum_study_sessions") || "[]");
           const s = { id: Date.now().toString(), topic: action.topic, hours: action.hours, notes: action.notes || "", date: new Date().toISOString().slice(0, 10) };
@@ -2547,7 +2547,10 @@ export default function App() {
   const addTaskFromAI = async (text, tag) => {
     const task = { text, tag, done: false };
     try {
-      await sb.from("tasks").insert(task);
+      const res = await sb.from("tasks").insert(task);
+      const created = Array.isArray(res) && res[0] ? res[0] : { ...task, id: Date.now().toString() };
+      // This won't update Dashboard state since AI is on a different page
+      // Task will appear on next Dashboard visit — this is expected
     } catch { }
   };
 
