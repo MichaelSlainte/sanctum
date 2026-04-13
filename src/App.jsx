@@ -23,12 +23,23 @@ const auth = {
   getSession: () => {
     const token = localStorage.getItem("sanctum_token");
     const user = localStorage.getItem("sanctum_user");
-    if (token && user) return { token, user: JSON.parse(user) };
+    const expiry = localStorage.getItem("sanctum_expiry");
+    if (token && user) {
+      if (expiry && Date.now() > parseInt(expiry)) {
+        localStorage.removeItem("sanctum_token");
+        localStorage.removeItem("sanctum_user");
+        localStorage.removeItem("sanctum_expiry");
+        return null;
+      }
+      return { token, user: JSON.parse(user) };
+    }
     return null;
   },
   saveSession: (data) => {
     localStorage.setItem("sanctum_token", data.access_token);
     localStorage.setItem("sanctum_user", JSON.stringify(data.user));
+    const expiry = Date.now() + (data.expires_in || 3600) * 1000;
+    localStorage.setItem("sanctum_expiry", expiry.toString());
   }
 };
 
