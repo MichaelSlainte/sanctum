@@ -19,7 +19,12 @@ const auth = {
     });
     return res.json();
   },
-  signOut: () => { localStorage.removeItem("sanctum_token"); localStorage.removeItem("sanctum_user"); },
+  signOut: () => {
+    localStorage.removeItem("sanctum_token");
+    localStorage.removeItem("sanctum_user");
+    localStorage.removeItem("sanctum_expiry");
+    localStorage.removeItem("sanctum_refresh");
+  },
   getSession: () => {
     const token = localStorage.getItem("sanctum_token");
     const user = localStorage.getItem("sanctum_user");
@@ -38,8 +43,23 @@ const auth = {
   saveSession: (data) => {
     localStorage.setItem("sanctum_token", data.access_token);
     localStorage.setItem("sanctum_user", JSON.stringify(data.user));
+    if (data.refresh_token) localStorage.setItem("sanctum_refresh", data.refresh_token);
     const expiry = Date.now() + (data.expires_in || 3600) * 1000;
     localStorage.setItem("sanctum_expiry", expiry.toString());
+  },
+  refreshSession: async () => {
+    const refresh = localStorage.getItem("sanctum_refresh");
+    if (!refresh) return false;
+    try {
+      const res = await fetch(`${SUPABASE_URL}/auth/v1/token?grant_type=refresh_token`, {
+        method: "POST",
+        headers: { apikey: SUPABASE_KEY, "Content-Type": "application/json" },
+        body: JSON.stringify({ refresh_token: refresh })
+      });
+      const data = await res.json();
+      if (data.access_token) { auth.saveSession(data); return true; }
+    } catch { }
+    return false;
   }
 };
 
@@ -778,26 +798,26 @@ function Login({ onLogin }) {
         </button>
         <div style={{ textAlign: "center", marginTop: 18, fontSize: 12, color: "var(--t3)" }}>
           {mode === "login" && (
-          <div style={{ textAlign: "center", marginTop: 12 }}>
-            <button className="btn ghost" style={{ fontSize: 12, color: "var(--t3)", background: "none", border: "none", cursor: "pointer", textDecoration: "underline" }}
-              onClick={async () => {
-                if (!email) return setError("Enter your email address first, then click forgot password.");
-                setLoading(true); setError("");
-                try {
-                  const res = await fetch(`${SUPABASE_URL}/auth/v1/recover`, {
-                    method: "POST",
-                    headers: { apikey: SUPABASE_KEY, "Content-Type": "application/json" },
-                    body: JSON.stringify({ email })
-                  });
-                  if (res.ok) setError("✓ Password reset email sent. Check your inbox.");
-                  else setError("Could not send reset email. Check the address and try again.");
-                } catch { setError("Connection error. Try again."); }
-                setLoading(false);
-              }}>
-              Forgot password?
-            </button>
-          </div>
-        )}
+            <div style={{ textAlign: "center", marginTop: 12 }}>
+              <button className="btn ghost" style={{ fontSize: 12, color: "var(--t3)", background: "none", border: "none", cursor: "pointer", textDecoration: "underline" }}
+                onClick={async () => {
+                  if (!email) return setError("Enter your email address first, then click forgot password.");
+                  setLoading(true); setError("");
+                  try {
+                    const res = await fetch(`${SUPABASE_URL}/auth/v1/recover`, {
+                      method: "POST",
+                      headers: { apikey: SUPABASE_KEY, "Content-Type": "application/json" },
+                      body: JSON.stringify({ email })
+                    });
+                    if (res.ok) setError("✓ Password reset email sent. Check your inbox.");
+                    else setError("Could not send reset email. Check the address and try again.");
+                  } catch { setError("Connection error. Try again."); }
+                  setLoading(false);
+                }}>
+                Forgot password?
+              </button>
+            </div>
+          )}
           <span style={{ color: "var(--blue)", cursor: "pointer", fontWeight: 600 }}
             onClick={() => { setMode(mode === "login" ? "signup" : "login"); setError(""); }}>
             {mode === "login" ? "Create one" : "Sign in"}
@@ -2582,9 +2602,23 @@ export default function App() {
   };
 
   useEffect(() => {
-    const session = auth.getSession();
-    if (session) setUser(session.user);
-    setChecking(false);
+    const init = async () => {
+      let session = auth.getSession();
+      if (!session) {
+        const refreshed = await auth.refreshSession();
+        if (refreshed) session = auth.getSession();
+      }
+      if (session) setUser(session.user);
+      setChecking(false);
+    };
+    init();
+    // Auto-refresh every 45 minutes
+    const interval = setInterval(async () => {
+      const session = auth.getSession();
+      const expiry = parseInt(localStorage.getItem("sanctum_expiry") || "0");
+      if (session && Date.now() > expiry - 300000) await auth.refreshSession();
+    }, 45 * 60 * 1000);
+    return () => clearInterval(interval);
   }, []);
 
   const handleLogin = (u) => setUser(u);
