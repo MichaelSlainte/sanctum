@@ -1,11 +1,35 @@
 import https from 'https';
 
+// Simple in-memory rate limiter — 20 requests per IP per 10 minutes
+const rateLimits = new Map();
+const WINDOW_MS = 10 * 60 * 1000;
+const MAX_REQUESTS = 20;
+
+function isRateLimited(ip) {
+  const now = Date.now();
+  const entry = rateLimits.get(ip) || { count: 0, start: now };
+  if (now - entry.start > WINDOW_MS) {
+    rateLimits.set(ip, { count: 1, start: now });
+    return false;
+  }
+  if (entry.count >= MAX_REQUESTS) return true;
+  entry.count++;
+  rateLimits.set(ip, entry);
+  return false;
+}
+
 export default async function handler(req, res) {
-  res.setHeader('Access-Control-Allow-Origin', '*');
+  res.setHeader('Access-Control-Allow-Origin', 'https://sanctum-beige.vercel.app');
   res.setHeader('Access-Control-Allow-Methods', 'POST, OPTIONS');
   res.setHeader('Access-Control-Allow-Headers', 'Content-Type');
   if (req.method === 'OPTIONS') return res.status(200).end();
   if (req.method !== 'POST') return res.status(405).json({ error: 'Method not allowed' });
+
+  // Rate limiting
+  const ip = req.headers['x-forwarded-for']?.split(',')[0] || req.socket?.remoteAddress || 'unknown';
+  if (isRateLimited(ip)) {
+    return res.status(429).json({ error: 'Too many requests. Try again in a few minutes.' });
+  }
 
   const apiKey = process.env.ANTHROPIC_API_KEY;
   if (!apiKey) return res.status(500).json({ error: 'No API key' });
