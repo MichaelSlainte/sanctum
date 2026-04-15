@@ -789,8 +789,29 @@ const CSS = `
   /* ── Drag-and-drop ── */
   .stat[draggable="true"] { cursor: grab; user-select: none; }
   .stat[draggable="true"]:active { cursor: grabbing; }
-  .stat.is-dragging { opacity: .35; transform: scale(0.97); }
+  .stat.is-dragging { opacity: .3; transform: scale(0.96); transition: opacity .15s, transform .15s; }
   .stat.drag-over { border-color: var(--blueb); background: rgba(59,130,246,0.12); transform: translateY(-3px) scale(1.01); box-shadow: 0 8px 28px rgba(59,130,246,0.18); }
+
+  .card[draggable="true"] { cursor: default; }
+  .card.is-dragging { opacity: .3; transform: scale(0.98); transition: opacity .15s, transform .15s; }
+  .card.drag-over { border-color: var(--blueb); background: rgba(59,130,246,0.07); box-shadow: 0 0 0 3px rgba(59,130,246,0.06); }
+
+  /* ── Drag handle ── */
+  .drag-handle {
+    display: flex; align-items: center; justify-content: center;
+    color: var(--t3); opacity: 0; transition: opacity .15s;
+    cursor: grab; border-radius: 6px; padding: 3px; flex-shrink: 0;
+  }
+  .drag-handle:active { cursor: grabbing; }
+  .stat:hover .drag-handle,
+  .card:hover .drag-handle,
+  .nav-item:hover .drag-handle { opacity: 0.45; }
+  .drag-handle:hover { opacity: 1 !important; color: var(--t2); background: rgba(255,255,255,0.06); }
+
+  /* Sidebar nav drag states */
+  .nav-item[draggable="true"] { cursor: default; }
+  .nav-item.is-dragging { opacity: .35; }
+  .nav-item.nav-drag-over { background: rgba(59,130,246,0.10) !important; border-color: var(--blueb) !important; }
 
   /* ── Animations ── */
   @keyframes fadeInUp { from { opacity: 0; transform: translateY(8px); } to { opacity: 1; transform: translateY(0); } }
@@ -823,6 +844,7 @@ const Icon = ({ name, size = 16, color = "currentColor" }) => {
     search: <><circle cx="11" cy="11" r="8" /><line x1="21" y1="21" x2="16.65" y2="16.65" /></>,
     ai: <><path d="M12 2a10 10 0 110 20A10 10 0 0112 2z" /><path d="M12 8v4l3 3" /><circle cx="12" cy="12" r="1" /><path d="M16.24 7.76l-1.42 1.42M7.76 7.76l1.42 1.42M7.76 16.24l1.42-1.42M16.24 16.24l-1.42-1.42" /></>,
     trackers: <><rect x="3" y="3" width="7" height="7" rx="1.5"/><rect x="14" y="3" width="7" height="7" rx="1.5"/><rect x="3" y="14" width="7" height="7" rx="1.5"/><rect x="14" y="14" width="7" height="7" rx="1.5"/></>,
+    grab: <><line x1="8" y1="7" x2="16" y2="7"/><line x1="8" y1="12" x2="16" y2="12"/><line x1="8" y1="17" x2="16" y2="17"/></>,
   };
   return <svg viewBox="0 0 24 24" style={s}>{p[name]}</svg>;
 };
@@ -3134,6 +3156,53 @@ function Home({ onNavigate, onGoToCalendarDay }) {
   };
   const onCardDragEnd = () => { setDragOver(null); setDragging(null); dragId.current = null; };
 
+  // Widget (card) ordering
+  const WIDGET_IDS = ["tasks", "week", "trackers"];
+  const [widgetOrder, setWidgetOrder] = useState(() => {
+    try {
+      const s = JSON.parse(localStorage.getItem("sanctum_home_widget_order"));
+      if (Array.isArray(s) && s.length === 3 && WIDGET_IDS.every(id => s.includes(id))) return s;
+    } catch {}
+    return WIDGET_IDS;
+  });
+  const [wDragOver, setWDragOver] = useState(null);
+  const [wDragging, setWDragging] = useState(null);
+  const wDragId = useRef(null);
+
+  const onWidgetDragStart = (e, id) => {
+    wDragId.current = id; setWDragging(id); e.dataTransfer.effectAllowed = "move";
+  };
+  const onWidgetDragOver = (e, id) => {
+    e.preventDefault(); e.dataTransfer.dropEffect = "move";
+    if (id !== wDragId.current) setWDragOver(id);
+  };
+  const onWidgetDragLeave = (e, id) => {
+    if (!e.currentTarget.contains(e.relatedTarget)) setWDragOver(prev => prev === id ? null : prev);
+  };
+  const onWidgetDrop = (e, id) => {
+    e.preventDefault();
+    if (!wDragId.current || wDragId.current === id) { setWDragOver(null); return; }
+    setWidgetOrder(prev => {
+      const next = [...prev];
+      const from = next.indexOf(wDragId.current), to = next.indexOf(id);
+      if (from === -1 || to === -1) return prev;
+      next.splice(from, 1); next.splice(to, 0, wDragId.current);
+      localStorage.setItem("sanctum_home_widget_order", JSON.stringify(next));
+      return next;
+    });
+    setWDragOver(null); setWDragging(null); wDragId.current = null;
+  };
+  const onWidgetDragEnd = () => { setWDragOver(null); setWDragging(null); wDragId.current = null; };
+
+  const wDrag = (id) => ({
+    draggable: true,
+    onDragStart: e => onWidgetDragStart(e, id),
+    onDragOver:  e => onWidgetDragOver(e, id),
+    onDragLeave: e => onWidgetDragLeave(e, id),
+    onDrop:      e => onWidgetDrop(e, id),
+    onDragEnd:   onWidgetDragEnd,
+  });
+
   const now = new Date();
   const hour = now.getHours();
   const greeting = hour < 12 ? "Good morning" : hour < 17 ? "Good afternoon" : "Good evening";
@@ -3336,6 +3405,7 @@ For everything else: plain text reply, warm and concise, max 2 sentences.`;
           };
           if (id === "pmp") return (
             <div key="pmp" className={cls} {...drag}>
+              <div className="drag-handle" style={{ position:"absolute", top:8, right:8 }}><Icon name="grab" size={12} /></div>
               <div className="stat-icon" style={{ background: "rgba(139,92,246,0.15)" }}><Icon name="study" size={18} color="var(--purple)" /></div>
               <div className="stat-label">PMP Exam</div>
               <div className="stat-value" style={{ color: daysToExam < 60 ? "var(--red)" : daysToExam < 120 ? "var(--amber)" : "var(--t1)" }}>{daysToExam}d</div>
@@ -3345,6 +3415,7 @@ For everything else: plain text reply, warm and concise, max 2 sentences.`;
           );
           if (id === "scotland") return (
             <div key="scotland" className={cls} {...drag}>
+              <div className="drag-handle" style={{ position:"absolute", top:8, right:8 }}><Icon name="grab" size={12} /></div>
               <div className="stat-icon" style={{ background: "rgba(59,130,246,0.15)" }}><Icon name="travel" size={18} color="var(--blue)" /></div>
               <div className="stat-label">Scotland trip</div>
               <div className="stat-value">{daysToScotland}d</div>
@@ -3354,6 +3425,7 @@ For everything else: plain text reply, warm and concise, max 2 sentences.`;
           );
           if (id === "msc") return (
             <div key="msc" className={cls} {...drag}>
+              <div className="drag-handle" style={{ position:"absolute", top:8, right:8 }}><Icon name="grab" size={12} /></div>
               <div className="stat-icon" style={{ background: "rgba(16,185,129,0.15)" }}><Icon name="lock" size={18} color="var(--grn)" /></div>
               <div className="stat-label">MSc Cybersecurity</div>
               <div className="stat-value">{daysToMSc}d</div>
@@ -3362,7 +3434,8 @@ For everything else: plain text reply, warm and concise, max 2 sentences.`;
             </div>
           );
           if (id === "tasks") return (
-            <div key="tasks" className={cls} {...drag} style={{ cursor: "grab" }} onClick={() => setShowAddTask(true)}>
+            <div key="tasks" className={cls} {...drag} onClick={() => setShowAddTask(true)}>
+              <div className="drag-handle" style={{ position:"absolute", top:8, right:8 }}><Icon name="grab" size={12} /></div>
               <div className="stat-icon" style={{ background: "rgba(245,158,11,0.15)" }}><Icon name="check" size={18} color="var(--amber)" /></div>
               <div className="stat-label">Active tasks</div>
               <div className="stat-value">{activeTasks.length}</div>
@@ -3374,76 +3447,87 @@ For everything else: plain text reply, warm and concise, max 2 sentences.`;
         })}
       </div>
 
-      {/* Tasks + Week + Shortcuts */}
-      <div className="grid-2">
-        {/* Tasks */}
-        <div className="card">
-          <div className="card-header">
-            <div>
-              <div className="card-title">Tasks</div>
-              <div className="card-sub">{activeTasks.length} active · {archivedTasks.length} done</div>
-            </div>
-            <button className="btn sm primary" onClick={() => setShowAddTask(true)}><Icon name="plus" size={13} /> Add</button>
-          </div>
-          {tasksLoading ? <div className="loading">Loading...</div> : (
-            <div>
-              {activeTasks.length === 0 && (
-                <div style={{ color: "var(--t3)", fontSize: 13, textAlign: "center", padding: "20px 0" }}>No active tasks 🎉</div>
-              )}
-              {activeTasks.map(t => (
-                <div key={t.id} className="task-item">
-                  <div className="task-check" onClick={() => toggleTask(t)} />
-                  <div className="task-content">
-                    {editingId === t.id ? (
-                      <input className="task-edit-input" value={editText}
-                        onChange={e => setEditText(e.target.value)}
-                        onBlur={() => saveEdit(t.id)}
-                        onKeyDown={e => { if (e.key === "Enter") saveEdit(t.id); if (e.key === "Escape") setEditingId(null); }}
-                        autoFocus />
-                    ) : (
-                      <div className="task-text">{t.text}</div>
-                    )}
-                    {t.tag && <div className="task-meta"><span className="task-tag">{t.tag}</span></div>}
-                  </div>
-                  <div className="task-actions">
-                    <button className="btn xs ghost" onClick={() => startEdit(t)}><Icon name="edit" size={12} /></button>
-                    <button className="btn xs danger" onClick={() => deleteTask(t.id)}><Icon name="trash" size={12} /></button>
-                  </div>
-                </div>
-              ))}
-              {archivedTasks.length > 0 && (
-                <div style={{ marginTop: 12 }}>
-                  <button className="btn sm ghost" style={{ width: "100%", justifyContent: "center", color: "var(--t3)", fontSize: 11 }}
-                    onClick={() => setShowArchived(s => !s)}>
-                    {showArchived ? "▲ Hide" : "▼ Show"} {archivedTasks.length} completed
-                  </button>
-                  {showArchived && archivedTasks.map(t => (
-                    <div key={t.id} className="task-item" style={{ opacity: .5 }}>
-                      <div className="task-check done" onClick={() => toggleTask(t)}><Icon name="check" size={10} color="#fff" /></div>
-                      <div className="task-content">
-                        <div className="task-text done">{t.text}</div>
-                        {t.tag && <div className="task-meta"><span className="task-tag">{t.tag}</span></div>}
-                      </div>
-                      <div className="task-actions">
-                        <button className="btn xs danger" onClick={() => deleteTask(t.id)}><Icon name="trash" size={12} /></button>
-                      </div>
-                    </div>
-                  ))}
-                </div>
-              )}
-            </div>
-          )}
-        </div>
+      {/* Tasks + Week + Trackers (drag to reorder) */}
+      {(() => {
+        const tasksCls  = `card${wDragging==="tasks"    ? " is-dragging" : ""}${wDragOver==="tasks"    ? " drag-over" : ""}`;
+        const weekCls   = `card${wDragging==="week"     ? " is-dragging" : ""}${wDragOver==="week"     ? " drag-over" : ""}`;
+        const trackersCls=`card${wDragging==="trackers" ? " is-dragging" : ""}${wDragOver==="trackers" ? " drag-over" : ""}`;
 
-        {/* Right column: week + tracker shortcuts */}
-        <div style={{ display: "flex", flexDirection: "column", gap: 18 }}>
-          <div className="card">
+        const tasksCard = (
+          <div key="tasks" className={tasksCls} {...wDrag("tasks")}>
+            <div className="card-header">
+              <div>
+                <div className="card-title">Tasks</div>
+                <div className="card-sub">{activeTasks.length} active · {archivedTasks.length} done</div>
+              </div>
+              <div style={{ display:"flex", alignItems:"center", gap:8 }}>
+                <div className="drag-handle"><Icon name="grab" size={14} /></div>
+                <button className="btn sm primary" onMouseDown={e=>e.stopPropagation()} onClick={() => setShowAddTask(true)}><Icon name="plus" size={13} /> Add</button>
+              </div>
+            </div>
+            {tasksLoading ? <div className="loading">Loading...</div> : (
+              <div>
+                {activeTasks.length === 0 && (
+                  <div style={{ color:"var(--t3)", fontSize:13, textAlign:"center", padding:"20px 0" }}>No active tasks yet</div>
+                )}
+                {activeTasks.map(t => (
+                  <div key={t.id} className="task-item">
+                    <div className="task-check" onClick={() => toggleTask(t)} />
+                    <div className="task-content">
+                      {editingId === t.id ? (
+                        <input className="task-edit-input" value={editText}
+                          onChange={e => setEditText(e.target.value)}
+                          onBlur={() => saveEdit(t.id)}
+                          onMouseDown={e => e.stopPropagation()}
+                          onKeyDown={e => { if (e.key==="Enter") saveEdit(t.id); if (e.key==="Escape") setEditingId(null); }}
+                          autoFocus />
+                      ) : (
+                        <div className="task-text">{t.text}</div>
+                      )}
+                      {t.tag && <div className="task-meta"><span className="task-tag">{t.tag}</span></div>}
+                    </div>
+                    <div className="task-actions">
+                      <button className="btn xs ghost" onMouseDown={e=>e.stopPropagation()} onClick={() => startEdit(t)}><Icon name="edit" size={12} /></button>
+                      <button className="btn xs danger" onMouseDown={e=>e.stopPropagation()} onClick={() => deleteTask(t.id)}><Icon name="trash" size={12} /></button>
+                    </div>
+                  </div>
+                ))}
+                {archivedTasks.length > 0 && (
+                  <div style={{ marginTop:12 }}>
+                    <button className="btn sm ghost" style={{ width:"100%", justifyContent:"center", color:"var(--t3)", fontSize:11 }}
+                      onMouseDown={e=>e.stopPropagation()} onClick={() => setShowArchived(s => !s)}>
+                      {showArchived ? "▲ Hide" : "▼ Show"} {archivedTasks.length} completed
+                    </button>
+                    {showArchived && archivedTasks.map(t => (
+                      <div key={t.id} className="task-item" style={{ opacity:.5 }}>
+                        <div className="task-check done" onClick={() => toggleTask(t)}><Icon name="check" size={10} color="#fff" /></div>
+                        <div className="task-content">
+                          <div className="task-text done">{t.text}</div>
+                          {t.tag && <div className="task-meta"><span className="task-tag">{t.tag}</span></div>}
+                        </div>
+                        <div className="task-actions">
+                          <button className="btn xs danger" onMouseDown={e=>e.stopPropagation()} onClick={() => deleteTask(t.id)}><Icon name="trash" size={12} /></button>
+                        </div>
+                      </div>
+                    ))}
+                  </div>
+                )}
+              </div>
+            )}
+          </div>
+        );
+
+        const weekCard = (
+          <div key="week" className={weekCls} {...wDrag("week")}>
             <div className="card-header">
               <div>
                 <div className="card-title">This week</div>
-                <div className="card-sub">{now.toLocaleDateString("en-IE", { month: "long", year: "numeric" })}</div>
+                <div className="card-sub">{now.toLocaleDateString("en-IE", { month:"long", year:"numeric" })}</div>
               </div>
-              <button className="btn sm" onClick={() => onNavigate("calendar")}>Full calendar</button>
+              <div style={{ display:"flex", alignItems:"center", gap:8 }}>
+                <div className="drag-handle"><Icon name="grab" size={14} /></div>
+                <button className="btn sm" onMouseDown={e=>e.stopPropagation()} onClick={() => onNavigate("calendar")}>Full calendar</button>
+              </div>
             </div>
             <div className="week-strip">
               {weekDates.map((date, i) => {
@@ -3451,11 +3535,11 @@ For everything else: plain text reply, warm and concise, max 2 sentences.`;
                 const isToday = i === todayDow;
                 return (
                   <div key={i} className={`day-cell${isToday ? " today" : ""}${dayEvents.length > 0 ? " has-event" : ""}`}
-                    onClick={() => onGoToCalendarDay(date)}>
+                    onMouseDown={e=>e.stopPropagation()} onClick={() => onGoToCalendarDay(date)}>
                     <div className="day-name">{DAYS[i]}</div>
                     <div className="day-num">{date.getDate()}</div>
                     <div className="day-dots">
-                      {dayEvents.slice(0, 3).map((ev, j) => (
+                      {dayEvents.slice(0,3).map((ev,j) => (
                         <div key={j} className="day-dot" style={{ background: EVENT_COLORS[ev.category]?.color || "var(--blue)" }} />
                       ))}
                     </div>
@@ -3464,32 +3548,48 @@ For everything else: plain text reply, warm and concise, max 2 sentences.`;
               })}
             </div>
           </div>
+        );
 
-          <div className="card">
+        const trackersCard = (
+          <div key="trackers" className={trackersCls} {...wDrag("trackers")}>
             <div className="card-header">
               <div className="card-title">Trackers</div>
-              <button className="btn sm" onClick={() => onNavigate("trackers")}>See all</button>
+              <div style={{ display:"flex", alignItems:"center", gap:8 }}>
+                <div className="drag-handle"><Icon name="grab" size={14} /></div>
+                <button className="btn sm" onMouseDown={e=>e.stopPropagation()} onClick={() => onNavigate("trackers")}>See all</button>
+              </div>
             </div>
-            <div className="grid-2" style={{ gap: 10 }}>
+            <div className="grid-2" style={{ gap:10 }}>
               {[
-                { id: "study",   icon: "study",   color: "var(--purple)", label: "Study",   sub: "PMP progress" },
-                { id: "career",  icon: "career",  color: "var(--amber)",  label: "Career",  sub: "Applications" },
-                { id: "finance", icon: "finance", color: "var(--grn)",    label: "Finance", sub: "Monthly budget" },
-                { id: "pet",     icon: "pet",     color: "var(--pink)",   label: "Ozzy",    sub: "Golden Retriever" },
+                { id:"study",   icon:"study",   color:"var(--purple)", label:"Study",   sub:"PMP progress" },
+                { id:"career",  icon:"career",  color:"var(--amber)",  label:"Career",  sub:"Applications" },
+                { id:"finance", icon:"finance", color:"var(--grn)",    label:"Finance", sub:"Monthly budget" },
+                { id:"pet",     icon:"pet",     color:"var(--pink)",   label:"Ozzy",    sub:"Golden Retriever" },
               ].map(item => (
-                <div key={item.id} onClick={() => onNavigate(item.id)}
-                  style={{ background: "rgba(255,255,255,0.03)", border: "1px solid rgba(255,255,255,0.06)", borderRadius: 12, padding: "14px 16px", cursor: "pointer", transition: "all .2s" }}
-                  onMouseEnter={e => { e.currentTarget.style.borderColor = "rgba(59,130,246,0.4)"; e.currentTarget.style.background = "rgba(59,130,246,0.06)"; }}
-                  onMouseLeave={e => { e.currentTarget.style.borderColor = "rgba(255,255,255,0.06)"; e.currentTarget.style.background = "rgba(255,255,255,0.03)"; }}>
-                  <div style={{ marginBottom: 8 }}><Icon name={item.icon} size={20} color={item.color} /></div>
-                  <div style={{ fontSize: 13, fontWeight: 600, color: "var(--t1)", marginBottom: 2 }}>{item.label}</div>
-                  <div style={{ fontSize: 11, color: "var(--t3)" }}>{item.sub}</div>
+                <div key={item.id} onMouseDown={e=>e.stopPropagation()} onClick={() => onNavigate(item.id)}
+                  style={{ background:"rgba(255,255,255,0.03)", border:"1px solid rgba(255,255,255,0.06)", borderRadius:12, padding:"14px 16px", cursor:"pointer", transition:"all .2s" }}
+                  onMouseEnter={e=>{ e.currentTarget.style.borderColor="rgba(59,130,246,0.4)"; e.currentTarget.style.background="rgba(59,130,246,0.06)"; }}
+                  onMouseLeave={e=>{ e.currentTarget.style.borderColor="rgba(255,255,255,0.06)"; e.currentTarget.style.background="rgba(255,255,255,0.03)"; }}>
+                  <div style={{ marginBottom:8 }}><Icon name={item.icon} size={20} color={item.color} /></div>
+                  <div style={{ fontSize:13, fontWeight:600, color:"var(--t1)", marginBottom:2 }}>{item.label}</div>
+                  <div style={{ fontSize:11, color:"var(--t3)" }}>{item.sub}</div>
                 </div>
               ))}
             </div>
           </div>
-        </div>
-      </div>
+        );
+
+        const widgetMap = { tasks: tasksCard, week: weekCard, trackers: trackersCard };
+        return (
+          <div className="grid-2">
+            {widgetMap[widgetOrder[0]]}
+            <div style={{ display:"flex", flexDirection:"column", gap:18 }}>
+              {widgetMap[widgetOrder[1]]}
+              {widgetMap[widgetOrder[2]]}
+            </div>
+          </div>
+        );
+      })()}
     </div>
   );
 }
@@ -3527,6 +3627,44 @@ export default function App() {
     const saved = localStorage.getItem("sanctum_page");
     return TRACKER_PAGES.includes(saved) ? saved : null;
   });
+
+  // Sidebar nav ordering
+  const NAV_IDS = NAV.map(n => n.id);
+  const [navOrder, setNavOrder] = useState(() => {
+    try {
+      const s = JSON.parse(localStorage.getItem("sanctum_nav_order"));
+      if (Array.isArray(s) && s.length === NAV_IDS.length && NAV_IDS.every(id => s.includes(id))) return s;
+    } catch {}
+    return NAV_IDS;
+  });
+  const [navDragOver, setNavDragOver] = useState(null);
+  const [navDragging, setNavDragging] = useState(null);
+  const navDragId = useRef(null);
+
+  const onNavDragStart = (e, id) => {
+    navDragId.current = id; setNavDragging(id); e.dataTransfer.effectAllowed = "move";
+  };
+  const onNavDragOver = (e, id) => {
+    e.preventDefault(); e.dataTransfer.dropEffect = "move";
+    if (id !== navDragId.current) setNavDragOver(id);
+  };
+  const onNavDragLeave = (e, id) => {
+    if (!e.currentTarget.contains(e.relatedTarget)) setNavDragOver(prev => prev === id ? null : prev);
+  };
+  const onNavDrop = (e, id) => {
+    e.preventDefault();
+    if (!navDragId.current || navDragId.current === id) { setNavDragOver(null); return; }
+    setNavOrder(prev => {
+      const next = [...prev];
+      const from = next.indexOf(navDragId.current), to = next.indexOf(id);
+      if (from === -1 || to === -1) return prev;
+      next.splice(from, 1); next.splice(to, 0, navDragId.current);
+      localStorage.setItem("sanctum_nav_order", JSON.stringify(next));
+      return next;
+    });
+    setNavDragOver(null); setNavDragging(null); navDragId.current = null;
+  };
+  const onNavDragEnd = () => { setNavDragOver(null); setNavDragging(null); navDragId.current = null; };
 
   const navigate = (p) => {
     if (TRACKER_PAGES.includes(p)) {
@@ -3629,16 +3767,33 @@ export default function App() {
           </div>
 
           <div className="nav-section">
-            {NAV.map(n => (
-              <div
-                key={n.id}
-                className={`nav-item${n.id === page ? " active" : ""}`}
-                onClick={() => navigate(n.id)}
-              >
-                <div className="nav-icon"><Icon name={n.icon} size={16} /></div>
-                {n.label}
-              </div>
-            ))}
+            {navOrder.map(id => {
+              const n = NAV.find(x => x.id === id);
+              if (!n) return null;
+              const cls = [
+                "nav-item",
+                n.id === page      ? "active"       : "",
+                navDragging === id ? "is-dragging"   : "",
+                navDragOver === id ? "nav-drag-over" : "",
+              ].filter(Boolean).join(" ");
+              return (
+                <div
+                  key={n.id}
+                  className={cls}
+                  draggable
+                  onDragStart={e => onNavDragStart(e, n.id)}
+                  onDragOver={e  => onNavDragOver(e, n.id)}
+                  onDragLeave={e => onNavDragLeave(e, n.id)}
+                  onDrop={e      => onNavDrop(e, n.id)}
+                  onDragEnd={onNavDragEnd}
+                  onClick={() => navigate(n.id)}
+                >
+                  <div className="nav-icon"><Icon name={n.icon} size={16} /></div>
+                  {n.label}
+                  <div className="drag-handle" style={{ marginLeft:"auto" }}><Icon name="grab" size={12} /></div>
+                </div>
+              );
+            })}
           </div>
 
           <div className="sidebar-footer">
