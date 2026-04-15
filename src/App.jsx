@@ -881,6 +881,11 @@ const Icon = ({ name, size = 16, color = "currentColor" }) => {
     ai: <><path d="M12 2a10 10 0 110 20A10 10 0 0112 2z" /><path d="M12 8v4l3 3" /><circle cx="12" cy="12" r="1" /><path d="M16.24 7.76l-1.42 1.42M7.76 7.76l1.42 1.42M7.76 16.24l1.42-1.42M16.24 16.24l-1.42-1.42" /></>,
     trackers: <><rect x="3" y="3" width="7" height="7" rx="1.5"/><rect x="14" y="3" width="7" height="7" rx="1.5"/><rect x="3" y="14" width="7" height="7" rx="1.5"/><rect x="14" y="14" width="7" height="7" rx="1.5"/></>,
     grab: <><line x1="8" y1="7" x2="16" y2="7"/><line x1="8" y1="12" x2="16" y2="12"/><line x1="8" y1="17" x2="16" y2="17"/></>,
+    eye:  <><path d="M1 12s4-8 11-8 11 8 11 8-4 8-11 8-11-8-11-8z"/><circle cx="12" cy="12" r="3"/></>,
+    eyeOff: <><path d="M17.94 17.94A10.07 10.07 0 0112 20c-7 0-11-8-11-8a18.45 18.45 0 015.06-5.94M9.9 4.24A9.12 9.12 0 0112 4c7 0 11 8 11 8a18.5 18.5 0 01-2.16 3.19m-6.72-1.07a3 3 0 11-4.24-4.24"/><line x1="1" y1="1" x2="23" y2="23"/></>,
+    code: <><polyline points="16 18 22 12 16 6"/><polyline points="8 6 2 12 8 18"/></>,
+    list: <><line x1="9" y1="6" x2="20" y2="6"/><line x1="9" y1="12" x2="20" y2="12"/><line x1="9" y1="18" x2="20" y2="18"/><line x1="4" y1="6" x2="4.01" y2="6" strokeWidth="3" strokeLinecap="round"/><line x1="4" y1="12" x2="4.01" y2="12" strokeWidth="3" strokeLinecap="round"/><line x1="4" y1="18" x2="4.01" y2="18" strokeWidth="3" strokeLinecap="round"/></>,
+    folder: <><path d="M22 19a2 2 0 01-2 2H4a2 2 0 01-2-2V5a2 2 0 012-2h5l2 3h9a2 2 0 012 2z"/></>,
   };
   return <svg viewBox="0 0 24 24" style={s}>{p[name]}</svg>;
 };
@@ -1555,7 +1560,7 @@ function Notes() {
               placeholder={isGlobalSearch ? "Searching all notes..." : "Search..."}
               value={search} onChange={e => setSearch(e.target.value)} />
             {search && (
-              <button onClick={() => setSearch("")} style={{ background: "none", border: "none", color: "var(--t3)", cursor: "pointer", fontSize: 12, padding: 0, lineHeight: 1 }}>✕</button>
+              <button onClick={() => setSearch("")} style={{ background: "none", border: "none", color: "var(--t3)", cursor: "pointer", padding: 0, lineHeight: 1, display:"flex", alignItems:"center" }}><Icon name="x" size={11} /></button>
             )}
           </div>
           {isGlobalSearch && (
@@ -1614,16 +1619,16 @@ function Notes() {
                 <button className="note-tool-btn" title="Heading 1" onClick={() => applyFormat('h1')}>H1</button>
                 <button className="note-tool-btn" title="Heading 2" onClick={() => applyFormat('h2')}>H2</button>
                 <div className="note-toolbar-sep" />
-                <button className="note-tool-btn" title="Bullet list" onClick={() => applyFormat('ul')}>≡</button>
-                <button className="note-tool-btn" title="Inline code" onClick={() => applyFormat('code')}>&lt;/&gt;</button>
+                <button className="note-tool-btn" title="Bullet list" onClick={() => applyFormat('ul')}><Icon name="list" size={14} /></button>
+                <button className="note-tool-btn" title="Inline code" onClick={() => applyFormat('code')}><Icon name="code" size={14} /></button>
                 <button className="note-tool-btn" title="Code block" onClick={() => applyFormat('codeblock')} style={{ width: 34, fontSize: 9 }}>block</button>
                 <div className="note-toolbar-sep" />
               </>}
 
               <button className={`note-tool-btn${viewMode === "preview" ? " on" : ""}`}
-                title="Toggle preview" style={{ width: 46, fontSize: 9 }}
+                title="Toggle preview"
                 onClick={() => setViewMode(v => v === "edit" ? "preview" : "edit")}>
-                {viewMode === "edit" ? "preview" : "edit"}
+                {viewMode === "edit" ? <Icon name="eye" size={14} /> : <Icon name="eyeOff" size={14} />}
               </button>
               <div className="note-toolbar-sep" />
               <button className="btn xs danger" onClick={deleteNote}><Icon name="trash" size={11} /></button>
@@ -1635,8 +1640,8 @@ function Notes() {
 
             {/* Meta row */}
             <div className="note-meta">
-              <span className="note-meta-item">📅 {currentNote.updated_at}</span>
-              <span className="note-meta-item">📁 {noteNB?.label} / {noteSec?.label}</span>
+              <span className="note-meta-item"><Icon name="calendar" size={11} color="var(--t3)" /> {currentNote.updated_at}</span>
+              <span className="note-meta-item"><Icon name="folder" size={11} color="var(--t3)" /> {noteNB?.label} / {noteSec?.label}</span>
               <div style={{ flex: 1 }} />
               <div style={{ display: "flex", alignItems: "center", gap: 5 }}>
                 <Icon name="tag" size={11} color="var(--t3)" />
@@ -1663,7 +1668,7 @@ function Notes() {
           </>
         ) : (
           <div className="note-empty">
-            <div className="note-empty-icon">📝</div>
+            <div className="note-empty-icon"><Icon name="notes" size={44} color="var(--t3)" /></div>
             <div style={{ fontSize: 14, fontWeight: 600, color: "var(--t2)" }}>Select a note</div>
             <div style={{ fontSize: 12, color: "var(--t3)" }}>or create a new one in {section?.label}</div>
             <button className="btn primary" onClick={newNote} style={{ marginTop: 12 }}>
