@@ -285,6 +285,7 @@ const CSS = `
   .badge.amber  { background: rgba(245,158,11,.12); color: var(--amber); }
   .badge.red    { background: rgba(239,68,68,.12); color: var(--red); }
   .badge.purple { background: rgba(139,92,246,.12); color: var(--purple); }
+  .badge.pink   { background: rgba(236,72,153,.12); color: var(--pink); }
   .badge.muted  { background: var(--bg3); color: var(--t2); }
 
   /* ── Buttons ── */
@@ -1780,7 +1781,7 @@ function Calendar({ initialDate }) {
     .sort((a,b) => a.date.localeCompare(b.date));
 
   const badgeCls = (cat) =>
-    cat==="travel" ? "green" : cat==="career" ? "amber" : cat==="study" ? "purple" : cat==="family" ? "muted" : "blue";
+    cat==="travel" ? "green" : cat==="career" ? "amber" : cat==="study" ? "purple" : cat==="family" ? "pink" : "blue";
 
   return (
     <div className="page-body page-enter">
@@ -1794,17 +1795,29 @@ function Calendar({ initialDate }) {
               onChange={e => setNewEvent(n => ({ ...n, title: e.target.value }))}
               placeholder="Event title" autoFocus onKeyDown={e => e.key === "Enter" && addEvent()} />
           </div>
-          <div className="grid-2" style={{ gap: 12 }}>
-            <div className="form-row">
-              <label className="form-label">Category</label>
-              <select className="inp" value={newEvent.category} onChange={e => setNewEvent(n => ({ ...n, category: e.target.value }))}>
-                {CATS.map(c => <option key={c.id} value={c.id}>{c.label}</option>)}
-              </select>
+          <div className="form-row">
+            <label className="form-label">Category</label>
+            <div style={{ display: "flex", gap: 8, flexWrap: "wrap" }}>
+              {CATS.map(c => (
+                <button key={c.id}
+                  onClick={() => setNewEvent(n => ({ ...n, category: c.id }))}
+                  style={{
+                    padding: "5px 13px", borderRadius: 20, fontSize: 12, fontWeight: 600,
+                    background: newEvent.category === c.id ? c.bg : "transparent",
+                    border: `1px solid ${newEvent.category === c.id ? c.color : "rgba(255,255,255,0.1)"}`,
+                    color: newEvent.category === c.id ? c.color : "var(--t3)",
+                    cursor: "pointer", transition: "all .15s",
+                    display: "flex", alignItems: "center", gap: 6,
+                  }}>
+                  <div style={{ width: 7, height: 7, borderRadius: "50%", background: c.color, flexShrink: 0 }} />
+                  {c.label}
+                </button>
+              ))}
             </div>
-            <div className="form-row">
-              <label className="form-label">Time (optional)</label>
-              <input className="inp" type="time" value={newEvent.time} onChange={e => setNewEvent(n => ({ ...n, time: e.target.value }))} />
-            </div>
+          </div>
+          <div className="form-row">
+            <label className="form-label">Time (optional)</label>
+            <input className="inp" type="time" value={newEvent.time} onChange={e => setNewEvent(n => ({ ...n, time: e.target.value }))} />
           </div>
           <div className="form-row">
             <label className="form-label">Notes (optional)</label>
@@ -1823,22 +1836,21 @@ function Calendar({ initialDate }) {
       {activeEvent && (() => {
         const cat = catOf(activeEvent);
         return (
-          <Modal title="Event details" onClose={() => setActiveEvent(null)}>
-            <div style={{ display: "flex", alignItems: "flex-start", gap: 14, marginBottom: 18 }}>
-              <div style={{ width: 10, height: 10, borderRadius: "50%", background: cat.color, flexShrink: 0, marginTop: 5 }} />
-              <div>
-                <div style={{ fontSize: 17, fontWeight: 700, color: "var(--t1)", marginBottom: 4 }}>{activeEvent.title}</div>
-                <div style={{ fontSize: 12, color: "var(--t3)", fontFamily: "var(--mono)" }}>
-                  {activeEvent.date}{activeEvent.time ? ` · ${activeEvent.time}` : ""}
-                </div>
-              </div>
+          <Modal title={activeEvent.title} onClose={() => setActiveEvent(null)}>
+            {/* Category colour bar */}
+            <div style={{ height: 3, borderRadius: 2, background: cat.color, marginBottom: 20, opacity: .8 }} />
+            <div style={{ display: "flex", alignItems: "center", gap: 10, marginBottom: 18, flexWrap: "wrap" }}>
+              <span className={`badge ${badgeCls(activeEvent.category)}`}>{activeEvent.category}</span>
+              <span style={{ fontSize: 12, color: "var(--t3)", fontFamily: "var(--mono)" }}>
+                <Icon name="calendar" size={11} color="var(--t3)" style={{ marginRight: 4 }} />
+                {activeEvent.date}{activeEvent.time ? ` · ${activeEvent.time}` : ""}
+              </span>
             </div>
             {activeEvent.notes && (
               <div style={{ fontSize: 13, color: "var(--t2)", lineHeight: 1.65, marginBottom: 18, padding: "12px 14px", background: "rgba(255,255,255,0.03)", borderRadius: 10, border: "1px solid rgba(255,255,255,0.06)" }}>
                 {activeEvent.notes}
               </div>
             )}
-            <span className={`badge ${badgeCls(activeEvent.category)}`}>{activeEvent.category}</span>
             <div className="modal-actions">
               <button className="btn" onClick={() => setActiveEvent(null)}>Close</button>
               <button className="btn danger" onClick={() => deleteEvent(activeEvent.id)}>
@@ -1946,7 +1958,7 @@ function Calendar({ initialDate }) {
                     <div className="week-add-btn" onClick={() => {
                       setYear(date.getFullYear()); setMonth(date.getMonth());
                       setSelectedDay(date.getDate()); setShowAdd(true);
-                    }}>+</div>
+                    }}><Icon name="plus" size={14} /></div>
                   </div>
                 </div>
               );
@@ -1956,27 +1968,37 @@ function Calendar({ initialDate }) {
       )}
 
       {/* Events list for current month */}
-      {monthEvents.length > 0 && viewMode === "month" && (
+      {viewMode === "month" && (
         <div className="card">
           <div className="card-header">
-            <div className="card-title">Events — {MONTHS[month]} {year}</div>
-            <span className="badge blue">{monthEvents.length}</span>
+            <div>
+              <div className="card-title">Events — {MONTHS[month]} {year}</div>
+              <div className="card-sub">{monthEvents.length} event{monthEvents.length !== 1 ? "s" : ""} this month</div>
+            </div>
+            <button className="btn sm primary" onClick={() => { setSelectedDay(now.getMonth()===month&&now.getFullYear()===year?now.getDate():1); setShowAdd(true); }}>
+              <Icon name="plus" size={12} /> Add
+            </button>
           </div>
-          {monthEvents.map(ev => {
-            const c = catOf(ev);
-            return (
-              <div key={ev.id} className="fin-row" style={{ cursor: "pointer" }} onClick={() => setActiveEvent(ev)}>
-                <div style={{ display: "flex", alignItems: "center", gap: 12, flex: 1 }}>
-                  <div style={{ width: 9, height: 9, borderRadius: "50%", background: c.color, flexShrink: 0 }} />
-                  <div>
-                    <div style={{ fontSize: 13, fontWeight: 600, color: "var(--t1)" }}>{ev.title}</div>
-                    <div style={{ fontSize: 11, color: "var(--t3)", fontFamily: "var(--mono)" }}>{ev.date}{ev.time?` · ${ev.time}`:""}</div>
+          {monthEvents.length === 0 ? (
+            <div style={{ padding: "24px 0", textAlign: "center", color: "var(--t3)", fontSize: 13 }}>
+              No events this month — click any day to add one
+            </div>
+          ) : (
+            monthEvents.map(ev => {
+              const c = catOf(ev);
+              return (
+                <div key={ev.id} className="fin-row" style={{ cursor: "pointer", borderLeft: `3px solid ${c.color}`, paddingLeft: 14, marginLeft: -1 }} onClick={() => setActiveEvent(ev)}>
+                  <div style={{ display: "flex", alignItems: "center", gap: 12, flex: 1 }}>
+                    <div>
+                      <div style={{ fontSize: 13, fontWeight: 600, color: "var(--t1)" }}>{ev.title}</div>
+                      <div style={{ fontSize: 11, color: "var(--t3)", fontFamily: "var(--mono)", marginTop: 2 }}>{ev.date}{ev.time ? ` · ${ev.time}` : ""}</div>
+                    </div>
                   </div>
+                  <span className={`badge ${badgeCls(ev.category)}`}>{ev.category}</span>
                 </div>
-                <span className={`badge ${badgeCls(ev.category)}`}>{ev.category}</span>
-              </div>
-            );
-          })}
+              );
+            })
+          )}
         </div>
       )}
     </div>
