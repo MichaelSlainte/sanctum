@@ -805,8 +805,14 @@ const CSS = `
   .drag-handle:active { cursor: grabbing; }
   .stat:hover .drag-handle,
   .card:hover .drag-handle,
-  .nav-item:hover .drag-handle { opacity: 0.45; }
+  .nav-item:hover .drag-handle,
+  .tracker-card:hover .drag-handle { opacity: 0.45; }
   .drag-handle:hover { opacity: 1 !important; color: var(--t2); background: rgba(255,255,255,0.06); }
+
+  /* Tracker card drag states */
+  .tracker-card[draggable="true"] { cursor: default; }
+  .tracker-card.is-dragging { opacity: .3; transform: scale(0.97) !important; transition: opacity .15s, transform .15s; }
+  .tracker-card.drag-over { border-color: var(--blueb) !important; box-shadow: 0 0 0 3px rgba(59,130,246,0.08), 0 8px 32px rgba(0,0,0,0.3) !important; transform: translateY(-2px) !important; }
 
   /* Sidebar nav drag states */
   .nav-item[draggable="true"] { cursor: default; }
@@ -2856,30 +2862,95 @@ function TrackerBackBar({ name, onBack }) {
 }
 
 // ─── TRACKER HUB ─────────────────────────────────────────────────────────────
+const TRACKERS = [
+  { id: "study",   emoji: "📚", name: "Study",   sub: "PMP tracker — PMBOK knowledge areas, hours logged, progress toward August exam" },
+  { id: "career",  emoji: "💼", name: "Career",  sub: "Job applications — track every opportunity, status, interviews, and notes" },
+  { id: "finance", emoji: "💰", name: "Finance", sub: "Income, expenses, balance — full picture of your monthly finances" },
+  { id: "travel",  emoji: "✈️", name: "Travel",  sub: "Trips, checklists, budgets — Scotland, Italy, and beyond" },
+  { id: "pet",     emoji: "🐾", name: "Ozzy",    sub: "Golden Retriever — vet visits, weight, diet, documents" },
+];
+
 function TrackerHub({ onNavigate }) {
-  const TRACKERS = [
-    { id: "study",   emoji: "📚", name: "Study",   sub: "PMP tracker — PMBOK knowledge areas, hours logged, progress toward August exam" },
-    { id: "career",  emoji: "💼", name: "Career",  sub: "Job applications — track every opportunity, status, interviews, and notes" },
-    { id: "finance", emoji: "💰", name: "Finance", sub: "Income, expenses, balance — full picture of your monthly finances" },
-    { id: "travel",  emoji: "✈️", name: "Travel",  sub: "Trips, checklists, budgets — Scotland, Italy, and beyond" },
-    { id: "pet",     emoji: "🐾", name: "Ozzy",    sub: "Golden Retriever — vet visits, weight, diet, documents" },
-  ];
+  // Order: read from localStorage, keep only known ids, append any new ones at the end
+  const [order, setOrder] = useState(() => {
+    const known = TRACKERS.map(t => t.id);
+    try {
+      const saved = JSON.parse(localStorage.getItem("sanctum_tracker_order"));
+      if (Array.isArray(saved)) {
+        const valid  = saved.filter(id => known.includes(id));
+        const newOnes = known.filter(id => !valid.includes(id));
+        return [...valid, ...newOnes];
+      }
+    } catch {}
+    return known;
+  });
+
+  const [dragOver, setDragOver]   = useState(null);
+  const [dragging, setDragging]   = useState(null);
+  const dragId = useRef(null);
+
+  const onDragStart = (e, id) => {
+    dragId.current = id; setDragging(id); e.dataTransfer.effectAllowed = "move";
+  };
+  const onDragOver = (e, id) => {
+    e.preventDefault(); e.dataTransfer.dropEffect = "move";
+    if (id !== dragId.current) setDragOver(id);
+  };
+  const onDragLeave = (e, id) => {
+    if (!e.currentTarget.contains(e.relatedTarget)) setDragOver(prev => prev === id ? null : prev);
+  };
+  const onDrop = (e, id) => {
+    e.preventDefault();
+    if (!dragId.current || dragId.current === id) { setDragOver(null); return; }
+    setOrder(prev => {
+      const next = [...prev];
+      const from = next.indexOf(dragId.current), to = next.indexOf(id);
+      if (from === -1 || to === -1) return prev;
+      next.splice(from, 1); next.splice(to, 0, dragId.current);
+      localStorage.setItem("sanctum_tracker_order", JSON.stringify(next));
+      return next;
+    });
+    setDragOver(null); setDragging(null); dragId.current = null;
+  };
+  const onDragEnd = () => { setDragOver(null); setDragging(null); dragId.current = null; };
 
   return (
     <div className="page-body page-enter">
       <div style={{ marginBottom: 32 }}>
         <div style={{ fontSize: 22, fontWeight: 700, color: "var(--t1)", marginBottom: 6, letterSpacing: "-.4px" }}>Your Trackers</div>
-        <div style={{ fontSize: 13, color: "var(--t3)" }}>Select a tracker to view and manage your data</div>
+        <div style={{ fontSize: 13, color: "var(--t3)" }}>Select a tracker to view · drag to reorder</div>
       </div>
       <div className="tracker-hub">
-        {TRACKERS.map(t => (
-          <div key={t.id} className="tracker-card" onClick={() => onNavigate(t.id)}>
-            <div className="tc-arrow">→</div>
-            <div className="tc-emoji">{t.emoji}</div>
-            <div className="tc-name">{t.name}</div>
-            <div className="tc-sub">{t.sub}</div>
-          </div>
-        ))}
+        {order.map(id => {
+          const t = TRACKERS.find(x => x.id === id);
+          if (!t) return null;
+          const cls = [
+            "tracker-card",
+            dragging === id ? "is-dragging" : "",
+            dragOver === id ? "drag-over"   : "",
+          ].filter(Boolean).join(" ");
+          return (
+            <div
+              key={t.id}
+              className={cls}
+              draggable
+              onDragStart={e => onDragStart(e, t.id)}
+              onDragOver={e  => onDragOver(e, t.id)}
+              onDragLeave={e => onDragLeave(e, t.id)}
+              onDrop={e      => onDrop(e, t.id)}
+              onDragEnd={onDragEnd}
+              onClick={() => onNavigate(t.id)}
+            >
+              <div className="drag-handle" style={{ position:"absolute", top:12, left:14 }}>
+                <Icon name="grab" size={12} />
+              </div>
+              <div className="tc-arrow"><Icon name="chevR" size={16} /></div>
+              <div className="tc-emoji">{t.emoji}</div>
+              <div className="tc-name">{t.name}</div>
+              <div className="tc-sub">{t.sub}</div>
+            </div>
+          );
+        })}
       </div>
     </div>
   );
