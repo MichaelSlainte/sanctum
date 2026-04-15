@@ -786,6 +786,12 @@ const CSS = `
   ::-webkit-scrollbar-thumb { background: var(--b2); border-radius: 3px; }
   ::-webkit-scrollbar-thumb:hover { background: var(--b3); }
 
+  /* ── Drag-and-drop ── */
+  .stat[draggable="true"] { cursor: grab; user-select: none; }
+  .stat[draggable="true"]:active { cursor: grabbing; }
+  .stat.is-dragging { opacity: .35; transform: scale(0.97); }
+  .stat.drag-over { border-color: var(--blueb); background: rgba(59,130,246,0.12); transform: translateY(-3px) scale(1.01); box-shadow: 0 8px 28px rgba(59,130,246,0.18); }
+
   /* ── Animations ── */
   @keyframes fadeInUp { from { opacity: 0; transform: translateY(8px); } to { opacity: 1; transform: translateY(0); } }
   .animate-in { animation: fadeInUp .3s ease both; }
@@ -1131,29 +1137,29 @@ function Dashboard({ onNavigate, onGoToCalendarDay }) {
       {/* Stat widgets */}
       <div className="grid-4 mb18">
         <div className="dash-widget" onClick={() => onNavigate("career")}>
-          <div className="dw-arrow">→</div>
-          <div className="dw-icon" style={{ background: "rgba(245,158,11,0.15)" }}>💼</div>
+          <div className="dw-arrow"><Icon name="chevR" size={16} /></div>
+          <div className="dw-icon" style={{ background: "rgba(245,158,11,0.15)", color: "var(--amber)" }}><Icon name="career" size={20} color="var(--amber)" /></div>
           <div className="dw-label">Applications</div>
           <div className="dw-value">3</div>
           <div className="dw-sub">Anthropic, Google ×2</div>
         </div>
         <div className="dash-widget" onClick={() => onNavigate("study")}>
-          <div className="dw-arrow">→</div>
-          <div className="dw-icon" style={{ background: "rgba(139,92,246,0.15)" }}>📚</div>
+          <div className="dw-arrow"><Icon name="chevR" size={16} /></div>
+          <div className="dw-icon" style={{ background: "rgba(139,92,246,0.15)", color: "var(--purple)" }}><Icon name="study" size={20} color="var(--purple)" /></div>
           <div className="dw-label">PMP Exam</div>
           <div className="dw-value">Aug</div>
           <div className="dw-sub">2026 target</div>
         </div>
         <div className="dash-widget" onClick={() => onNavigate("finance")}>
-          <div className="dw-arrow">→</div>
-          <div className="dw-icon" style={{ background: "rgba(16,185,129,0.15)" }}>💶</div>
+          <div className="dw-arrow"><Icon name="chevR" size={16} /></div>
+          <div className="dw-icon" style={{ background: "rgba(16,185,129,0.15)", color: "var(--grn)" }}><Icon name="finance" size={20} color="var(--grn)" /></div>
           <div className="dw-label">Monthly spend</div>
           <div className="dw-value">€685</div>
           <div className="dw-sub">Apr 2026</div>
         </div>
         <div className="dash-widget" onClick={() => onNavigate("travel")}>
-          <div className="dw-arrow">→</div>
-          <div className="dw-icon" style={{ background: "rgba(59,130,246,0.15)" }}>✈️</div>
+          <div className="dw-arrow"><Icon name="chevR" size={16} /></div>
+          <div className="dw-icon" style={{ background: "rgba(59,130,246,0.15)", color: "var(--blue)" }}><Icon name="travel" size={20} color="var(--blue)" /></div>
           <div className="dw-label">Next trip</div>
           <div className="dw-value">152d</div>
           <div className="dw-sub">Scotland — Sep 7</div>
@@ -3083,6 +3089,51 @@ function Home({ onNavigate, onGoToCalendarDay }) {
   const [aiResponse, setAiResponse] = useState(null);
   const aiInputRef = useRef(null);
 
+  // Drag-and-drop card ordering
+  const CARD_IDS = ["pmp", "scotland", "msc", "tasks"];
+  const [cardOrder, setCardOrder] = useState(() => {
+    try {
+      const s = JSON.parse(localStorage.getItem("sanctum_home_card_order"));
+      if (Array.isArray(s) && s.length === 4 && CARD_IDS.every(id => s.includes(id))) return s;
+    } catch {}
+    return CARD_IDS;
+  });
+  const [dragOver, setDragOver] = useState(null);
+  const [dragging, setDragging] = useState(null);
+  const dragId = useRef(null);
+
+  const onCardDragStart = (e, id) => {
+    dragId.current = id;
+    setDragging(id);
+    e.dataTransfer.effectAllowed = "move";
+  };
+  const onCardDragOver = (e, id) => {
+    e.preventDefault();
+    e.dataTransfer.dropEffect = "move";
+    if (id !== dragId.current) setDragOver(id);
+  };
+  const onCardDragLeave = (e, id) => {
+    if (!e.currentTarget.contains(e.relatedTarget)) setDragOver(prev => prev === id ? null : prev);
+  };
+  const onCardDrop = (e, id) => {
+    e.preventDefault();
+    if (!dragId.current || dragId.current === id) { setDragOver(null); return; }
+    setCardOrder(prev => {
+      const next = [...prev];
+      const from = next.indexOf(dragId.current);
+      const to   = next.indexOf(id);
+      if (from === -1 || to === -1) return prev;
+      next.splice(from, 1);
+      next.splice(to, 0, dragId.current);
+      localStorage.setItem("sanctum_home_card_order", JSON.stringify(next));
+      return next;
+    });
+    setDragOver(null);
+    setDragging(null);
+    dragId.current = null;
+  };
+  const onCardDragEnd = () => { setDragOver(null); setDragging(null); dragId.current = null; };
+
   const now = new Date();
   const hour = now.getHours();
   const greeting = hour < 12 ? "Good morning" : hour < 17 ? "Good afternoon" : "Good evening";
@@ -3271,36 +3322,56 @@ For everything else: plain text reply, warm and concise, max 2 sentences.`;
         )}
       </div>
 
-      {/* Quick stats */}
+      {/* Quick stats — draggable */}
       <div className="grid-4 mb18">
-        <div className="stat">
-          <div className="stat-icon" style={{ background: "rgba(139,92,246,0.15)" }}>📚</div>
-          <div className="stat-label">PMP Exam</div>
-          <div className="stat-value" style={{ color: daysToExam < 60 ? "var(--red)" : daysToExam < 120 ? "var(--amber)" : "var(--t1)" }}>{daysToExam}d</div>
-          <div className="stat-sub">Aug 31 2026</div>
-          <div className="stat-bar"><div className="stat-fill" style={{ width: `${Math.min(Math.max(0, 100 - (daysToExam / 420) * 100), 100)}%` }} /></div>
-        </div>
-        <div className="stat">
-          <div className="stat-icon" style={{ background: "rgba(59,130,246,0.15)" }}>✈️</div>
-          <div className="stat-label">Scotland trip</div>
-          <div className="stat-value">{daysToScotland}d</div>
-          <div className="stat-sub">Sep 7 · Tamara + Ozzy 🐾</div>
-          <div className="stat-bar"><div className="stat-fill amber" style={{ width: `${Math.min(Math.max(0, 100 - (daysToScotland / 420) * 100), 100)}%` }} /></div>
-        </div>
-        <div className="stat">
-          <div className="stat-icon" style={{ background: "rgba(16,185,129,0.15)" }}>🎓</div>
-          <div className="stat-label">MSc Cybersecurity</div>
-          <div className="stat-value">{daysToMSc}d</div>
-          <div className="stat-sub">SETU — Sep 14 2026</div>
-          <div className="stat-bar"><div className="stat-fill grn" style={{ width: `${Math.min(Math.max(0, 100 - (daysToMSc / 420) * 100), 100)}%` }} /></div>
-        </div>
-        <div className="stat" style={{ cursor: "pointer" }} onClick={() => setShowAddTask(true)}>
-          <div className="stat-icon" style={{ background: "rgba(245,158,11,0.15)" }}>✅</div>
-          <div className="stat-label">Active tasks</div>
-          <div className="stat-value">{activeTasks.length}</div>
-          <div className="stat-sub">{archivedTasks.length} completed · tap to add</div>
-          <div className="stat-bar"><div className="stat-fill amber" style={{ width: tasks.length ? `${(activeTasks.length / tasks.length) * 100}%` : "0%" }} /></div>
-        </div>
+        {cardOrder.map(id => {
+          const cls = `stat${dragging === id ? " is-dragging" : ""}${dragOver === id ? " drag-over" : ""}`;
+          const drag = {
+            draggable: true,
+            onDragStart: e => onCardDragStart(e, id),
+            onDragOver:  e => onCardDragOver(e, id),
+            onDragLeave: e => onCardDragLeave(e, id),
+            onDrop:      e => onCardDrop(e, id),
+            onDragEnd:   onCardDragEnd,
+          };
+          if (id === "pmp") return (
+            <div key="pmp" className={cls} {...drag}>
+              <div className="stat-icon" style={{ background: "rgba(139,92,246,0.15)" }}><Icon name="study" size={18} color="var(--purple)" /></div>
+              <div className="stat-label">PMP Exam</div>
+              <div className="stat-value" style={{ color: daysToExam < 60 ? "var(--red)" : daysToExam < 120 ? "var(--amber)" : "var(--t1)" }}>{daysToExam}d</div>
+              <div className="stat-sub">Aug 31 2026</div>
+              <div className="stat-bar"><div className="stat-fill" style={{ width: `${Math.min(Math.max(0, 100 - (daysToExam / 420) * 100), 100)}%` }} /></div>
+            </div>
+          );
+          if (id === "scotland") return (
+            <div key="scotland" className={cls} {...drag}>
+              <div className="stat-icon" style={{ background: "rgba(59,130,246,0.15)" }}><Icon name="travel" size={18} color="var(--blue)" /></div>
+              <div className="stat-label">Scotland trip</div>
+              <div className="stat-value">{daysToScotland}d</div>
+              <div className="stat-sub">Sep 7 · Tamara + Ozzy</div>
+              <div className="stat-bar"><div className="stat-fill amber" style={{ width: `${Math.min(Math.max(0, 100 - (daysToScotland / 420) * 100), 100)}%` }} /></div>
+            </div>
+          );
+          if (id === "msc") return (
+            <div key="msc" className={cls} {...drag}>
+              <div className="stat-icon" style={{ background: "rgba(16,185,129,0.15)" }}><Icon name="lock" size={18} color="var(--grn)" /></div>
+              <div className="stat-label">MSc Cybersecurity</div>
+              <div className="stat-value">{daysToMSc}d</div>
+              <div className="stat-sub">SETU — Sep 14 2026</div>
+              <div className="stat-bar"><div className="stat-fill grn" style={{ width: `${Math.min(Math.max(0, 100 - (daysToMSc / 420) * 100), 100)}%` }} /></div>
+            </div>
+          );
+          if (id === "tasks") return (
+            <div key="tasks" className={cls} {...drag} style={{ cursor: "grab" }} onClick={() => setShowAddTask(true)}>
+              <div className="stat-icon" style={{ background: "rgba(245,158,11,0.15)" }}><Icon name="check" size={18} color="var(--amber)" /></div>
+              <div className="stat-label">Active tasks</div>
+              <div className="stat-value">{activeTasks.length}</div>
+              <div className="stat-sub">{archivedTasks.length} completed · click to add</div>
+              <div className="stat-bar"><div className="stat-fill amber" style={{ width: tasks.length ? `${(activeTasks.length / tasks.length) * 100}%` : "0%" }} /></div>
+            </div>
+          );
+          return null;
+        })}
       </div>
 
       {/* Tasks + Week + Shortcuts */}
@@ -3401,16 +3472,16 @@ For everything else: plain text reply, warm and concise, max 2 sentences.`;
             </div>
             <div className="grid-2" style={{ gap: 10 }}>
               {[
-                { id: "study",   emoji: "📚", label: "Study",   sub: "PMP progress" },
-                { id: "career",  emoji: "💼", label: "Career",  sub: "Applications" },
-                { id: "finance", emoji: "💰", label: "Finance", sub: "Monthly budget" },
-                { id: "pet",     emoji: "🐾", label: "Ozzy",    sub: "Golden Retriever" },
+                { id: "study",   icon: "study",   color: "var(--purple)", label: "Study",   sub: "PMP progress" },
+                { id: "career",  icon: "career",  color: "var(--amber)",  label: "Career",  sub: "Applications" },
+                { id: "finance", icon: "finance", color: "var(--grn)",    label: "Finance", sub: "Monthly budget" },
+                { id: "pet",     icon: "pet",     color: "var(--pink)",   label: "Ozzy",    sub: "Golden Retriever" },
               ].map(item => (
                 <div key={item.id} onClick={() => onNavigate(item.id)}
                   style={{ background: "rgba(255,255,255,0.03)", border: "1px solid rgba(255,255,255,0.06)", borderRadius: 12, padding: "14px 16px", cursor: "pointer", transition: "all .2s" }}
                   onMouseEnter={e => { e.currentTarget.style.borderColor = "rgba(59,130,246,0.4)"; e.currentTarget.style.background = "rgba(59,130,246,0.06)"; }}
                   onMouseLeave={e => { e.currentTarget.style.borderColor = "rgba(255,255,255,0.06)"; e.currentTarget.style.background = "rgba(255,255,255,0.03)"; }}>
-                  <div style={{ fontSize: 20, marginBottom: 6 }}>{item.emoji}</div>
+                  <div style={{ marginBottom: 8 }}><Icon name={item.icon} size={20} color={item.color} /></div>
                   <div style={{ fontSize: 13, fontWeight: 600, color: "var(--t1)", marginBottom: 2 }}>{item.label}</div>
                   <div style={{ fontSize: 11, color: "var(--t3)" }}>{item.sub}</div>
                 </div>
