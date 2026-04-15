@@ -680,37 +680,67 @@ const CSS = `
     background: var(--glass-bg);
     backdrop-filter: var(--glass-blur); -webkit-backdrop-filter: var(--glass-blur);
     border: 1px solid rgba(255,255,255,0.09);
-    border-radius: 16px; padding: 6px 6px 6px 20px;
+    border-radius: 16px; padding: 8px 8px 8px 18px;
     display: flex; align-items: center; gap: 12px;
     transition: border-color .2s, box-shadow .2s;
   }
   .ai-bar:focus-within {
     border-color: var(--blueb);
-    box-shadow: 0 0 0 3px rgba(59,130,246,0.1), 0 8px 32px rgba(0,0,0,0.25);
+    box-shadow: 0 0 0 3px rgba(59,130,246,0.08), 0 8px 32px rgba(0,0,0,0.22);
+  }
+  .ai-avatar {
+    width: 30px; height: 30px; border-radius: 10px; flex-shrink: 0;
+    background: linear-gradient(135deg, var(--blue), var(--purple));
+    display: flex; align-items: center; justify-content: center;
+    box-shadow: 0 2px 8px rgba(59,130,246,0.35);
   }
   .ai-bar-input {
     flex: 1; background: transparent; border: none; outline: none;
-    color: var(--t1); font-size: 14px; font-family: var(--sans); padding: 10px 0;
+    color: var(--t1); font-size: 14px; font-family: var(--sans); padding: 9px 0;
+    min-width: 0;
   }
   .ai-bar-input::placeholder { color: var(--t3); }
   .ai-bar-btn {
-    width: 42px; height: 42px; background: var(--blue); border: none;
-    border-radius: 12px; display: flex; align-items: center; justify-content: center;
-    cursor: pointer; transition: all .15s; flex-shrink: 0;
+    width: 40px; height: 40px; background: var(--blue); border: none;
+    border-radius: 11px; display: flex; align-items: center; justify-content: center;
+    cursor: pointer; transition: all .15s; flex-shrink: 0; gap: 3px;
   }
-  .ai-bar-btn:hover:not(:disabled) { background: var(--blue2); transform: translateY(-1px); box-shadow: 0 4px 12px rgba(59,130,246,0.4); }
-  .ai-bar-btn:disabled { opacity: .35; cursor: default; }
+  .ai-bar-btn:hover:not(:disabled) { background: var(--blue2); transform: translateY(-1px); box-shadow: 0 4px 14px rgba(59,130,246,0.45); }
+  .ai-bar-btn:disabled { opacity: .4; cursor: default; transform: none !important; box-shadow: none !important; }
+  /* Loading dots inside button */
+  @keyframes aiDot { 0%,80%,100% { opacity:.25; transform:translateY(0); } 40% { opacity:1; transform:translateY(-3px); } }
+  .ai-dot { width:5px; height:5px; border-radius:50%; background:#fff; display:inline-block;
+    animation: aiDot 1.2s ease-in-out infinite; }
+  .ai-dot:nth-child(2) { animation-delay:.15s; }
+  .ai-dot:nth-child(3) { animation-delay:.3s; }
+
   .ai-response {
-    margin-top: 10px; padding: 12px 16px;
-    background: rgba(17,24,39,0.6);
+    margin-top: 10px; padding: 13px 16px;
+    background: rgba(13,19,30,0.72);
+    backdrop-filter: blur(12px); -webkit-backdrop-filter: blur(12px);
     border: 1px solid rgba(255,255,255,0.07);
-    border-radius: 12px; font-size: 13px; color: var(--t2); line-height: 1.6;
+    border-radius: 13px; font-size: 13px; color: var(--t2); line-height: 1.65;
     display: flex; align-items: flex-start; justify-content: space-between; gap: 12px;
-    animation: fadeInUp .2s ease both;
+    animation: fadeInUp .18s ease both;
   }
-  .ai-response-ok { border-color: rgba(16,185,129,0.25); }
-  .ai-response-err { border-color: rgba(239,68,68,0.25); color: var(--red); }
-  .ai-suggestions { display: flex; gap: 7px; margin-top: 10px; flex-wrap: wrap; }
+  .ai-response-body { flex: 1; min-width: 0; display: flex; align-items: flex-start; gap: 10px; }
+  .ai-response-icon { flex-shrink: 0; margin-top: 1px; }
+  .ai-response-ok { border-color: rgba(16,185,129,0.22); background: rgba(16,185,129,0.04); }
+  .ai-response-err { border-color: rgba(239,68,68,0.22); color: var(--red); background: rgba(239,68,68,0.04); }
+  .ai-response-close {
+    background: none; border: none; color: var(--t3); cursor: pointer;
+    padding: 2px; border-radius: 5px; display: flex; align-items: center;
+    transition: color .15s, background .15s; flex-shrink: 0; margin-top: 1px;
+  }
+  .ai-response-close:hover { color: var(--t1); background: rgba(255,255,255,0.06); }
+  .ai-suggestions { display: flex; gap: 6px; margin-top: 10px; flex-wrap: wrap; }
+  .ai-suggestion-chip {
+    background: rgba(255,255,255,0.04); border: 1px solid rgba(255,255,255,0.08);
+    color: var(--t3); font-size: 11px; font-family: var(--sans); font-weight: 500;
+    padding: 5px 12px; border-radius: 20px; cursor: pointer;
+    transition: all .15s; white-space: nowrap;
+  }
+  .ai-suggestion-chip:hover { background: rgba(59,130,246,0.1); border-color: rgba(59,130,246,0.3); color: var(--blue); }
 
   /* ── Tracker back bar ── */
   .tracker-back-bar {
@@ -3352,16 +3382,19 @@ function Home({ onNavigate, onGoToCalendarDay }) {
     setAiResponse({ text: "Thinking...", type: "loading" });
 
     try {
-      const sys = `You are Sanctum AI, a personal assistant embedded in a private life organiser.
-User: ${displayName}, Dublin, Ireland. Wife: Tamara. Dog: Ozzy (Golden Retriever, born Nov 2025).
-PMP exam target: August 2026. MSc Cybersecurity at SETU starts Sep 2026.
-Applications: Anthropic (Copyright Ops PM), Google (Sr Analyst T&S), Google (TPM Analytics EU).
-Trips: Italy Jun 12-17 2026, Scotland Sep 7-13 2026 (with Tamara + Ozzy).
-IMPORTANT: You CANNOT read note content. Notes are private and encrypted.
-When the user asks to add/create something, reply ONLY with valid JSON (no markdown):
-- Add task: {"action":"add_task","text":"task text","tag":"optional tag"}
-- Navigate: {"action":"navigate","page":"home|notes|calendar|trackers|career|study|finance|travel|pet|settings"}
-For everything else: plain text reply, warm and concise, max 2 sentences.`;
+      const todayISO = now.toISOString().slice(0, 10);
+      const sys = `You are Sanctum AI, a personal assistant embedded in a private life organiser app.
+Today is ${todayISO}. User: ${displayName}, Dublin, Ireland.
+Personal: Wife Tamara. Dog Ozzy (Golden Retriever, born Nov 2025).
+Career: Applications open at Anthropic (Copyright Ops PM), Google (Sr Analyst T&S), Google (TPM Analytics EU).
+Study: PMP exam target August 31 2026. MSc Cybersecurity at SETU starts Sep 14 2026.
+Travel: Italy Jun 12-17 2026. Scotland Sep 7-13 2026 (with Tamara + Ozzy).
+Active tasks: ${activeTasks.length} open, ${archivedTasks.length} completed.
+IMPORTANT: You CANNOT read note content — notes are private and encrypted on-device.
+RESPONSE RULES — choose one format only:
+- Add task → reply ONLY with valid JSON, no markdown: {"action":"add_task","text":"task text","tag":"optional tag"}
+- Navigate  → reply ONLY with valid JSON, no markdown: {"action":"navigate","page":"home|notes|calendar|trackers|career|study|finance|travel|pet|settings"}
+- All other queries → plain conversational text, warm but concise, max 2 sentences. No JSON.`;
 
       const res  = await fetch("/api/chat", { method: "POST", headers: { "Content-Type": "application/json" },
         body: JSON.stringify({ system: sys, messages: [{ role: "user", content: userMsg }] }) });
@@ -3389,10 +3422,10 @@ For everything else: plain text reply, warm and concise, max 2 sentences.`;
   };
 
   const AI_SUGGESTIONS = [
-    "Add a task: book Scotland accommodation",
     "How many days until the PMP exam?",
-    "Open study tracker",
-    "What's on this week?",
+    "Add task: book Scotland accommodation",
+    "Open the finance tracker",
+    "What should I focus on today?",
   ];
 
   const daysToExam     = daysTo(EXAM_DATE);
@@ -3428,35 +3461,59 @@ For everything else: plain text reply, warm and concise, max 2 sentences.`;
         <div className="home-greeting-date">{dateStr}</div>
       </div>
 
-      {/* AI bar */}
+      {/* AI assistant bar */}
       <div style={{ marginBottom: 28 }}>
         <div className="ai-bar">
-          <div style={{ width: 28, height: 28, borderRadius: "50%", background: "linear-gradient(135deg, var(--blue), var(--purple))", display: "flex", alignItems: "center", justifyContent: "center", fontSize: 13, flexShrink: 0 }}>✦</div>
-          <input ref={aiInputRef} className="ai-bar-input" value={aiInput}
+          <div className="ai-avatar">
+            <Icon name="ai" size={15} color="#fff" />
+          </div>
+          <input
+            ref={aiInputRef}
+            className="ai-bar-input"
+            value={aiInput}
             onChange={e => setAiInput(e.target.value)}
-            onKeyDown={e => e.key === "Enter" && sendAI()}
-            placeholder="Ask me anything or tell me what to do..." />
-          <button className="ai-bar-btn" onClick={sendAI} disabled={aiLoading || !aiInput.trim()}>
-            <Icon name="chevR" size={16} color="#fff" />
+            onKeyDown={e => e.key === "Enter" && !e.shiftKey && sendAI()}
+            placeholder="Ask anything, add a task, or navigate…"
+            disabled={aiLoading}
+          />
+          <button
+            className="ai-bar-btn"
+            onClick={sendAI}
+            disabled={aiLoading || !aiInput.trim()}
+            title="Send (Enter)"
+          >
+            {aiLoading
+              ? <><span className="ai-dot"/><span className="ai-dot"/><span className="ai-dot"/></>
+              : <Icon name="chevR" size={16} color="#fff" />
+            }
           </button>
         </div>
+
         {aiResponse ? (
           <div className={`ai-response${aiResponse.type === "error" ? " ai-response-err" : aiResponse.type === "success" ? " ai-response-ok" : ""}`}>
-            <span>
-              {aiResponse.type === "success" && <span style={{ color: "var(--grn)", marginRight: 6 }}>✓</span>}
-              {aiResponse.type === "loading" && <span style={{ color: "var(--t3)", marginRight: 6 }}>...</span>}
-              {aiResponse.text}
-            </span>
+            <div className="ai-response-body">
+              <div className="ai-response-icon">
+                {aiResponse.type === "success" && <Icon name="check" size={14} color="var(--grn)" />}
+                {aiResponse.type === "error"   && <Icon name="x"     size={14} color="var(--red)" />}
+                {aiResponse.type === "loading" && <span style={{ display:"flex", gap:3 }}><span className="ai-dot"/><span className="ai-dot"/><span className="ai-dot"/></span>}
+                {aiResponse.type === "text"    && <Icon name="ai"    size={14} color="var(--blue)" />}
+              </div>
+              <span>{aiResponse.text}</span>
+            </div>
             {aiResponse.type !== "loading" && (
-              <button onClick={() => setAiResponse(null)}
-                style={{ background: "none", border: "none", color: "var(--t3)", cursor: "pointer", fontSize: 14, padding: 0, flexShrink: 0, lineHeight: 1 }}>✕</button>
+              <button className="ai-response-close" onClick={() => setAiResponse(null)} title="Dismiss">
+                <Icon name="x" size={13} />
+              </button>
             )}
           </div>
         ) : (
           <div className="ai-suggestions">
             {AI_SUGGESTIONS.map(s => (
-              <button key={s} className="btn xs" style={{ borderRadius: 20, fontSize: 11 }}
-                onClick={() => { setAiInput(s); aiInputRef.current?.focus(); }}>{s}</button>
+              <button
+                key={s}
+                className="ai-suggestion-chip"
+                onClick={() => { setAiInput(s); aiInputRef.current?.focus(); }}
+              >{s}</button>
             ))}
           </div>
         )}
