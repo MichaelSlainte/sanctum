@@ -103,55 +103,74 @@ const sb = {
 
 // ─── CSS ─────────────────────────────────────────────────────────────────────
 const CSS = `
-  @import url('https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700&family=JetBrains+Mono:wght@400;500&display=swap');
+  @import url('https://fonts.googleapis.com/css2?family=Inter:ital,opsz,wght@0,14..32,300;0,14..32,400;0,14..32,500;0,14..32,600;0,14..32,700;1,14..32,400&family=JetBrains+Mono:wght@400;500&display=swap');
 
   *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
 
   :root {
+    /* Base surfaces */
     --bg:    #0a0e14;
-    --bg1:   #111827;
-    --bg2:   #1a2235;
-    --bg3:   #1e2a40;
-    --b1:    #1e2a40;
-    --b2:    #2a3a52;
-    --b3:    #3a4f6e;
-    --t1:    #f0f4f8;
-    --t2:    #94a3b8;
-    --t3:    #4a5568;
+    --bg1:   #0f1520;
+    --bg2:   #161e2d;
+    --bg3:   #1c2638;
+    /* Borders */
+    --b1:    #1e2a3d;
+    --b2:    #273548;
+    --b3:    #364d6a;
+    /* Text */
+    --t1:    #eef2f7;
+    --t2:    #8fa3be;
+    --t3:    #475569;
+    /* Accent */
     --blue:  #3b82f6;
     --blue2: #2563eb;
-    --bluem: rgba(59,130,246,0.12);
-    --blueb: rgba(59,130,246,0.3);
+    --bluem: rgba(59,130,246,0.10);
+    --blueb: rgba(59,130,246,0.28);
     --grn:   #10b981;
-    --grnm:  rgba(16,185,129,0.12);
+    --grnm:  rgba(16,185,129,0.10);
     --red:   #ef4444;
     --amber: #f59e0b;
     --purple:#8b5cf6;
     --pink:  #ec4899;
+    /* Type */
     --mono:  'JetBrains Mono', monospace;
     --sans:  'Inter', sans-serif;
+    /* Shape */
     --r:     12px;
     --r2:    16px;
-    --shadow: 0 4px 24px rgba(0,0,0,0.4);
-    --shadow2: 0 8px 40px rgba(0,0,0,0.5);
+    /* Shadows */
+    --shadow:  0 4px 24px rgba(0,0,0,0.45);
+    --shadow2: 0 12px 48px rgba(0,0,0,0.55);
+    /* Glass */
+    --glass-bg:     rgba(13,19,30,0.68);
+    --glass-border: rgba(255,255,255,0.065);
+    --glass-blur:   blur(20px) saturate(160%);
   }
 
   html, body, #root {
     height: 100%; background: var(--bg);
     color: var(--t1); font-family: var(--sans);
     font-size: 14px; -webkit-font-smoothing: antialiased;
+    font-feature-settings: "cv11", "ss01";
   }
 
   .shell { display: flex; height: 100vh; overflow: hidden; }
 
+  .main-bg {
+    background-image:
+      radial-gradient(ellipse at 12% 20%, rgba(59,130,246,0.08) 0%, transparent 52%),
+      radial-gradient(ellipse at 88% 80%, rgba(139,92,246,0.06) 0%, transparent 52%),
+      radial-gradient(ellipse at 50% 50%, rgba(16,185,129,0.02) 0%, transparent 60%);
+  }
+
   /* ── Sidebar ── */
   .sidebar {
-    width: 240px; min-width: 240px;
-    background: var(--bg1);
-    border-right: 1px solid var(--b1);
+    width: 224px; min-width: 224px;
+    background: rgba(8,12,18,0.96);
+    backdrop-filter: var(--glass-blur); -webkit-backdrop-filter: var(--glass-blur);
+    border-right: 1px solid var(--glass-border);
     display: flex; flex-direction: column;
     overflow-y: auto;
-    box-shadow: 4px 0 24px rgba(0,0,0,0.3);
   }
   .sidebar-logo {
     display: flex; align-items: center; gap: 12px;
@@ -160,64 +179,68 @@ const CSS = `
   }
   .logo-mark {
     width: 36px; height: 36px; border-radius: 10px;
-    background: #2563eb;
+    background: linear-gradient(135deg, #3b82f6, #2563eb);
     display: flex; align-items: center; justify-content: center;
     font-family: var(--mono); font-size: 14px; font-weight: 700;
     color: #fff; flex-shrink: 0;
-    box-shadow: 0 4px 12px rgba(59,130,246,0.4);
+    box-shadow: 0 4px 16px rgba(59,130,246,0.45), 0 0 0 1px rgba(59,130,246,0.2);
   }
-  .logo-name { font-size: 16px; font-weight: 700; color: var(--t1); letter-spacing: -.3px; }
-  .logo-sub  { font-size: 11px; color: var(--t3); font-family: var(--mono); margin-top: 1px; }
+  .logo-name { font-size: 15px; font-weight: 700; color: var(--t1); letter-spacing: -.3px; }
+  .logo-sub  { font-size: 10px; color: var(--t3); font-family: var(--mono); margin-top: 2px; letter-spacing: .3px; }
 
-  .nav-section { padding: 16px 12px 4px; }
+  .nav-section { padding: 16px 10px 4px; }
   .nav-label {
     font-size: 9px; letter-spacing: 2px; text-transform: uppercase;
-    color: var(--t3); padding: 0 8px; margin-bottom: 6px; font-weight: 600;
+    color: var(--t3); padding: 0 10px; margin-bottom: 6px; font-weight: 600;
   }
   .nav-item {
     display: flex; align-items: center; gap: 10px;
     padding: 9px 12px; border-radius: 10px; cursor: pointer;
-    color: var(--t2); font-size: 13px; font-weight: 500;
+    color: var(--t3); font-size: 13px; font-weight: 500;
     transition: all .15s; border: 1px solid transparent;
     user-select: none; margin-bottom: 2px;
   }
-  .nav-item:hover { background: var(--bg2); color: var(--t1); }
+  .nav-item:hover { background: rgba(255,255,255,0.04); color: var(--t2); border-color: var(--b1); }
   .nav-item.active {
-    background: var(--bluem); color: var(--blue);
-    border-color: var(--blueb); font-weight: 600;
+    background: linear-gradient(135deg, rgba(59,130,246,0.14), rgba(59,130,246,0.07));
+    color: var(--blue); border-color: rgba(59,130,246,0.22); font-weight: 600;
+    box-shadow: 0 2px 8px rgba(59,130,246,0.10);
   }
-  .nav-icon { width: 18px; height: 18px; flex-shrink: 0; display: flex; align-items: center; justify-content: center; }
+  .nav-icon { width: 18px; height: 18px; flex-shrink: 0; display: flex; align-items: center; justify-content: center; opacity: .75; }
+  .nav-item.active .nav-icon { opacity: 1; }
   .nav-badge {
     margin-left: auto; font-size: 10px; font-family: var(--mono);
     background: var(--bg3); color: var(--t3);
     padding: 1px 6px; border-radius: 10px;
   }
-  .nav-item.active .nav-badge { background: var(--blueb); color: var(--blue); }
+  .nav-item.active .nav-badge { background: rgba(59,130,246,0.18); color: var(--blue); }
   .sidebar-footer { margin-top: auto; padding: 12px; border-top: 1px solid var(--b1); }
 
   /* ── Main ── */
-  .main { flex: 1; display: flex; flex-direction: column; overflow: hidden; }
+  .main { flex: 1; display: flex; flex-direction: column; overflow: hidden; position: relative; }
   .topbar {
-    height: 56px; background: var(--bg1);
-    border-bottom: 1px solid var(--b1);
+    height: 56px;
+    background: rgba(8,12,18,0.82);
+    backdrop-filter: var(--glass-blur); -webkit-backdrop-filter: var(--glass-blur);
+    border-bottom: 1px solid var(--glass-border);
     display: flex; align-items: center; justify-content: space-between;
-    padding: 0 28px; flex-shrink: 0;
-    box-shadow: 0 2px 12px rgba(0,0,0,0.2);
+    padding: 0 32px; flex-shrink: 0;
   }
   .topbar-left { display: flex; align-items: center; gap: 12px; }
-  .topbar-title { font-size: 16px; font-weight: 700; color: var(--t1); letter-spacing: -.3px; }
-  .topbar-sub   { font-size: 12px; color: var(--t3); font-family: var(--mono); }
+  .topbar-title { font-size: 16px; font-weight: 700; color: var(--t1); letter-spacing: -.4px; }
+  .topbar-sub   { font-size: 11px; color: var(--t3); font-family: var(--mono); letter-spacing: .2px; }
   .topbar-right { display: flex; align-items: center; gap: 10px; }
-  .page-body { flex: 1; overflow-y: auto; padding: 28px; }
+  .page-body { flex: 1; overflow-y: auto; padding: 32px; }
 
   /* ── Cards ── */
   .card {
-    background: var(--bg1); border: 1px solid var(--b1);
-    border-radius: var(--r2); padding: 22px;
-    box-shadow: var(--shadow);
-    transition: border-color .2s;
+    background: var(--glass-bg);
+    backdrop-filter: var(--glass-blur); -webkit-backdrop-filter: var(--glass-blur);
+    border: 1px solid var(--glass-border);
+    border-radius: var(--r2); padding: 24px;
+    transition: border-color .2s, box-shadow .2s;
   }
-  .card:hover { border-color: var(--b2); }
+  .card:hover { border-color: rgba(255,255,255,0.11); box-shadow: 0 8px 36px rgba(0,0,0,0.32); }
   .card-header { display: flex; align-items: center; justify-content: space-between; margin-bottom: 18px; }
   .card-title { font-size: 14px; font-weight: 700; color: var(--t1); letter-spacing: -.2px; }
   .card-sub   { font-size: 11px; color: var(--t3); font-family: var(--mono); margin-top: 2px; }
@@ -231,7 +254,9 @@ const CSS = `
 
   /* ── Stat tiles ── */
   .stat {
-    background: var(--bg2); border: 1px solid var(--b1);
+    background: var(--glass-bg);
+    backdrop-filter: var(--glass-blur); -webkit-backdrop-filter: var(--glass-blur);
+    border: 1px solid var(--glass-border);
     border-radius: var(--r2); padding: 20px;
     transition: all .2s; cursor: default;
     position: relative; overflow: hidden;
@@ -344,11 +369,13 @@ const CSS = `
 
   /* ── Dashboard widgets ── */
   .dash-widget {
-    background: var(--bg2); border: 1px solid var(--b1);
+    background: var(--glass-bg);
+    backdrop-filter: var(--glass-blur); -webkit-backdrop-filter: var(--glass-blur);
+    border: 1px solid var(--glass-border);
     border-radius: var(--r2); padding: 20px; cursor: pointer;
     transition: all .2s; position: relative; overflow: hidden;
   }
-  .dash-widget:hover { border-color: var(--b3); transform: translateY(-2px); box-shadow: var(--shadow); }
+  .dash-widget:hover { border-color: var(--blueb); transform: translateY(-2px); box-shadow: var(--shadow); }
   .dw-icon { width: 40px; height: 40px; border-radius: 12px; display: flex; align-items: center; justify-content: center; font-size: 18px; margin-bottom: 14px; }
   .dw-label { font-size: 10px; letter-spacing: 1.5px; text-transform: uppercase; color: var(--t3); margin-bottom: 6px; font-weight: 600; }
   .dw-value { font-size: 26px; font-weight: 700; font-family: var(--mono); color: var(--t1); letter-spacing: -1px; line-height: 1; }
@@ -401,78 +428,87 @@ const CSS = `
   .task-item:hover .task-actions { opacity: 1; }
 
   /* ── Notes ── */
-  .notes-shell { display: flex; height: calc(100vh - 56px); overflow: hidden; }
+  .notes-shell { display: flex; flex: 1; overflow: hidden; }
   .notes-sidebar {
-    width: 220px; min-width: 220px; border-right: 1px solid var(--b1);
-    background: var(--bg1); overflow-y: auto; display: flex; flex-direction: column;
+    width: 200px; min-width: 200px; border-right: 1px solid var(--glass-border);
+    background: rgba(8,12,18,0.92); overflow-y: auto; display: flex; flex-direction: column;
   }
   .notes-sidebar-header {
-    padding: 16px 16px 12px; border-bottom: 1px solid var(--b1);
-    display: flex; align-items: center; justify-content: space-between;
-    flex-shrink: 0;
+    padding: 14px 14px 10px; border-bottom: 1px solid rgba(255,255,255,0.06);
+    display: flex; align-items: center; justify-content: space-between; flex-shrink: 0;
   }
   .notebook-item {
-    display: flex; align-items: center; gap: 10px;
+    display: flex; align-items: center; gap: 9px;
     padding: 8px 14px; cursor: pointer; color: var(--t2);
     font-size: 13px; font-weight: 500; transition: all .15s;
     border-left: 2px solid transparent;
   }
-  .notebook-item:hover { background: var(--bg2); color: var(--t1); }
+  .notebook-item:hover { background: rgba(255,255,255,0.04); color: var(--t1); }
   .notebook-item.active { background: var(--bluem); color: var(--blue); border-left-color: var(--blue); }
-  .notebook-icon { width: 28px; height: 28px; border-radius: 8px; display: flex; align-items: center; justify-content: center; font-size: 14px; flex-shrink: 0; }
+  .notebook-icon { width: 26px; height: 26px; border-radius: 7px; display: flex; align-items: center; justify-content: center; font-size: 13px; flex-shrink: 0; }
   .section-item {
     display: flex; align-items: center; gap: 8px;
-    padding: 6px 14px 6px 28px; cursor: pointer; color: var(--t3);
-    font-size: 12px; font-weight: 500; transition: all .15s;
+    padding: 5px 14px 5px 26px; cursor: pointer; color: var(--t3);
+    font-size: 11px; font-weight: 500; transition: all .15s;
     border-left: 2px solid transparent;
   }
-  .section-item:hover { background: var(--bg2); color: var(--t2); }
+  .section-item:hover { background: rgba(255,255,255,0.03); color: var(--t2); }
   .section-item.active { color: var(--blue); border-left-color: var(--blue); background: var(--bluem); }
-  .section-dot { width: 5px; height: 5px; border-radius: 50%; background: var(--b3); flex-shrink: 0; }
+  .section-dot { width: 4px; height: 4px; border-radius: 50%; background: var(--b3); flex-shrink: 0; }
   .section-item.active .section-dot { background: var(--blue); }
 
   .notes-list {
-    width: 260px; min-width: 260px; border-right: 1px solid var(--b1);
-    background: var(--bg); overflow-y: auto; display: flex; flex-direction: column;
+    width: 255px; min-width: 255px; border-right: 1px solid rgba(255,255,255,0.06);
+    background: rgba(17,24,39,0.55); overflow-y: auto; display: flex; flex-direction: column;
   }
   .notes-list-header {
-    padding: 12px 14px; border-bottom: 1px solid var(--b1);
+    padding: 10px 12px; border-bottom: 1px solid rgba(255,255,255,0.06);
     display: flex; align-items: center; justify-content: space-between;
-    flex-shrink: 0; background: var(--bg1);
+    flex-shrink: 0; background: rgba(10,14,20,0.6);
   }
   .note-list-item {
-    padding: 14px 16px; cursor: pointer;
-    border-bottom: 1px solid var(--b1); transition: background .15s;
+    padding: 13px 14px; cursor: pointer;
+    border-bottom: 1px solid rgba(255,255,255,0.05); transition: background .15s;
     border-left: 2px solid transparent;
   }
-  .note-list-item:hover { background: var(--bg2); }
+  .note-list-item:hover { background: rgba(255,255,255,0.04); }
   .note-list-item.active { background: var(--bluem); border-left-color: var(--blue); }
-  .nli-title   { font-size: 13px; font-weight: 600; color: var(--t1); margin-bottom: 4px; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+  .nli-title   { font-size: 13px; font-weight: 600; color: var(--t1); margin-bottom: 3px; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
   .nli-preview { font-size: 11px; color: var(--t3); white-space: nowrap; overflow: hidden; text-overflow: ellipsis; line-height: 1.4; }
-  .nli-date    { font-size: 10px; color: var(--t3); font-family: var(--mono); margin-top: 6px; }
-  .nli-tags    { display: flex; gap: 4px; margin-top: 5px; flex-wrap: wrap; }
+  .nli-date    { font-size: 10px; color: var(--t3); font-family: var(--mono); margin-top: 5px; }
+  .nli-tags    { display: flex; gap: 4px; margin-top: 4px; flex-wrap: wrap; }
   .nli-tag     { font-size: 9px; padding: 1px 5px; border-radius: 4px; background: var(--bg3); color: var(--t3); font-weight: 500; }
+  .nli-location { font-size: 9px; color: var(--t3); font-family: var(--mono); margin-top: 3px; opacity: .7; }
 
-  .note-editor { flex: 1; display: flex; flex-direction: column; overflow: hidden; background: var(--bg); }
+  .note-editor { flex: 1; display: flex; flex-direction: column; overflow: hidden; background: rgba(8,12,18,0.80); }
   .note-toolbar {
-    padding: 12px 24px; border-bottom: 1px solid var(--b1);
-    display: flex; align-items: center; gap: 8px;
-    background: var(--bg1); flex-shrink: 0;
+    padding: 8px 18px; border-bottom: 1px solid rgba(255,255,255,0.06);
+    display: flex; align-items: center; gap: 4px; flex-wrap: wrap;
+    background: rgba(10,14,20,0.65); flex-shrink: 0;
   }
-  .note-toolbar-sep { width: 1px; height: 20px; background: var(--b2); margin: 0 4px; }
+  .note-toolbar-sep { width: 1px; height: 18px; background: rgba(255,255,255,0.08); margin: 0 4px; }
+  .note-tool-btn {
+    width: 26px; height: 26px; border-radius: 6px;
+    display: flex; align-items: center; justify-content: center;
+    background: transparent; border: 1px solid transparent;
+    color: var(--t3); cursor: pointer; font-size: 11px; font-weight: 700;
+    font-family: var(--mono); transition: all .12s; flex-shrink: 0; line-height: 1;
+  }
+  .note-tool-btn:hover { background: rgba(255,255,255,0.06); border-color: rgba(255,255,255,0.1); color: var(--t1); }
+  .note-tool-btn.on { background: var(--bluem); border-color: var(--blueb); color: var(--blue); }
   .note-title-input {
     width: 100%; padding: 20px 28px 12px;
     background: transparent; border: none; color: var(--t1);
-    font-size: 24px; font-weight: 700; font-family: var(--sans);
-    outline: none; border-bottom: 1px solid var(--b1); letter-spacing: -.3px;
+    font-size: 22px; font-weight: 700; font-family: var(--sans);
+    outline: none; border-bottom: 1px solid rgba(255,255,255,0.06); letter-spacing: -.3px;
   }
   .note-title-input::placeholder { color: var(--t3); }
-  .note-meta { padding: 8px 28px; display: flex; align-items: center; gap: 12px; border-bottom: 1px solid var(--b1); }
-  .note-meta-item { font-size: 11px; color: var(--t3); font-family: var(--mono); display: flex; align-items: center; gap: 4px; }
+  .note-meta { padding: 7px 28px; display: flex; align-items: center; gap: 12px; border-bottom: 1px solid rgba(255,255,255,0.06); flex-wrap: wrap; }
+  .note-meta-item { font-size: 10px; color: var(--t3); font-family: var(--mono); display: flex; align-items: center; gap: 4px; }
   .note-body-input {
     flex: 1; padding: 20px 28px;
     background: transparent; border: none; color: var(--t2);
-    font-size: 14px; line-height: 1.8; font-family: var(--sans);
+    font-size: 14px; line-height: 1.85; font-family: var(--sans);
     outline: none; resize: none;
   }
   .note-body-input::placeholder { color: var(--t3); }
@@ -480,48 +516,99 @@ const CSS = `
     flex: 1; display: flex; align-items: center; justify-content: center;
     flex-direction: column; gap: 12px; color: var(--t3);
   }
-  .note-empty-icon { font-size: 48px; opacity: .15; }
+  .note-empty-icon { font-size: 44px; opacity: .12; }
   .enc-badge {
     display: inline-flex; align-items: center; gap: 4px;
-    padding: 3px 10px; border-radius: 20px;
+    padding: 3px 9px; border-radius: 20px;
     background: rgba(16,185,129,.10); color: var(--grn);
     font-size: 10px; font-weight: 600;
   }
+  .save-ind { font-size: 10px; font-family: var(--mono); padding: 2px 8px; border-radius: 6px; transition: all .3s; }
+  .save-ind.saving { color: var(--amber); background: rgba(245,158,11,0.1); }
+  .save-ind.saved  { color: var(--grn);   background: rgba(16,185,129,0.1); }
+
+  /* ── Markdown preview ── */
+  .preview-body {
+    flex: 1; overflow-y: auto; padding: 20px 32px;
+    color: var(--t2); line-height: 1.85; font-size: 14px;
+  }
+  .preview-body h1 { font-size: 22px; font-weight: 700; color: var(--t1); margin: 24px 0 10px; letter-spacing: -.3px; border-bottom: 1px solid rgba(255,255,255,0.06); padding-bottom: 8px; }
+  .preview-body h2 { font-size: 17px; font-weight: 700; color: var(--t1); margin: 20px 0 8px; }
+  .preview-body h3 { font-size: 14px; font-weight: 600; color: var(--t1); margin: 16px 0 6px; }
+  .preview-body p  { margin-bottom: 10px; }
+  .preview-body ul { margin: 6px 0 10px 20px; }
+  .preview-body li { margin-bottom: 4px; }
+  .preview-body strong { color: var(--t1); font-weight: 700; }
+  .preview-body em { font-style: italic; }
+  .preview-body code { background: rgba(59,130,246,0.1); border: 1px solid rgba(59,130,246,0.2); padding: 1px 5px; border-radius: 4px; font-family: var(--mono); font-size: 12px; color: var(--blue); }
+  .preview-body pre { background: var(--bg3); border: 1px solid rgba(255,255,255,0.07); border-radius: 10px; padding: 14px 18px; margin: 12px 0; overflow-x: auto; }
+  .preview-body pre code { background: none; border: none; padding: 0; color: var(--t2); font-size: 13px; }
 
   /* ── Calendar ── */
-  .cal-header { display: flex; align-items: center; justify-content: space-between; margin-bottom: 24px; }
-  .cal-month-nav { display: flex; align-items: center; gap: 16px; }
-  .cal-month-title { font-size: 20px; font-weight: 700; color: var(--t1); letter-spacing: -.5px; min-width: 200px; text-align: center; }
-  .cal-legend { display: flex; gap: 16px; }
-  .cal-legend-item { display: flex; align-items: center; gap: 6px; font-size: 11px; color: var(--t3); font-weight: 500; }
-  .cal-legend-dot { width: 8px; height: 8px; border-radius: 50%; }
+  .cal-header { display: flex; align-items: center; justify-content: space-between; margin-bottom: 22px; flex-wrap: wrap; gap: 12px; }
+  .cal-month-nav { display: flex; align-items: center; gap: 14px; }
+  .cal-month-title { font-size: 19px; font-weight: 700; color: var(--t1); letter-spacing: -.4px; min-width: 200px; text-align: center; }
   .cal-grid-header { display: grid; grid-template-columns: repeat(7,1fr); gap: 6px; margin-bottom: 6px; }
-  .cal-day-header { text-align: center; font-size: 10px; font-weight: 700; letter-spacing: 1.5px; text-transform: uppercase; color: var(--t3); padding: 8px 0; }
+  .cal-day-header { text-align: center; font-size: 9px; font-weight: 700; letter-spacing: 1.5px; text-transform: uppercase; color: var(--t3); padding: 6px 0; }
   .cal-grid { display: grid; grid-template-columns: repeat(7,1fr); gap: 6px; }
   .cal-cell {
-    min-height: 90px; background: var(--bg2); border: 1px solid var(--b1);
-    border-radius: 12px; padding: 8px; cursor: pointer; transition: all .2s;
+    min-height: 88px;
+    background: var(--glass-bg);
+    backdrop-filter: blur(12px); -webkit-backdrop-filter: blur(12px);
+    border: 1px solid var(--glass-border);
+    border-radius: 11px; padding: 8px; cursor: pointer; transition: all .2s;
     display: flex; flex-direction: column;
   }
-  .cal-cell:hover { border-color: var(--b3); background: var(--bg3); }
-  .cal-cell.today { border-color: var(--blue); background: rgba(59,130,246,0.08); }
-  .cal-cell.other-month { opacity: .3; cursor: default; }
+  .cal-cell:hover { border-color: rgba(255,255,255,0.13); background: rgba(17,24,39,0.75); }
+  .cal-cell.today { border-color: var(--blueb); background: rgba(59,130,246,0.1); }
+  .cal-cell.other-month { opacity: .22; cursor: default; }
   .cal-day-num {
-    font-size: 13px; font-family: var(--mono); font-weight: 600;
-    color: var(--t2); margin-bottom: 6px; width: 24px; height: 24px;
-    display: flex; align-items: center; justify-content: center;
-    border-radius: 6px;
+    font-size: 12px; font-family: var(--mono); font-weight: 600;
+    color: var(--t2); margin-bottom: 5px; width: 22px; height: 22px;
+    display: flex; align-items: center; justify-content: center; border-radius: 6px;
   }
-  .cal-cell.today .cal-day-num {
-    background: var(--blue); color: #fff; font-weight: 700;
-  }
+  .cal-cell.today .cal-day-num { background: var(--blue); color: #fff; font-weight: 700; }
   .cal-events { display: flex; flex-direction: column; gap: 3px; flex: 1; overflow: hidden; }
   .cal-event {
-    font-size: 10px; font-weight: 600; padding: 3px 7px;
-    border-radius: 6px; white-space: nowrap; overflow: hidden;
-    text-overflow: ellipsis; line-height: 1.3;
+    font-size: 10px; font-weight: 600; padding: 3px 6px;
+    border-radius: 5px; white-space: nowrap; overflow: hidden;
+    text-overflow: ellipsis; line-height: 1.3; cursor: pointer; transition: opacity .15s;
   }
+  .cal-event:hover { opacity: .82; }
   .cal-event-more { font-size: 9px; color: var(--t3); padding: 2px 4px; font-weight: 500; }
+
+  /* ── Week view ── */
+  .week-view { display: grid; grid-template-columns: repeat(7,1fr); gap: 8px; }
+  .week-col {
+    background: var(--glass-bg);
+    backdrop-filter: blur(12px); -webkit-backdrop-filter: blur(12px);
+    border: 1px solid var(--glass-border);
+    border-radius: 12px; overflow: hidden; min-height: 280px;
+    display: flex; flex-direction: column;
+  }
+  .week-col.today { border-color: var(--blueb); background: rgba(59,130,246,0.08); }
+  .week-col-header {
+    padding: 10px 8px 8px; text-align: center;
+    border-bottom: 1px solid rgba(255,255,255,0.06);
+    background: rgba(0,0,0,0.12); flex-shrink: 0;
+  }
+  .week-col-day { font-size: 8px; text-transform: uppercase; letter-spacing: 1px; color: var(--t3); font-weight: 700; }
+  .week-col-num { font-size: 18px; font-weight: 700; font-family: var(--mono); color: var(--t1); margin-top: 2px; line-height: 1; }
+  .week-col.today .week-col-num { color: var(--blue); }
+  .week-col-events { padding: 6px; display: flex; flex-direction: column; gap: 4px; flex: 1; }
+  .week-event {
+    padding: 5px 7px; border-radius: 7px; font-size: 10px; font-weight: 600;
+    line-height: 1.35; cursor: pointer; transition: opacity .15s;
+  }
+  .week-event:hover { opacity: .82; }
+  .week-add-btn {
+    display: flex; align-items: center; justify-content: center;
+    height: 28px; color: var(--t3); font-size: 20px; cursor: pointer;
+    transition: color .15s; opacity: 0; border-radius: 7px; margin-top: 4px;
+    border: 1px dashed rgba(255,255,255,0.08);
+  }
+  .week-col:hover .week-add-btn { opacity: 1; }
+  .week-add-btn:hover { color: var(--blue); border-color: var(--blueb); background: rgba(59,130,246,0.06); }
 
   /* ── Career ── */
   .app-table { width: 100%; border-collapse: collapse; }
@@ -563,14 +650,99 @@ const CSS = `
     box-shadow: 0 2px 8px rgba(59,130,246,0.3);
   }
 
+  /* ── Tracker hub ── */
+  .tracker-hub { display: grid; grid-template-columns: repeat(auto-fill, minmax(240px, 1fr)); gap: 18px; }
+  .tracker-card {
+    background: var(--glass-bg);
+    backdrop-filter: var(--glass-blur); -webkit-backdrop-filter: var(--glass-blur);
+    border: 1px solid var(--glass-border);
+    border-radius: var(--r2); padding: 26px; cursor: pointer;
+    transition: all .2s; position: relative; overflow: hidden;
+  }
+  .tracker-card:hover { border-color: var(--blueb); transform: translateY(-2px); box-shadow: 0 8px 32px rgba(0,0,0,0.3); }
+  .tracker-card::before {
+    content: ''; position: absolute; top: 0; left: 0; right: 0; height: 2px;
+    background: linear-gradient(90deg, var(--blue), var(--purple));
+    opacity: 0; transition: opacity .2s;
+  }
+  .tracker-card:hover::before { opacity: 1; }
+  .tc-emoji { font-size: 34px; margin-bottom: 16px; }
+  .tc-name { font-size: 16px; font-weight: 700; color: var(--t1); margin-bottom: 6px; letter-spacing: -.3px; }
+  .tc-sub { font-size: 12px; color: var(--t3); line-height: 1.55; }
+  .tc-arrow { position: absolute; right: 20px; top: 20px; color: var(--t3); opacity: 0; transition: opacity .2s; font-size: 18px; }
+  .tracker-card:hover .tc-arrow { opacity: 1; }
+
+  /* ── Home page ── */
+  .home-greeting-name { font-size: 26px; font-weight: 700; color: var(--t1); letter-spacing: -.5px; line-height: 1.2; }
+  .home-greeting-date { font-size: 13px; color: var(--t3); margin-top: 3px; }
+
+  .ai-bar {
+    background: var(--glass-bg);
+    backdrop-filter: var(--glass-blur); -webkit-backdrop-filter: var(--glass-blur);
+    border: 1px solid rgba(255,255,255,0.09);
+    border-radius: 16px; padding: 6px 6px 6px 20px;
+    display: flex; align-items: center; gap: 12px;
+    transition: border-color .2s, box-shadow .2s;
+  }
+  .ai-bar:focus-within {
+    border-color: var(--blueb);
+    box-shadow: 0 0 0 3px rgba(59,130,246,0.1), 0 8px 32px rgba(0,0,0,0.25);
+  }
+  .ai-bar-input {
+    flex: 1; background: transparent; border: none; outline: none;
+    color: var(--t1); font-size: 14px; font-family: var(--sans); padding: 10px 0;
+  }
+  .ai-bar-input::placeholder { color: var(--t3); }
+  .ai-bar-btn {
+    width: 42px; height: 42px; background: var(--blue); border: none;
+    border-radius: 12px; display: flex; align-items: center; justify-content: center;
+    cursor: pointer; transition: all .15s; flex-shrink: 0;
+  }
+  .ai-bar-btn:hover:not(:disabled) { background: var(--blue2); transform: translateY(-1px); box-shadow: 0 4px 12px rgba(59,130,246,0.4); }
+  .ai-bar-btn:disabled { opacity: .35; cursor: default; }
+  .ai-response {
+    margin-top: 10px; padding: 12px 16px;
+    background: rgba(17,24,39,0.6);
+    border: 1px solid rgba(255,255,255,0.07);
+    border-radius: 12px; font-size: 13px; color: var(--t2); line-height: 1.6;
+    display: flex; align-items: flex-start; justify-content: space-between; gap: 12px;
+    animation: fadeInUp .2s ease both;
+  }
+  .ai-response-ok { border-color: rgba(16,185,129,0.25); }
+  .ai-response-err { border-color: rgba(239,68,68,0.25); color: var(--red); }
+  .ai-suggestions { display: flex; gap: 7px; margin-top: 10px; flex-wrap: wrap; }
+
+  /* ── Tracker back bar ── */
+  .tracker-back-bar {
+    display: flex; align-items: center; gap: 10px;
+    padding: 10px 32px;
+    background: rgba(8,12,18,0.72);
+    backdrop-filter: var(--glass-blur); -webkit-backdrop-filter: var(--glass-blur);
+    border-bottom: 1px solid var(--glass-border);
+    flex-shrink: 0;
+  }
+  .tracker-back-btn {
+    display: flex; align-items: center; gap: 5px;
+    cursor: pointer; color: var(--t3); font-size: 12px; font-weight: 500;
+    transition: color .15s; background: none; border: none;
+    font-family: var(--sans); padding: 0;
+  }
+  .tracker-back-btn:hover { color: var(--blue); }
+  .tracker-section-label { font-size: 13px; font-weight: 600; color: var(--t2); }
+
+  /* ── Animations ── */
+  @keyframes pageIn { from { opacity: 0; transform: translateY(7px); } to { opacity: 1; transform: translateY(0); } }
+  .page-enter { animation: pageIn .22s ease both; }
+
   /* ── Mobile responsive ── */
   .bottom-nav {
     display: none;
     position: fixed; bottom: 0; left: 0; right: 0;
-    background: var(--bg1); border-top: 1px solid var(--b1);
+    background: rgba(8,12,18,0.92);
+    backdrop-filter: blur(24px) saturate(180%); -webkit-backdrop-filter: blur(24px) saturate(180%);
+    border-top: 1px solid var(--glass-border);
     padding: 8px 0 max(8px, env(safe-area-inset-bottom));
     z-index: 100;
-    box-shadow: 0 -4px 24px rgba(0,0,0,0.3);
   }
   .bottom-nav-inner { display: flex; justify-content: space-around; align-items: center; }
   .bottom-nav-item {
@@ -585,18 +757,21 @@ const CSS = `
   @media (max-width: 768px) {
     .sidebar { display: none; }
     .bottom-nav { display: block; }
-    .page-body { padding: 16px; padding-bottom: 80px; }
+    .page-body { padding: 18px; padding-bottom: 84px; }
     .grid-4 { grid-template-columns: 1fr 1fr; }
     .grid-3 { grid-template-columns: 1fr 1fr; }
     .grid-2 { grid-template-columns: 1fr; }
-    .notes-shell { flex-direction: column; height: auto; min-height: calc(100vh - 56px - 70px); }
-    .notes-sidebar { width: 100%; min-width: unset; border-right: none; border-bottom: 1px solid var(--b1); max-height: 200px; overflow-x: auto; overflow-y: hidden; flex-direction: row; flex-wrap: nowrap; display: flex; }
-    .notes-list { width: 100%; min-width: unset; border-right: none; border-bottom: 1px solid var(--b1); max-height: 200px; }
+    .notes-shell { flex-direction: column; height: auto; }
+    .notes-sidebar { width: 100%; min-width: unset; border-right: none; border-bottom: 1px solid rgba(255,255,255,0.06); max-height: 180px; overflow-x: auto; overflow-y: hidden; flex-direction: row; flex-wrap: nowrap; display: flex; }
+    .notes-list { width: 100%; min-width: unset; border-right: none; border-bottom: 1px solid rgba(255,255,255,0.06); max-height: 200px; }
     .note-editor { min-height: 300px; }
     .app-table th:nth-child(4), .app-table td:nth-child(4),
     .app-table th:nth-child(5), .app-table td:nth-child(5) { display: none; }
     .topbar { padding: 0 16px; }
-    .cal-cell { min-height: 60px; }
+    .cal-cell { min-height: 55px; }
+    .week-view { grid-template-columns: repeat(7,1fr); gap: 4px; }
+    .week-col-num { font-size: 13px; }
+    .week-event { font-size: 9px; padding: 3px 5px; }
     .cal-event { font-size: 9px; }
     .modal { margin: 16px; max-width: calc(100vw - 32px); }
   }
@@ -641,6 +816,7 @@ const Icon = ({ name, size = 16, color = "currentColor" }) => {
     tag: <><path d="M20.59 13.41l-7.17 7.17a2 2 0 01-2.83 0L2 12V2h10l8.59 8.59a2 2 0 010 2.82z" /><line x1="7" y1="7" x2="7.01" y2="7" /></>,
     search: <><circle cx="11" cy="11" r="8" /><line x1="21" y1="21" x2="16.65" y2="16.65" /></>,
     ai: <><path d="M12 2a10 10 0 110 20A10 10 0 0112 2z" /><path d="M12 8v4l3 3" /><circle cx="12" cy="12" r="1" /><path d="M16.24 7.76l-1.42 1.42M7.76 7.76l1.42 1.42M7.76 16.24l1.42-1.42M16.24 16.24l-1.42-1.42" /></>,
+    trackers: <><rect x="3" y="3" width="7" height="7" rx="1.5"/><rect x="14" y="3" width="7" height="7" rx="1.5"/><rect x="3" y="14" width="7" height="7" rx="1.5"/><rect x="14" y="14" width="7" height="7" rx="1.5"/></>,
   };
   return <svg viewBox="0 0 24 24" style={s}>{p[name]}</svg>;
 };
@@ -1101,97 +1277,190 @@ function Dashboard({ onNavigate, onGoToCalendarDay }) {
 
 // ─── NOTES ───────────────────────────────────────────────────────────────────
 function Notes() {
-  const [activeNB, setActiveNB] = useState("finance");
-  const [activeSection, setSection] = useState("mortgage");
-  const [notes, setNotes] = useState([]);
-  const [activeNote, setActiveNote] = useState(null);
-  const [editTitle, setEditTitle] = useState("");
-  const [editBody, setEditBody] = useState("");
-  const [editTags, setEditTags] = useState("");
-  const [loading, setLoading] = useState(false);
-  const [search, setSearch] = useState("");
+  const [activeNB, setActiveNB]       = useState("finance");
+  const [activeSection, setSection]   = useState("mortgage");
+  const [allNotes, setAllNotes]       = useState([]);
+  const [activeNote, setActiveNote]   = useState(null);
+  const [editTitle, setEditTitle]     = useState("");
+  const [editBody, setEditBody]       = useState("");
+  const [editTags, setEditTags]       = useState("");
+  const [loading, setLoading]         = useState(false);
+  const [search, setSearch]           = useState("");
+  const [saveStatus, setSaveStatus]   = useState("idle"); // idle | saving | saved
+  const [viewMode, setViewMode]       = useState("edit"); // edit | preview
   const saveTimer = useRef(null);
+  const bodyRef   = useRef(null);
 
   const notebook = NOTEBOOKS.find(n => n.id === activeNB);
-  const section = notebook?.sections.find(s => s.id === activeSection);
+  const section  = notebook?.sections.find(s => s.id === activeSection);
 
-  useEffect(() => { loadNotes(); }, [activeSection]);
+  // ── Load ──
+  useEffect(() => { loadNotes(); }, []);
 
   const loadNotes = async () => {
     setLoading(true);
     try {
       const data = await sb.from("notes").select("*");
       if (Array.isArray(data)) {
-        const filtered = activeSection ? data.filter(n => n.section === activeSection) : data;
-        setNotes(filtered);
-        if (filtered[0]) { setActiveNote(filtered[0].id); setEditTitle(filtered[0].title || ""); setEditBody(filtered[0].body || ""); setEditTags(filtered[0].tags || ""); }
-        else { setActiveNote(null); setEditTitle(""); setEditBody(""); setEditTags(""); }
+        setAllNotes(data);
+        const forSection = data.filter(n => n.section === activeSection);
+        if (forSection[0]) openNote(forSection[0]);
       }
-    } catch { setNotes([]); }
+    } catch { setAllNotes([]); }
     setLoading(false);
   };
 
-  const selectNote = (n) => {
+  const openNote = (n) => {
     setActiveNote(n.id); setEditTitle(n.title || ""); setEditBody(n.body || ""); setEditTags(n.tags || "");
+    setViewMode("edit");
   };
 
+  // Notes visible in list panel
+  const isGlobalSearch = search.length > 1;
+  const sectionNotes   = allNotes.filter(n => n.section === activeSection);
+  const displayedNotes = isGlobalSearch
+    ? allNotes.filter(n =>
+        n.title?.toLowerCase().includes(search.toLowerCase()) ||
+        n.body?.toLowerCase().includes(search.toLowerCase()) ||
+        n.tags?.toLowerCase().includes(search.toLowerCase()))
+    : sectionNotes;
+
+  const currentNote = allNotes.find(n => n.id === activeNote);
+
+  // ── Auto-save ──
   const autoSave = useCallback((id, title, body, tags) => {
+    setSaveStatus("saving");
     if (saveTimer.current) clearTimeout(saveTimer.current);
     saveTimer.current = setTimeout(async () => {
       const updated = new Date().toISOString().slice(0, 10);
-      setNotes(prev => prev.map(n => n.id === id ? { ...n, title, body, tags, updated_at: updated } : n));
-      try { await sb.from("notes").update({ title, body, tags, updated_at: updated }, { id }); } catch { }
-    }, 800);
+      setAllNotes(prev => prev.map(n => n.id === id ? { ...n, title, body, tags, updated_at: updated } : n));
+      try { await sb.from("notes").update({ title, body, tags, updated_at: updated }, { id }); } catch {}
+      setSaveStatus("saved");
+      setTimeout(() => setSaveStatus("idle"), 2000);
+    }, 700);
   }, []);
 
   const onTitleChange = (v) => { setEditTitle(v); if (activeNote) autoSave(activeNote, v, editBody, editTags); };
-  const onBodyChange = (v) => { setEditBody(v); if (activeNote) autoSave(activeNote, editTitle, v, editTags); };
-  const onTagsChange = (v) => { setEditTags(v); if (activeNote) autoSave(activeNote, editTitle, editBody, v); };
+  const onBodyChange  = (v) => { setEditBody(v);  if (activeNote) autoSave(activeNote, editTitle, v, editTags); };
+  const onTagsChange  = (v) => { setEditTags(v);  if (activeNote) autoSave(activeNote, editTitle, editBody, v); };
 
+  // ── CRUD ──
   const newNote = async () => {
     const note = { notebook: activeNB, section: activeSection, title: "Untitled", body: "", tags: "", updated_at: new Date().toISOString().slice(0, 10) };
     try {
-      const res = await sb.from("notes").insert(note);
+      const res     = await sb.from("notes").insert(note);
       const created = Array.isArray(res) && res[0] ? res[0] : { ...note, id: Date.now().toString() };
-      setNotes(prev => [created, ...prev]);
-      setActiveNote(created.id); setEditTitle("Untitled"); setEditBody(""); setEditTags("");
-    } catch { const n = { ...note, id: Date.now().toString() }; setNotes(prev => [n, ...prev]); setActiveNote(n.id); }
+      setAllNotes(prev => [created, ...prev]);
+      openNote(created);
+    } catch {
+      const n = { ...note, id: Date.now().toString() };
+      setAllNotes(prev => [n, ...prev]);
+      openNote(n);
+    }
   };
 
   const deleteNote = async () => {
     if (!activeNote) return;
-    const remaining = notes.filter(n => n.id !== activeNote);
-    setNotes(remaining);
-    if (remaining[0]) { setActiveNote(remaining[0].id); setEditTitle(remaining[0].title || ""); setEditBody(remaining[0].body || ""); setEditTags(remaining[0].tags || ""); }
+    const remaining = allNotes.filter(n => n.id !== activeNote);
+    setAllNotes(remaining);
+    const next = remaining.find(n => n.section === activeSection);
+    if (next) openNote(next);
     else { setActiveNote(null); setEditTitle(""); setEditBody(""); setEditTags(""); }
-    try { await sb.from("notes").delete({ id: activeNote }); } catch { }
+    try { await sb.from("notes").delete({ id: activeNote }); } catch {}
   };
 
   const selectSection = (sid, nbid) => {
     if (nbid !== activeNB) setActiveNB(nbid);
-    setSection(sid); setActiveNote(null); setEditTitle(""); setEditBody(""); setEditTags("");
+    setSection(sid);
+    setSearch("");
+    const first = allNotes.find(n => n.section === sid);
+    if (first) openNote(first);
+    else { setActiveNote(null); setEditTitle(""); setEditBody(""); setEditTags(""); }
   };
 
-  const currentNote = notes.find(n => n.id === activeNote);
-  const filteredNotes = notes.filter(n =>
-    !search || n.title?.toLowerCase().includes(search.toLowerCase()) || n.body?.toLowerCase().includes(search.toLowerCase())
-  );
+  // ── Rich-text formatting ──
+  const applyFormat = (fmt) => {
+    const ta = bodyRef.current;
+    if (!ta) return;
+    const s = ta.selectionStart, e = ta.selectionEnd;
+    const sel  = editBody.slice(s, e);
+    const pre  = editBody.slice(0, s);
+    const post = editBody.slice(e);
+
+    const lineStart = (str) => str.lastIndexOf('\n') + 1;
+
+    if (fmt === 'h1' || fmt === 'h2' || fmt === 'ul') {
+      const prefix = fmt === 'h1' ? '# ' : fmt === 'h2' ? '## ' : '- ';
+      const li = lineStart(pre);
+      const newBody = editBody.slice(0, li) + prefix + editBody.slice(li);
+      onBodyChange(newBody);
+      setTimeout(() => { ta.focus(); ta.setSelectionRange(s + prefix.length, e + prefix.length); }, 0);
+      return;
+    }
+
+    let insert = '', ns = s, ne = e;
+    if (fmt === 'bold')      { insert = `**${sel||'bold'}**`;   ns = s+2; ne = ns+(sel.length||4); }
+    else if (fmt === 'italic')   { insert = `_${sel||'italic'}_`;  ns = s+1; ne = ns+(sel.length||6); }
+    else if (fmt === 'code')     { insert = `\`${sel||'code'}\``;   ns = s+1; ne = ns+(sel.length||4); }
+    else if (fmt === 'codeblock'){ insert = `\`\`\`\n${sel||'code'}\n\`\`\``; ns = s+4; ne = ns+(sel.length||4); }
+
+    onBodyChange(pre + insert + post);
+    setTimeout(() => { ta.focus(); ta.setSelectionRange(ns, ne); }, 0);
+  };
+
+  // ── Markdown renderer ──
+  const renderMarkdown = (text) => {
+    if (!text) return '<p style="color:var(--t3);font-style:italic">Nothing to preview yet.</p>';
+    const esc   = (s) => s.replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;');
+    const inline = (s) => s
+      .replace(/\*\*(.+?)\*\*/g, '<strong>$1</strong>')
+      .replace(/\*(.+?)\*/g,     '<em>$1</em>')
+      .replace(/_(.+?)_/g,       '<em>$1</em>')
+      .replace(/`(.+?)`/g,       '<code>$1</code>');
+
+    const lines = text.split('\n');
+    let html = '', inList = false, inCode = false, codeBuf = [];
+
+    for (const line of lines) {
+      if (line.trim().startsWith('```')) {
+        if (inCode) { html += `<pre><code>${esc(codeBuf.join('\n'))}</code></pre>`; codeBuf = []; inCode = false; }
+        else { if (inList) { html += '</ul>'; inList = false; } inCode = true; }
+        continue;
+      }
+      if (inCode) { codeBuf.push(line); continue; }
+      const isList = /^[-•*] /.test(line);
+      if (!isList && inList) { html += '</ul>'; inList = false; }
+      if      (line.startsWith('# '))  html += `<h1>${inline(line.slice(2))}</h1>`;
+      else if (line.startsWith('## ')) html += `<h2>${inline(line.slice(3))}</h2>`;
+      else if (line.startsWith('### '))html += `<h3>${inline(line.slice(4))}</h3>`;
+      else if (isList)  { if (!inList) { html += '<ul>'; inList = true; } html += `<li>${inline(line.slice(2))}</li>`; }
+      else if (line.trim() === '') html += '<br>';
+      else html += `<p>${inline(line)}</p>`;
+    }
+    if (inList) html += '</ul>';
+    if (inCode) html += `<pre><code>${esc(codeBuf.join('\n'))}</code></pre>`;
+    return html;
+  };
+
+  const noteNB      = currentNote ? NOTEBOOKS.find(nb => nb.id === currentNote.notebook) : null;
+  const noteSec     = noteNB?.sections.find(s => s.id === currentNote?.section);
 
   return (
     <div className="notes-shell">
-      {/* Notebooks sidebar */}
+
+      {/* ── Panel 1: Notebooks sidebar ── */}
       <div className="notes-sidebar">
         <div className="notes-sidebar-header">
-          <span style={{ fontSize: 10, color: "var(--t3)", letterSpacing: 1.5, textTransform: "uppercase", fontWeight: 700 }}>Notebooks</span>
-          <span className="enc-badge"><Icon name="lock" size={9} color="var(--grn)" /> enc</span>
+          <span style={{ fontSize: 9, color: "var(--t3)", letterSpacing: 1.5, textTransform: "uppercase", fontWeight: 700 }}>Notebooks</span>
+          <span className="enc-badge"><Icon name="lock" size={8} color="var(--grn)" /> enc</span>
         </div>
         {NOTEBOOKS.map(nb => (
           <div key={nb.id}>
             <div className={`notebook-item${activeNB === nb.id ? " active" : ""}`}
               onClick={() => selectSection(nb.sections[0].id, nb.id)}>
-              <div className="notebook-icon" style={{ background: nb.bg, fontSize: 15 }}>{nb.emoji}</div>
-              <span style={{ flex: 1 }}>{nb.label}</span>
-              <span style={{ fontSize: 10, color: "var(--t3)", fontFamily: "var(--mono)" }}>{nb.sections.length}</span>
+              <div className="notebook-icon" style={{ background: nb.bg }}>{nb.emoji}</div>
+              <span style={{ flex: 1, fontSize: 12 }}>{nb.label}</span>
+              <span style={{ fontSize: 9, color: "var(--t3)", fontFamily: "var(--mono)" }}>{nb.sections.length}</span>
             </div>
             {activeNB === nb.id && nb.sections.map(sec => (
               <div key={sec.id} className={`section-item${activeSection === sec.id ? " active" : ""}`}
@@ -1204,74 +1473,138 @@ function Notes() {
         ))}
       </div>
 
-      {/* Notes list */}
+      {/* ── Panel 2: Notes list ── */}
       <div className="notes-list">
         <div className="notes-list-header">
-          <span style={{ fontSize: 12, fontWeight: 700, color: "var(--t1)" }}>{section?.label}</span>
+          <span style={{ fontSize: 11, fontWeight: 700, color: "var(--t1)", overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap", maxWidth: 140 }}>
+            {isGlobalSearch ? "Search results" : section?.label}
+          </span>
           <button className="btn sm primary" onClick={newNote}><Icon name="plus" size={12} /></button>
         </div>
-        <div style={{ padding: "10px 12px", borderBottom: "1px solid var(--b1)" }}>
-          <div style={{ display: "flex", alignItems: "center", gap: 8, background: "var(--bg2)", border: "1px solid var(--b2)", borderRadius: 8, padding: "6px 10px" }}>
-            <Icon name="search" size={13} color="var(--t3)" />
-            <input style={{ background: "transparent", border: "none", outline: "none", color: "var(--t1)", fontSize: 12, fontFamily: "var(--sans)", width: "100%" }}
-              placeholder="Search notes..." value={search} onChange={e => setSearch(e.target.value)} />
+
+        {/* Search */}
+        <div style={{ padding: "8px 10px", borderBottom: "1px solid rgba(255,255,255,0.05)" }}>
+          <div style={{ display: "flex", alignItems: "center", gap: 7, background: "rgba(255,255,255,0.04)", border: "1px solid rgba(255,255,255,0.07)", borderRadius: 8, padding: "5px 10px" }}>
+            <Icon name="search" size={12} color="var(--t3)" />
+            <input
+              style={{ background: "transparent", border: "none", outline: "none", color: "var(--t1)", fontSize: 11, fontFamily: "var(--sans)", width: "100%" }}
+              placeholder={isGlobalSearch ? "Searching all notes..." : "Search..."}
+              value={search} onChange={e => setSearch(e.target.value)} />
+            {search && (
+              <button onClick={() => setSearch("")} style={{ background: "none", border: "none", color: "var(--t3)", cursor: "pointer", fontSize: 12, padding: 0, lineHeight: 1 }}>✕</button>
+            )}
           </div>
+          {isGlobalSearch && (
+            <div style={{ fontSize: 9, color: "var(--t3)", marginTop: 5, textAlign: "center", letterSpacing: .5 }}>
+              {displayedNotes.length} result{displayedNotes.length !== 1 ? "s" : ""} across all notebooks
+            </div>
+          )}
         </div>
+
         {loading && <div className="loading">Loading...</div>}
-        {!loading && filteredNotes.length === 0 && (
-          <div style={{ padding: 24, color: "var(--t3)", fontSize: 12, textAlign: "center" }}>
+        {!loading && displayedNotes.length === 0 && (
+          <div style={{ padding: 20, color: "var(--t3)", fontSize: 12, textAlign: "center" }}>
             {search ? "No results" : "No notes yet"}<br />
-            <button className="btn sm primary" style={{ marginTop: 12 }} onClick={newNote}><Icon name="plus" size={12} /> New note</button>
+            {!isGlobalSearch && <button className="btn sm primary" style={{ marginTop: 10 }} onClick={newNote}><Icon name="plus" size={12} /> New note</button>}
           </div>
         )}
-        {filteredNotes.map(n => (
-          <div key={n.id} className={`note-list-item${activeNote === n.id ? " active" : ""}`} onClick={() => selectNote(n)}>
-            <div className="nli-title">{n.title || "Untitled"}</div>
-            <div className="nli-preview">{(n.body || "").replace(/\n/g, " ").slice(0, 60) || "No content"}</div>
-            {n.tags && (
-              <div className="nli-tags">
-                {n.tags.split(",").filter(Boolean).map(tag => (
-                  <span key={tag} className="nli-tag">{tag.trim()}</span>
-                ))}
-              </div>
-            )}
-            <div className="nli-date">{n.updated_at}</div>
-          </div>
-        ))}
+        {displayedNotes.map(n => {
+          const nNB  = isGlobalSearch ? NOTEBOOKS.find(nb => nb.id === n.notebook) : null;
+          const nSec = isGlobalSearch ? nNB?.sections.find(s => s.id === n.section) : null;
+          return (
+            <div key={n.id} className={`note-list-item${activeNote === n.id ? " active" : ""}`} onClick={() => { openNote(n); if (isGlobalSearch) { setActiveNB(n.notebook); setSection(n.section); } }}>
+              <div className="nli-title">{n.title || "Untitled"}</div>
+              <div className="nli-preview">{(n.body || "").replace(/[#*_`]/g, "").replace(/\n/g, " ").slice(0, 55) || "No content"}</div>
+              {isGlobalSearch && nNB && (
+                <div className="nli-location">{nNB.emoji} {nNB.label} / {nSec?.label}</div>
+              )}
+              {n.tags && (
+                <div className="nli-tags">
+                  {n.tags.split(",").filter(Boolean).slice(0,3).map(tag => (
+                    <span key={tag} className="nli-tag">{tag.trim()}</span>
+                  ))}
+                </div>
+              )}
+              <div className="nli-date">{n.updated_at}</div>
+            </div>
+          );
+        })}
       </div>
 
-      {/* Editor */}
+      {/* ── Panel 3: Editor ── */}
       <div className="note-editor">
         {currentNote ? (
           <>
+            {/* Toolbar */}
             <div className="note-toolbar">
-              <span className="enc-badge"><Icon name="lock" size={10} color="var(--grn)" /> Auto-saving</span>
+              <span className="enc-badge"><Icon name="lock" size={8} color="var(--grn)" /> encrypted</span>
+              {saveStatus === "saving" && <span className="save-ind saving">Saving...</span>}
+              {saveStatus === "saved"  && <span className="save-ind saved">Saved</span>}
+              <div style={{ flex: 1 }} />
+
+              {/* Format buttons */}
+              {viewMode === "edit" && <>
+                <button className="note-tool-btn" title="Bold (Ctrl+B)" onClick={() => applyFormat('bold')}><strong>B</strong></button>
+                <button className="note-tool-btn" title="Italic" onClick={() => applyFormat('italic')}><em>I</em></button>
+                <div className="note-toolbar-sep" />
+                <button className="note-tool-btn" title="Heading 1" onClick={() => applyFormat('h1')}>H1</button>
+                <button className="note-tool-btn" title="Heading 2" onClick={() => applyFormat('h2')}>H2</button>
+                <div className="note-toolbar-sep" />
+                <button className="note-tool-btn" title="Bullet list" onClick={() => applyFormat('ul')}>≡</button>
+                <button className="note-tool-btn" title="Inline code" onClick={() => applyFormat('code')}>&lt;/&gt;</button>
+                <button className="note-tool-btn" title="Code block" onClick={() => applyFormat('codeblock')} style={{ width: 34, fontSize: 9 }}>block</button>
+                <div className="note-toolbar-sep" />
+              </>}
+
+              <button className={`note-tool-btn${viewMode === "preview" ? " on" : ""}`}
+                title="Toggle preview" style={{ width: 46, fontSize: 9 }}
+                onClick={() => setViewMode(v => v === "edit" ? "preview" : "edit")}>
+                {viewMode === "edit" ? "preview" : "edit"}
+              </button>
               <div className="note-toolbar-sep" />
-              <button className="btn sm danger" onClick={deleteNote}><Icon name="trash" size={12} /> Delete</button>
+              <button className="btn xs danger" onClick={deleteNote}><Icon name="trash" size={11} /></button>
             </div>
+
+            {/* Title */}
             <input className="note-title-input" value={editTitle}
               onChange={e => onTitleChange(e.target.value)} placeholder="Note title" />
+
+            {/* Meta row */}
             <div className="note-meta">
               <span className="note-meta-item">📅 {currentNote.updated_at}</span>
-              <span className="note-meta-item">📁 {notebook?.label} / {section?.label}</span>
+              <span className="note-meta-item">📁 {noteNB?.label} / {noteSec?.label}</span>
               <div style={{ flex: 1 }} />
-              <div style={{ display: "flex", alignItems: "center", gap: 6 }}>
-                <Icon name="tag" size={12} color="var(--t3)" />
-                <input style={{ background: "transparent", border: "none", outline: "none", color: "var(--t3)", fontSize: 11, fontFamily: "var(--mono)", width: 160 }}
-                  placeholder="tag1, tag2, tag3"
+              <div style={{ display: "flex", alignItems: "center", gap: 5 }}>
+                <Icon name="tag" size={11} color="var(--t3)" />
+                <input
+                  style={{ background: "transparent", border: "none", outline: "none", color: "var(--t3)", fontSize: 10, fontFamily: "var(--mono)", width: 150 }}
+                  placeholder="tag1, tag2"
                   value={editTags} onChange={e => onTagsChange(e.target.value)} />
               </div>
             </div>
-            <textarea className="note-body-input" value={editBody}
-              onChange={e => onBodyChange(e.target.value)}
-              placeholder="Start writing... (supports plain text, lists with - or •, and markdown-style formatting)" />
+
+            {/* Body — edit or preview */}
+            {viewMode === "edit" ? (
+              <textarea
+                ref={bodyRef}
+                className="note-body-input"
+                value={editBody}
+                onChange={e => onBodyChange(e.target.value)}
+                placeholder={"Start writing...\n\nFormatting tips:\n# Heading 1   ## Heading 2\n**bold**   _italic_   `code`\n- bullet item\n```\ncode block\n```"} />
+            ) : (
+              <div
+                className="preview-body"
+                dangerouslySetInnerHTML={{ __html: renderMarkdown(editBody) }} />
+            )}
           </>
         ) : (
           <div className="note-empty">
             <div className="note-empty-icon">📝</div>
-            <div style={{ fontSize: 15, fontWeight: 600, color: "var(--t2)" }}>Select a note</div>
-            <div style={{ fontSize: 13, color: "var(--t3)" }}>or create a new one in {section?.label}</div>
-            <button className="btn primary" onClick={newNote} style={{ marginTop: 8 }}><Icon name="plus" size={14} /> New note</button>
+            <div style={{ fontSize: 14, fontWeight: 600, color: "var(--t2)" }}>Select a note</div>
+            <div style={{ fontSize: 12, color: "var(--t3)" }}>or create a new one in {section?.label}</div>
+            <button className="btn primary" onClick={newNote} style={{ marginTop: 12 }}>
+              <Icon name="plus" size={14} /> New note
+            </button>
           </div>
         )}
       </div>
@@ -1282,22 +1615,26 @@ function Notes() {
 // ─── CALENDAR ────────────────────────────────────────────────────────────────
 function Calendar({ initialDate }) {
   const now = new Date();
-  const [year, setYear] = useState(initialDate ? initialDate.getFullYear() : now.getFullYear());
-  const [month, setMonth] = useState(initialDate ? initialDate.getMonth() : now.getMonth());
-  const [events, setEvents] = useState([]);
-  const [showAdd, setShowAdd] = useState(false);
-  const [selectedDay, setSelectedDay] = useState(initialDate ? initialDate.getDate() : null);
-  const [newEvent, setNewEvent] = useState({ title: "", category: "personal", time: "" });
-  const [viewMode, setViewMode] = useState("month");
+  const [year,       setYear]       = useState(initialDate ? initialDate.getFullYear() : now.getFullYear());
+  const [month,      setMonth]      = useState(initialDate ? initialDate.getMonth()    : now.getMonth());
+  const [events,     setEvents]     = useState([]);
+  const [showAdd,    setShowAdd]    = useState(false);
+  const [selectedDay,setSelectedDay]= useState(initialDate ? initialDate.getDate() : null);
+  const [newEvent,   setNewEvent]   = useState({ title: "", category: "personal", time: "", notes: "" });
+  const [viewMode,   setViewMode]   = useState("month");
+  const [activeEvent,setActiveEvent]= useState(null);
+  const [weekOffset, setWeekOffset] = useState(0);
 
-  const MONTHS = ["January", "February", "March", "April", "May", "June", "July", "August", "September", "October", "November", "December"];
+  const MONTHS = ["January","February","March","April","May","June","July","August","September","October","November","December"];
+  const DAYS_S  = ["Mon","Tue","Wed","Thu","Fri","Sat","Sun"];
   const CATS = [
-    { id: "personal", label: "Personal", color: "#3b82f6" },
-    { id: "career", label: "Career", color: "#f59e0b" },
-    { id: "travel", label: "Travel", color: "#10b981" },
-    { id: "study", label: "Study", color: "#8b5cf6" },
-    { id: "family", label: "Family", color: "#ec4899" },
+    { id: "personal", label: "Personal", color: "#3b82f6", bg: "rgba(59,130,246,0.22)"  },
+    { id: "career",   label: "Career",   color: "#f59e0b", bg: "rgba(245,158,11,0.22)"  },
+    { id: "travel",   label: "Travel",   color: "#10b981", bg: "rgba(16,185,129,0.22)"  },
+    { id: "study",    label: "Study",    color: "#8b5cf6", bg: "rgba(139,92,246,0.22)"  },
+    { id: "family",   label: "Family",   color: "#ec4899", bg: "rgba(236,72,153,0.22)"  },
   ];
+  const catOf = (ev) => CATS.find(c => c.id === ev.category) || CATS[0];
 
   useEffect(() => { loadEvents(); }, []);
 
@@ -1308,74 +1645,104 @@ function Calendar({ initialDate }) {
       else throw new Error();
     } catch {
       setEvents([
-        { id: "e1", title: "PMP Application due", date: "2026-04-15", category: "study", color: "#8b5cf6" },
-        { id: "e2", title: "Italy trip begins", date: "2026-06-12", category: "travel", color: "#10b981" },
-        { id: "e3", title: "Scotland trip", date: "2026-09-07", category: "travel", color: "#10b981" },
-        { id: "e4", title: "MSc starts — SETU", date: "2026-09-14", category: "study", color: "#8b5cf6" },
-        { id: "e5", title: "Metallica Dublin", date: "2026-06-20", category: "personal", color: "#3b82f6" },
+        { id: "e1", title: "PMP Application due",  date: "2026-04-15", category: "study",    color: "#8b5cf6" },
+        { id: "e2", title: "Italy trip begins",     date: "2026-06-12", category: "travel",   color: "#10b981" },
+        { id: "e3", title: "Scotland trip",         date: "2026-09-07", category: "travel",   color: "#10b981" },
+        { id: "e4", title: "MSc starts — SETU",    date: "2026-09-14", category: "study",    color: "#8b5cf6" },
+        { id: "e5", title: "Metallica Dublin",      date: "2026-06-20", category: "personal", color: "#3b82f6" },
       ]);
     }
   };
 
   const addEvent = async () => {
     if (!newEvent.title.trim() || !selectedDay) return;
-    const dateStr = `${year}-${String(month + 1).padStart(2, "0")}-${String(selectedDay).padStart(2, "0")}`;
-    const cat = CATS.find(c => c.id === newEvent.category);
-    const ev = { title: newEvent.title, date: dateStr, category: newEvent.category, color: cat?.color || "#3b82f6", time: newEvent.time };
+    const ds  = `${year}-${String(month+1).padStart(2,"0")}-${String(selectedDay).padStart(2,"0")}`;
+    const cat = catOf({ category: newEvent.category });
+    const ev  = { title: newEvent.title, date: ds, category: newEvent.category, color: cat.color, time: newEvent.time, notes: newEvent.notes };
     try {
-      const res = await sb.from("events").insert(ev);
+      const res     = await sb.from("events").insert(ev);
       const created = Array.isArray(res) && res[0] ? res[0] : { ...ev, id: Date.now().toString() };
       setEvents(prev => [...prev, created]);
     } catch { setEvents(prev => [...prev, { ...ev, id: Date.now().toString() }]); }
-    setNewEvent({ title: "", category: "personal", time: "" }); setShowAdd(false);
+    setNewEvent({ title: "", category: "personal", time: "", notes: "" });
+    setShowAdd(false);
   };
 
   const deleteEvent = async (id) => {
     setEvents(prev => prev.filter(e => e.id !== id));
-    try { await sb.from("events").delete({ id }); } catch { }
+    setActiveEvent(null);
+    try { await sb.from("events").delete({ id }); } catch {}
   };
 
-  // Build grid
-  const firstDay = new Date(year, month, 1).getDay();
-  const daysInMonth = new Date(year, month + 1, 0).getDate();
-  const daysInPrev = new Date(year, month, 0).getDate();
+  // ── Monthly grid ──
+  const firstDay    = new Date(year, month, 1).getDay();
+  const daysInMonth = new Date(year, month+1, 0).getDate();
+  const daysInPrev  = new Date(year, month,   0).getDate();
   const startOffset = firstDay === 0 ? 6 : firstDay - 1;
   const cells = [];
   for (let i = startOffset - 1; i >= 0; i--) cells.push({ day: daysInPrev - i, current: false });
-  for (let i = 1; i <= daysInMonth; i++) cells.push({ day: i, current: true });
+  for (let i = 1; i <= daysInMonth; i++)      cells.push({ day: i, current: true });
   while (cells.length % 7 !== 0) cells.push({ day: cells.length - daysInMonth - startOffset + 1, current: false });
 
-  const eventsOnDay = (day) => {
-    if (!day.current) return [];
-    const ds = `${year}-${String(month + 1).padStart(2, "0")}-${String(day.day).padStart(2, "0")}`;
-    return events.filter(e => e.date === ds);
-  };
-  const isToday = (day) => {
-    const t = new Date();
-    return day.current && year === t.getFullYear() && month === t.getMonth() && day.day === t.getDate();
-  };
+  const fmtDs       = (d) => `${year}-${String(month+1).padStart(2,"0")}-${String(d).padStart(2,"0")}`;
+  const eventsOnDay = (day) => day.current ? events.filter(e => e.date === fmtDs(day.day)) : [];
+  const isTodayCell = (day) => day.current && year === now.getFullYear() && month === now.getMonth() && day.day === now.getDate();
 
-  const prev = () => { if (month === 0) { setMonth(11); setYear(y => y - 1); } else setMonth(m => m - 1); };
-  const next = () => { if (month === 11) { setMonth(0); setYear(y => y + 1); } else setMonth(m => m + 1); };
+  const prev = () => month === 0  ? (setMonth(11), setYear(y => y-1)) : setMonth(m => m-1);
+  const next = () => month === 11 ? (setMonth(0),  setYear(y => y+1)) : setMonth(m => m+1);
 
-  const monthEvents = events.filter(e => {
-    const [ey, em] = e.date.split("-").map(Number);
-    return ey === year && em === month + 1;
-  }).sort((a, b) => a.date.localeCompare(b.date));
+  // ── Week view ──
+  const weekStart = (() => {
+    const d = new Date(now);
+    const dow = d.getDay() === 0 ? 6 : d.getDay() - 1;
+    d.setDate(d.getDate() - dow + weekOffset * 7);
+    d.setHours(0,0,0,0);
+    return d;
+  })();
+  const weekDays      = Array.from({ length: 7 }, (_, i) => { const d = new Date(weekStart); d.setDate(weekStart.getDate()+i); return d; });
+  const evOnWeekDay   = (date) => {
+    const ds = `${date.getFullYear()}-${String(date.getMonth()+1).padStart(2,"0")}-${String(date.getDate()).padStart(2,"0")}`;
+    return events.filter(e => e.date === ds).sort((a,b) => (a.time||"").localeCompare(b.time||""));
+  };
+  const isWToday      = (date) => date.toDateString() === now.toDateString();
+
+  const monthEvents = events
+    .filter(e => { const [ey,em] = e.date.split("-").map(Number); return ey===year && em===month+1; })
+    .sort((a,b) => a.date.localeCompare(b.date));
+
+  const badgeCls = (cat) =>
+    cat==="travel" ? "green" : cat==="career" ? "amber" : cat==="study" ? "purple" : cat==="family" ? "muted" : "blue";
 
   return (
-    <div className="page-body animate-in">
+    <div className="page-body page-enter">
+
+      {/* Add event modal */}
       {showAdd && (
-        <Modal title={`Add event — ${selectedDay} ${MONTHS[month]}`} onClose={() => setShowAdd(false)}>
-          <div className="form-row"><label className="form-label">Title</label>
-            <input className="inp" value={newEvent.title} onChange={e => setNewEvent(n => ({ ...n, title: e.target.value }))}
-              placeholder="Event title" autoFocus onKeyDown={e => e.key === "Enter" && addEvent()} /></div>
-          <div className="form-row"><label className="form-label">Category</label>
-            <select className="inp" value={newEvent.category} onChange={e => setNewEvent(n => ({ ...n, category: e.target.value }))}>
-              {CATS.map(c => <option key={c.id} value={c.id}>{c.label}</option>)}
-            </select></div>
-          <div className="form-row"><label className="form-label">Time (optional)</label>
-            <input className="inp" type="time" value={newEvent.time} onChange={e => setNewEvent(n => ({ ...n, time: e.target.value }))} /></div>
+        <Modal title={`Add event — ${selectedDay} ${MONTHS[month]} ${year}`} onClose={() => setShowAdd(false)} wide>
+          <div className="form-row">
+            <label className="form-label">Title</label>
+            <input className="inp" value={newEvent.title}
+              onChange={e => setNewEvent(n => ({ ...n, title: e.target.value }))}
+              placeholder="Event title" autoFocus onKeyDown={e => e.key === "Enter" && addEvent()} />
+          </div>
+          <div className="grid-2" style={{ gap: 12 }}>
+            <div className="form-row">
+              <label className="form-label">Category</label>
+              <select className="inp" value={newEvent.category} onChange={e => setNewEvent(n => ({ ...n, category: e.target.value }))}>
+                {CATS.map(c => <option key={c.id} value={c.id}>{c.label}</option>)}
+              </select>
+            </div>
+            <div className="form-row">
+              <label className="form-label">Time (optional)</label>
+              <input className="inp" type="time" value={newEvent.time} onChange={e => setNewEvent(n => ({ ...n, time: e.target.value }))} />
+            </div>
+          </div>
+          <div className="form-row">
+            <label className="form-label">Notes (optional)</label>
+            <textarea className="inp" value={newEvent.notes}
+              onChange={e => setNewEvent(n => ({ ...n, notes: e.target.value }))}
+              placeholder="Add details..." style={{ minHeight: 60 }} />
+          </div>
           <div className="modal-actions">
             <button className="btn" onClick={() => setShowAdd(false)}>Cancel</button>
             <button className="btn primary" onClick={addEvent}>Add event</button>
@@ -1383,70 +1750,164 @@ function Calendar({ initialDate }) {
         </Modal>
       )}
 
-      <div className="card mb18">
-        <div className="cal-header">
-          <div className="cal-month-nav">
-            <button className="btn sm" onClick={prev}><Icon name="chevL" size={14} /></button>
-            <div className="cal-month-title">{MONTHS[month]} {year}</div>
-            <button className="btn sm" onClick={next}><Icon name="chevR" size={14} /></button>
-          </div>
-          <div style={{ display: "flex", gap: 8, alignItems: "center" }}>
-            <button className="btn sm" onClick={() => { setYear(now.getFullYear()); setMonth(now.getMonth()); }}>Today</button>
-            <div className="cal-legend">
-              {CATS.map(c => (
-                <div key={c.id} className="cal-legend-item">
-                  <div className="cal-legend-dot" style={{ background: c.color }} />{c.label}
-                </div>
-              ))}
-            </div>
-          </div>
-        </div>
-
-        <div className="cal-grid-header">
-          {["Mon", "Tue", "Wed", "Thu", "Fri", "Sat", "Sun"].map(d => <div key={d} className="cal-day-header">{d}</div>)}
-        </div>
-        <div className="cal-grid">
-          {cells.map((cell, i) => {
-            const dayEvents = eventsOnDay(cell);
-            return (
-              <div key={i} className={`cal-cell${!cell.current ? " other-month" : ""}${isToday(cell) ? " today" : ""}`}
-                onClick={() => { if (cell.current) { setSelectedDay(cell.day); setShowAdd(true); } }}>
-                <div className="cal-day-num">{cell.day}</div>
-                <div className="cal-events">
-                  {dayEvents.slice(0, 3).map(ev => (
-                    <div key={ev.id} className="cal-event"
-                      style={{ background: EVENT_COLORS[ev.category]?.bg || "rgba(59,130,246,0.2)", color: EVENT_COLORS[ev.category]?.color || "#3b82f6" }}
-                      onClick={e => { e.stopPropagation(); if (window.confirm(`Delete "${ev.title}"?`)) deleteEvent(ev.id); }}>
-                      {ev.time ? `${ev.time} ` : ""}{ev.title}
-                    </div>
-                  ))}
-                  {dayEvents.length > 3 && <div className="cal-event-more">+{dayEvents.length - 3} more</div>}
+      {/* Event detail modal */}
+      {activeEvent && (() => {
+        const cat = catOf(activeEvent);
+        return (
+          <Modal title="Event details" onClose={() => setActiveEvent(null)}>
+            <div style={{ display: "flex", alignItems: "flex-start", gap: 14, marginBottom: 18 }}>
+              <div style={{ width: 10, height: 10, borderRadius: "50%", background: cat.color, flexShrink: 0, marginTop: 5 }} />
+              <div>
+                <div style={{ fontSize: 17, fontWeight: 700, color: "var(--t1)", marginBottom: 4 }}>{activeEvent.title}</div>
+                <div style={{ fontSize: 12, color: "var(--t3)", fontFamily: "var(--mono)" }}>
+                  {activeEvent.date}{activeEvent.time ? ` · ${activeEvent.time}` : ""}
                 </div>
               </div>
-            );
-          })}
+            </div>
+            {activeEvent.notes && (
+              <div style={{ fontSize: 13, color: "var(--t2)", lineHeight: 1.65, marginBottom: 18, padding: "12px 14px", background: "rgba(255,255,255,0.03)", borderRadius: 10, border: "1px solid rgba(255,255,255,0.06)" }}>
+                {activeEvent.notes}
+              </div>
+            )}
+            <span className={`badge ${badgeCls(activeEvent.category)}`}>{activeEvent.category}</span>
+            <div className="modal-actions">
+              <button className="btn" onClick={() => setActiveEvent(null)}>Close</button>
+              <button className="btn danger" onClick={() => deleteEvent(activeEvent.id)}>
+                <Icon name="trash" size={13} /> Delete
+              </button>
+            </div>
+          </Modal>
+        );
+      })()}
+
+      {/* Header */}
+      <div className="cal-header">
+        <div className="cal-month-nav">
+          {viewMode === "month" ? (
+            <>
+              <button className="btn sm" onClick={prev}><Icon name="chevL" size={14} /></button>
+              <div className="cal-month-title">{MONTHS[month]} {year}</div>
+              <button className="btn sm" onClick={next}><Icon name="chevR" size={14} /></button>
+            </>
+          ) : (
+            <>
+              <button className="btn sm" onClick={() => setWeekOffset(w => w-1)}><Icon name="chevL" size={14} /></button>
+              <div className="cal-month-title" style={{ minWidth: 280 }}>
+                {weekDays[0].toLocaleDateString("en-IE",{day:"numeric",month:"short"})} – {weekDays[6].toLocaleDateString("en-IE",{day:"numeric",month:"short",year:"numeric"})}
+              </div>
+              <button className="btn sm" onClick={() => setWeekOffset(w => w+1)}><Icon name="chevR" size={14} /></button>
+            </>
+          )}
+        </div>
+        <div style={{ display: "flex", gap: 8, alignItems: "center" }}>
+          <button className="btn sm" onClick={() => { setYear(now.getFullYear()); setMonth(now.getMonth()); setWeekOffset(0); }}>Today</button>
+          <div style={{ display: "flex", background: "rgba(255,255,255,0.04)", border: "1px solid rgba(255,255,255,0.08)", borderRadius: 9, padding: 2, gap: 2 }}>
+            <button className={`btn xs${viewMode==="month"?" primary":""}`} style={{ borderRadius: 7 }} onClick={() => setViewMode("month")}>Month</button>
+            <button className={`btn xs${viewMode==="week" ?" primary":""}`} style={{ borderRadius: 7 }} onClick={() => setViewMode("week")}>Week</button>
+          </div>
         </div>
       </div>
 
-      {/* Month events list */}
-      {monthEvents.length > 0 && (
-        <div className="card">
-          <div className="card-header"><div className="card-title">Events this month</div><span className="badge blue">{monthEvents.length}</span></div>
-          {monthEvents.map(ev => (
-            <div key={ev.id} className="fin-row">
-              <div style={{ display: "flex", alignItems: "center", gap: 12, flex: 1 }}>
-                <div style={{ width: 10, height: 10, borderRadius: "50%", background: ev.color, flexShrink: 0 }} />
-                <div>
-                  <div style={{ fontSize: 13, fontWeight: 600, color: "var(--t1)" }}>{ev.title}</div>
-                  <div style={{ fontSize: 11, color: "var(--t3)", fontFamily: "var(--mono)" }}>{ev.date}{ev.time ? ` · ${ev.time}` : ""}</div>
+      {/* Legend */}
+      <div style={{ display: "flex", gap: 14, marginBottom: 18, flexWrap: "wrap" }}>
+        {CATS.map(c => (
+          <div key={c.id} style={{ display: "flex", alignItems: "center", gap: 5, fontSize: 11, color: "var(--t3)", fontWeight: 500 }}>
+            <div style={{ width: 8, height: 8, borderRadius: "50%", background: c.color }} />{c.label}
+          </div>
+        ))}
+      </div>
+
+      {/* ── Month view ── */}
+      {viewMode === "month" && (
+        <div className="card mb18">
+          <div className="cal-grid-header">
+            {DAYS_S.map(d => <div key={d} className="cal-day-header">{d}</div>)}
+          </div>
+          <div className="cal-grid">
+            {cells.map((cell, i) => {
+              const dayEvs = eventsOnDay(cell);
+              return (
+                <div key={i}
+                  className={`cal-cell${!cell.current?" other-month":""}${isTodayCell(cell)?" today":""}`}
+                  onClick={() => { if (cell.current) { setSelectedDay(cell.day); setShowAdd(true); } }}>
+                  <div className="cal-day-num">{cell.day}</div>
+                  <div className="cal-events">
+                    {dayEvs.slice(0,3).map(ev => {
+                      const c = catOf(ev);
+                      return (
+                        <div key={ev.id} className="cal-event"
+                          style={{ background: c.bg, color: c.color }}
+                          onClick={e => { e.stopPropagation(); setActiveEvent(ev); }}>
+                          {ev.time ? `${ev.time} ` : ""}{ev.title}
+                        </div>
+                      );
+                    })}
+                    {dayEvs.length > 3 && <div className="cal-event-more">+{dayEvs.length-3}</div>}
+                  </div>
                 </div>
+              );
+            })}
+          </div>
+        </div>
+      )}
+
+      {/* ── Week view ── */}
+      {viewMode === "week" && (
+        <div className="card mb18" style={{ padding: 14 }}>
+          <div className="week-view">
+            {weekDays.map((date, i) => {
+              const dayEvs = evOnWeekDay(date);
+              return (
+                <div key={i} className={`week-col${isWToday(date)?" today":""}`}>
+                  <div className="week-col-header">
+                    <div className="week-col-day">{DAYS_S[i]}</div>
+                    <div className="week-col-num">{date.getDate()}</div>
+                  </div>
+                  <div className="week-col-events">
+                    {dayEvs.map(ev => {
+                      const c = catOf(ev);
+                      return (
+                        <div key={ev.id} className="week-event" style={{ background: c.bg, color: c.color }}
+                          onClick={() => setActiveEvent(ev)}>
+                          {ev.time && <div style={{ fontSize: 8, opacity: .75, marginBottom: 1 }}>{ev.time}</div>}
+                          {ev.title}
+                        </div>
+                      );
+                    })}
+                    <div className="week-add-btn" onClick={() => {
+                      setYear(date.getFullYear()); setMonth(date.getMonth());
+                      setSelectedDay(date.getDate()); setShowAdd(true);
+                    }}>+</div>
+                  </div>
+                </div>
+              );
+            })}
+          </div>
+        </div>
+      )}
+
+      {/* Events list for current month */}
+      {monthEvents.length > 0 && viewMode === "month" && (
+        <div className="card">
+          <div className="card-header">
+            <div className="card-title">Events — {MONTHS[month]} {year}</div>
+            <span className="badge blue">{monthEvents.length}</span>
+          </div>
+          {monthEvents.map(ev => {
+            const c = catOf(ev);
+            return (
+              <div key={ev.id} className="fin-row" style={{ cursor: "pointer" }} onClick={() => setActiveEvent(ev)}>
+                <div style={{ display: "flex", alignItems: "center", gap: 12, flex: 1 }}>
+                  <div style={{ width: 9, height: 9, borderRadius: "50%", background: c.color, flexShrink: 0 }} />
+                  <div>
+                    <div style={{ fontSize: 13, fontWeight: 600, color: "var(--t1)" }}>{ev.title}</div>
+                    <div style={{ fontSize: 11, color: "var(--t3)", fontFamily: "var(--mono)" }}>{ev.date}{ev.time?` · ${ev.time}`:""}</div>
+                  </div>
+                </div>
+                <span className={`badge ${badgeCls(ev.category)}`}>{ev.category}</span>
               </div>
-              <div style={{ display: "flex", alignItems: "center", gap: 8 }}>
-                <span className={`badge ${ev.category === "travel" ? "green" : ev.category === "career" ? "amber" : ev.category === "study" ? "purple" : "blue"}`}>{ev.category}</span>
-                <button className="btn xs danger" onClick={() => deleteEvent(ev.id)}><Icon name="trash" size={11} /></button>
-              </div>
-            </div>
-          ))}
+            );
+          })}
         </div>
       )}
     </div>
@@ -2353,6 +2814,49 @@ function PlaceholderPage({ label, emoji }) {
   );
 }
 
+// ─── TRACKER BACK BAR ────────────────────────────────────────────────────────
+function TrackerBackBar({ name, onBack }) {
+  return (
+    <div className="tracker-back-bar">
+      <button className="tracker-back-btn" onClick={onBack}>
+        <Icon name="chevL" size={13} /> Trackers
+      </button>
+      <span style={{ color: "var(--b3)", fontSize: 12 }}>/</span>
+      <span className="tracker-section-label">{name}</span>
+    </div>
+  );
+}
+
+// ─── TRACKER HUB ─────────────────────────────────────────────────────────────
+function TrackerHub({ onNavigate }) {
+  const TRACKERS = [
+    { id: "study",   emoji: "📚", name: "Study",   sub: "PMP tracker — PMBOK knowledge areas, hours logged, progress toward August exam" },
+    { id: "career",  emoji: "💼", name: "Career",  sub: "Job applications — track every opportunity, status, interviews, and notes" },
+    { id: "finance", emoji: "💰", name: "Finance", sub: "Income, expenses, balance — full picture of your monthly finances" },
+    { id: "travel",  emoji: "✈️", name: "Travel",  sub: "Trips, checklists, budgets — Scotland, Italy, and beyond" },
+    { id: "pet",     emoji: "🐾", name: "Ozzy",    sub: "Golden Retriever — vet visits, weight, diet, documents" },
+  ];
+
+  return (
+    <div className="page-body page-enter">
+      <div style={{ marginBottom: 32 }}>
+        <div style={{ fontSize: 22, fontWeight: 700, color: "var(--t1)", marginBottom: 6, letterSpacing: "-.4px" }}>Your Trackers</div>
+        <div style={{ fontSize: 13, color: "var(--t3)" }}>Select a tracker to view and manage your data</div>
+      </div>
+      <div className="tracker-hub">
+        {TRACKERS.map(t => (
+          <div key={t.id} className="tracker-card" onClick={() => onNavigate(t.id)}>
+            <div className="tc-arrow">→</div>
+            <div className="tc-emoji">{t.emoji}</div>
+            <div className="tc-name">{t.name}</div>
+            <div className="tc-sub">{t.sub}</div>
+          </div>
+        ))}
+      </div>
+    </div>
+  );
+}
+
 // ─── SETTINGS ────────────────────────────────────────────────────────────────
 function Settings({ user, onLogout }) {
   const [displayName, setDisplayName] = useState(() => localStorage.getItem("sanctum_display_name") || "");
@@ -2564,21 +3068,375 @@ For everything else respond naturally in plain text. Be warm, concise, and perso
   );
 }
 
+// ─── HOME ────────────────────────────────────────────────────────────────────
+function Home({ onNavigate, onGoToCalendarDay }) {
+  const [tasks, setTasks] = useState([]);
+  const [tasksLoading, setTasksLoading] = useState(true);
+  const [showAddTask, setShowAddTask] = useState(false);
+  const [newTask, setNewTask] = useState({ text: "", tag: "" });
+  const [editingId, setEditingId] = useState(null);
+  const [editText, setEditText] = useState("");
+  const [showArchived, setShowArchived] = useState(false);
+  const [events, setEvents] = useState([]);
+  const [aiInput, setAiInput] = useState("");
+  const [aiLoading, setAiLoading] = useState(false);
+  const [aiResponse, setAiResponse] = useState(null);
+  const aiInputRef = useRef(null);
+
+  const now = new Date();
+  const hour = now.getHours();
+  const greeting = hour < 12 ? "Good morning" : hour < 17 ? "Good afternoon" : "Good evening";
+  const displayName = localStorage.getItem("sanctum_display_name") || "Michael";
+  const dateStr = now.toLocaleDateString("en-IE", { weekday: "long", day: "numeric", month: "long", year: "numeric" });
+
+  const EXAM_DATE = new Date("2026-08-31");
+  const SCOTLAND_DATE = new Date("2026-09-07");
+  const MSC_DATE = new Date("2026-09-14");
+  const daysTo = (d) => Math.ceil((d - now) / 864e5);
+
+  const DAYS = ["Mon","Tue","Wed","Thu","Fri","Sat","Sun"];
+  const todayDow = now.getDay() === 0 ? 6 : now.getDay() - 1;
+  const weekDates = DAYS.map((_, i) => { const d = new Date(now); d.setDate(now.getDate() - todayDow + i); return d; });
+
+  useEffect(() => { loadTasks(); loadEvents(); }, []);
+
+  const loadTasks = async () => {
+    setTasksLoading(true);
+    try { const d = await sb.from("tasks").select("*"); setTasks(Array.isArray(d) ? d : []); }
+    catch { setTasks([]); }
+    setTasksLoading(false);
+  };
+
+  const loadEvents = async () => {
+    try { const d = await sb.from("events").select("*"); if (Array.isArray(d)) setEvents(d); }
+    catch {}
+  };
+
+  const toggleTask = async (t) => {
+    setTasks(prev => prev.map(x => x.id === t.id ? { ...x, done: !x.done } : x));
+    try { await sb.from("tasks").update({ done: !t.done }, { id: t.id }); } catch {}
+  };
+
+  const deleteTask = async (id) => {
+    setTasks(prev => prev.filter(t => t.id !== id));
+    try { await sb.from("tasks").delete({ id }); } catch {}
+  };
+
+  const startEdit = (t) => { setEditingId(t.id); setEditText(t.text); };
+
+  const saveEdit = async (id) => {
+    if (!editText.trim()) return;
+    setTasks(prev => prev.map(t => t.id === id ? { ...t, text: editText } : t));
+    setEditingId(null);
+    try { await sb.from("tasks").update({ text: editText }, { id }); } catch {}
+  };
+
+  const addTask = async (textOverride, tagOverride) => {
+    const text = textOverride ?? newTask.text;
+    const tag  = tagOverride  ?? newTask.tag;
+    if (!text.trim()) return;
+    const task = { text, tag, done: false };
+    try {
+      const res = await sb.from("tasks").insert(task);
+      const created = Array.isArray(res) && res[0] ? res[0] : { ...task, id: Date.now().toString() };
+      setTasks(t => [created, ...t]);
+    } catch { setTasks(t => [{ ...task, id: Date.now().toString() }, ...t]); }
+    if (textOverride === undefined) { setNewTask({ text: "", tag: "" }); setShowAddTask(false); }
+  };
+
+  const eventsOnDate = (date) => {
+    const ds = `${date.getFullYear()}-${String(date.getMonth()+1).padStart(2,"0")}-${String(date.getDate()).padStart(2,"0")}`;
+    return events.filter(e => e.date === ds);
+  };
+
+  const activeTasks   = tasks.filter(t => !t.done);
+  const archivedTasks = tasks.filter(t =>  t.done);
+
+  // ── AI bar ──
+  const sendAI = async () => {
+    if (!aiInput.trim() || aiLoading) return;
+    const userMsg = aiInput.trim();
+    setAiInput("");
+    setAiLoading(true);
+    setAiResponse({ text: "Thinking...", type: "loading" });
+
+    try {
+      const sys = `You are Sanctum AI, a personal assistant embedded in a private life organiser.
+User: ${displayName}, Dublin, Ireland. Wife: Tamara. Dog: Ozzy (Golden Retriever, born Nov 2025).
+PMP exam target: August 2026. MSc Cybersecurity at SETU starts Sep 2026.
+Applications: Anthropic (Copyright Ops PM), Google (Sr Analyst T&S), Google (TPM Analytics EU).
+Trips: Italy Jun 12-17 2026, Scotland Sep 7-13 2026 (with Tamara + Ozzy).
+IMPORTANT: You CANNOT read note content. Notes are private and encrypted.
+When the user asks to add/create something, reply ONLY with valid JSON (no markdown):
+- Add task: {"action":"add_task","text":"task text","tag":"optional tag"}
+- Navigate: {"action":"navigate","page":"home|notes|calendar|trackers|career|study|finance|travel|pet|settings"}
+For everything else: plain text reply, warm and concise, max 2 sentences.`;
+
+      const res  = await fetch("/api/chat", { method: "POST", headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ system: sys, messages: [{ role: "user", content: userMsg }] }) });
+      const data = await res.json();
+      const reply = (data.content?.[0]?.text || "").trim();
+
+      try {
+        const action = JSON.parse(reply.replace(/```(?:json)?|```/g, "").trim());
+        if (action.action === "add_task") {
+          await addTask(action.text, action.tag || "");
+          setAiResponse({ text: `Added: "${action.text}"${action.tag ? ` [${action.tag}]` : ""}`, type: "success" });
+        } else if (action.action === "navigate") {
+          setAiResponse({ text: `Opening ${action.page}...`, type: "success" });
+          setTimeout(() => onNavigate(action.page), 400);
+        } else {
+          setAiResponse({ text: reply, type: "text" });
+        }
+      } catch {
+        setAiResponse({ text: reply || "Got it.", type: "text" });
+      }
+    } catch {
+      setAiResponse({ text: "Connection error. Check your network.", type: "error" });
+    }
+    setAiLoading(false);
+  };
+
+  const AI_SUGGESTIONS = [
+    "Add a task: book Scotland accommodation",
+    "How many days until the PMP exam?",
+    "Open study tracker",
+    "What's on this week?",
+  ];
+
+  const daysToExam     = daysTo(EXAM_DATE);
+  const daysToScotland = daysTo(SCOTLAND_DATE);
+  const daysToMSc      = daysTo(MSC_DATE);
+
+  return (
+    <div className="page-body page-enter">
+      {showAddTask && (
+        <Modal title="Add task" onClose={() => setShowAddTask(false)}>
+          <div className="form-row">
+            <label className="form-label">Task</label>
+            <input className="inp" value={newTask.text}
+              onChange={e => setNewTask(n => ({ ...n, text: e.target.value }))}
+              placeholder="What needs doing?" onKeyDown={e => e.key === "Enter" && addTask()} autoFocus />
+          </div>
+          <div className="form-row">
+            <label className="form-label">Tag (optional)</label>
+            <input className="inp" value={newTask.tag}
+              onChange={e => setNewTask(n => ({ ...n, tag: e.target.value }))}
+              placeholder="Career, PMP, Travel..." />
+          </div>
+          <div className="modal-actions">
+            <button className="btn" onClick={() => setShowAddTask(false)}>Cancel</button>
+            <button className="btn primary" onClick={() => addTask()}>Add task</button>
+          </div>
+        </Modal>
+      )}
+
+      {/* Greeting */}
+      <div style={{ marginBottom: 28 }}>
+        <div className="home-greeting-name">{greeting}, {displayName}</div>
+        <div className="home-greeting-date">{dateStr}</div>
+      </div>
+
+      {/* AI bar */}
+      <div style={{ marginBottom: 28 }}>
+        <div className="ai-bar">
+          <div style={{ width: 28, height: 28, borderRadius: "50%", background: "linear-gradient(135deg, var(--blue), var(--purple))", display: "flex", alignItems: "center", justifyContent: "center", fontSize: 13, flexShrink: 0 }}>✦</div>
+          <input ref={aiInputRef} className="ai-bar-input" value={aiInput}
+            onChange={e => setAiInput(e.target.value)}
+            onKeyDown={e => e.key === "Enter" && sendAI()}
+            placeholder="Ask me anything or tell me what to do..." />
+          <button className="ai-bar-btn" onClick={sendAI} disabled={aiLoading || !aiInput.trim()}>
+            <Icon name="chevR" size={16} color="#fff" />
+          </button>
+        </div>
+        {aiResponse ? (
+          <div className={`ai-response${aiResponse.type === "error" ? " ai-response-err" : aiResponse.type === "success" ? " ai-response-ok" : ""}`}>
+            <span>
+              {aiResponse.type === "success" && <span style={{ color: "var(--grn)", marginRight: 6 }}>✓</span>}
+              {aiResponse.type === "loading" && <span style={{ color: "var(--t3)", marginRight: 6 }}>...</span>}
+              {aiResponse.text}
+            </span>
+            {aiResponse.type !== "loading" && (
+              <button onClick={() => setAiResponse(null)}
+                style={{ background: "none", border: "none", color: "var(--t3)", cursor: "pointer", fontSize: 14, padding: 0, flexShrink: 0, lineHeight: 1 }}>✕</button>
+            )}
+          </div>
+        ) : (
+          <div className="ai-suggestions">
+            {AI_SUGGESTIONS.map(s => (
+              <button key={s} className="btn xs" style={{ borderRadius: 20, fontSize: 11 }}
+                onClick={() => { setAiInput(s); aiInputRef.current?.focus(); }}>{s}</button>
+            ))}
+          </div>
+        )}
+      </div>
+
+      {/* Quick stats */}
+      <div className="grid-4 mb18">
+        <div className="stat">
+          <div className="stat-icon" style={{ background: "rgba(139,92,246,0.15)" }}>📚</div>
+          <div className="stat-label">PMP Exam</div>
+          <div className="stat-value" style={{ color: daysToExam < 60 ? "var(--red)" : daysToExam < 120 ? "var(--amber)" : "var(--t1)" }}>{daysToExam}d</div>
+          <div className="stat-sub">Aug 31 2026</div>
+          <div className="stat-bar"><div className="stat-fill" style={{ width: `${Math.min(Math.max(0, 100 - (daysToExam / 420) * 100), 100)}%` }} /></div>
+        </div>
+        <div className="stat">
+          <div className="stat-icon" style={{ background: "rgba(59,130,246,0.15)" }}>✈️</div>
+          <div className="stat-label">Scotland trip</div>
+          <div className="stat-value">{daysToScotland}d</div>
+          <div className="stat-sub">Sep 7 · Tamara + Ozzy 🐾</div>
+          <div className="stat-bar"><div className="stat-fill amber" style={{ width: `${Math.min(Math.max(0, 100 - (daysToScotland / 420) * 100), 100)}%` }} /></div>
+        </div>
+        <div className="stat">
+          <div className="stat-icon" style={{ background: "rgba(16,185,129,0.15)" }}>🎓</div>
+          <div className="stat-label">MSc Cybersecurity</div>
+          <div className="stat-value">{daysToMSc}d</div>
+          <div className="stat-sub">SETU — Sep 14 2026</div>
+          <div className="stat-bar"><div className="stat-fill grn" style={{ width: `${Math.min(Math.max(0, 100 - (daysToMSc / 420) * 100), 100)}%` }} /></div>
+        </div>
+        <div className="stat" style={{ cursor: "pointer" }} onClick={() => setShowAddTask(true)}>
+          <div className="stat-icon" style={{ background: "rgba(245,158,11,0.15)" }}>✅</div>
+          <div className="stat-label">Active tasks</div>
+          <div className="stat-value">{activeTasks.length}</div>
+          <div className="stat-sub">{archivedTasks.length} completed · tap to add</div>
+          <div className="stat-bar"><div className="stat-fill amber" style={{ width: tasks.length ? `${(activeTasks.length / tasks.length) * 100}%` : "0%" }} /></div>
+        </div>
+      </div>
+
+      {/* Tasks + Week + Shortcuts */}
+      <div className="grid-2">
+        {/* Tasks */}
+        <div className="card">
+          <div className="card-header">
+            <div>
+              <div className="card-title">Tasks</div>
+              <div className="card-sub">{activeTasks.length} active · {archivedTasks.length} done</div>
+            </div>
+            <button className="btn sm primary" onClick={() => setShowAddTask(true)}><Icon name="plus" size={13} /> Add</button>
+          </div>
+          {tasksLoading ? <div className="loading">Loading...</div> : (
+            <div>
+              {activeTasks.length === 0 && (
+                <div style={{ color: "var(--t3)", fontSize: 13, textAlign: "center", padding: "20px 0" }}>No active tasks 🎉</div>
+              )}
+              {activeTasks.map(t => (
+                <div key={t.id} className="task-item">
+                  <div className="task-check" onClick={() => toggleTask(t)} />
+                  <div className="task-content">
+                    {editingId === t.id ? (
+                      <input className="task-edit-input" value={editText}
+                        onChange={e => setEditText(e.target.value)}
+                        onBlur={() => saveEdit(t.id)}
+                        onKeyDown={e => { if (e.key === "Enter") saveEdit(t.id); if (e.key === "Escape") setEditingId(null); }}
+                        autoFocus />
+                    ) : (
+                      <div className="task-text">{t.text}</div>
+                    )}
+                    {t.tag && <div className="task-meta"><span className="task-tag">{t.tag}</span></div>}
+                  </div>
+                  <div className="task-actions">
+                    <button className="btn xs ghost" onClick={() => startEdit(t)}><Icon name="edit" size={12} /></button>
+                    <button className="btn xs danger" onClick={() => deleteTask(t.id)}><Icon name="trash" size={12} /></button>
+                  </div>
+                </div>
+              ))}
+              {archivedTasks.length > 0 && (
+                <div style={{ marginTop: 12 }}>
+                  <button className="btn sm ghost" style={{ width: "100%", justifyContent: "center", color: "var(--t3)", fontSize: 11 }}
+                    onClick={() => setShowArchived(s => !s)}>
+                    {showArchived ? "▲ Hide" : "▼ Show"} {archivedTasks.length} completed
+                  </button>
+                  {showArchived && archivedTasks.map(t => (
+                    <div key={t.id} className="task-item" style={{ opacity: .5 }}>
+                      <div className="task-check done" onClick={() => toggleTask(t)}><Icon name="check" size={10} color="#fff" /></div>
+                      <div className="task-content">
+                        <div className="task-text done">{t.text}</div>
+                        {t.tag && <div className="task-meta"><span className="task-tag">{t.tag}</span></div>}
+                      </div>
+                      <div className="task-actions">
+                        <button className="btn xs danger" onClick={() => deleteTask(t.id)}><Icon name="trash" size={12} /></button>
+                      </div>
+                    </div>
+                  ))}
+                </div>
+              )}
+            </div>
+          )}
+        </div>
+
+        {/* Right column: week + tracker shortcuts */}
+        <div style={{ display: "flex", flexDirection: "column", gap: 18 }}>
+          <div className="card">
+            <div className="card-header">
+              <div>
+                <div className="card-title">This week</div>
+                <div className="card-sub">{now.toLocaleDateString("en-IE", { month: "long", year: "numeric" })}</div>
+              </div>
+              <button className="btn sm" onClick={() => onNavigate("calendar")}>Full calendar</button>
+            </div>
+            <div className="week-strip">
+              {weekDates.map((date, i) => {
+                const dayEvents = eventsOnDate(date);
+                const isToday = i === todayDow;
+                return (
+                  <div key={i} className={`day-cell${isToday ? " today" : ""}${dayEvents.length > 0 ? " has-event" : ""}`}
+                    onClick={() => onGoToCalendarDay(date)}>
+                    <div className="day-name">{DAYS[i]}</div>
+                    <div className="day-num">{date.getDate()}</div>
+                    <div className="day-dots">
+                      {dayEvents.slice(0, 3).map((ev, j) => (
+                        <div key={j} className="day-dot" style={{ background: EVENT_COLORS[ev.category]?.color || "var(--blue)" }} />
+                      ))}
+                    </div>
+                  </div>
+                );
+              })}
+            </div>
+          </div>
+
+          <div className="card">
+            <div className="card-header">
+              <div className="card-title">Trackers</div>
+              <button className="btn sm" onClick={() => onNavigate("trackers")}>See all</button>
+            </div>
+            <div className="grid-2" style={{ gap: 10 }}>
+              {[
+                { id: "study",   emoji: "📚", label: "Study",   sub: "PMP progress" },
+                { id: "career",  emoji: "💼", label: "Career",  sub: "Applications" },
+                { id: "finance", emoji: "💰", label: "Finance", sub: "Monthly budget" },
+                { id: "pet",     emoji: "🐾", label: "Ozzy",    sub: "Golden Retriever" },
+              ].map(item => (
+                <div key={item.id} onClick={() => onNavigate(item.id)}
+                  style={{ background: "rgba(255,255,255,0.03)", border: "1px solid rgba(255,255,255,0.06)", borderRadius: 12, padding: "14px 16px", cursor: "pointer", transition: "all .2s" }}
+                  onMouseEnter={e => { e.currentTarget.style.borderColor = "rgba(59,130,246,0.4)"; e.currentTarget.style.background = "rgba(59,130,246,0.06)"; }}
+                  onMouseLeave={e => { e.currentTarget.style.borderColor = "rgba(255,255,255,0.06)"; e.currentTarget.style.background = "rgba(255,255,255,0.03)"; }}>
+                  <div style={{ fontSize: 20, marginBottom: 6 }}>{item.emoji}</div>
+                  <div style={{ fontSize: 13, fontWeight: 600, color: "var(--t1)", marginBottom: 2 }}>{item.label}</div>
+                  <div style={{ fontSize: 11, color: "var(--t3)" }}>{item.sub}</div>
+                </div>
+              ))}
+            </div>
+          </div>
+        </div>
+      </div>
+    </div>
+  );
+}
+
 // ─── NAV ─────────────────────────────────────────────────────────────────────
 const NAV = [
-  { id: "dashboard", label: "Dashboard", icon: "home", group: "main" },
-  { id: "notes", label: "Notes", icon: "notes", group: "main" },
-  { id: "calendar", label: "Calendar", icon: "calendar", group: "main" },
-  { id: "ai", label: "AI", icon: "ai", group: "main" },
-  { id: "career", label: "Career", icon: "career", group: "work" },
-  { id: "study", label: "Study", icon: "study", group: "work" },
-  { id: "finance", label: "Finance", icon: "finance", group: "life" },
-  { id: "travel", label: "Travel", icon: "travel", group: "life" },
-  { id: "pet", label: "Ozzy 🐾", icon: "pet", group: "life" },
-  { id: "settings", label: "Settings", icon: "settings", group: "system" },
+  { id: "home",     label: "Home",     icon: "home" },
+  { id: "notes",    label: "Notes",    icon: "notes" },
+  { id: "calendar", label: "Calendar", icon: "calendar" },
+  { id: "trackers", label: "Trackers", icon: "trackers" },
+  { id: "settings", label: "Settings", icon: "settings" },
 ];
-const GROUPS = [{ key: "main", label: "Main" }, { key: "work", label: "Work" }, { key: "life", label: "Life" }, { key: "system", label: "System" }];
-const TITLES = { dashboard: "Dashboard", notes: "Notes", calendar: "Calendar", ai: "AI Assistant", career: "Career", study: "Study & PMP", finance: "Finance", travel: "Travel", pet: "Ozzy", settings: "Settings" };
+const TRACKER_PAGES = ["career", "study", "finance", "travel", "pet"];
+const TITLES = {
+  home: "Home", notes: "Notes", calendar: "Calendar", trackers: "Trackers",
+  career: "Career", study: "Study & PMP", finance: "Finance", travel: "Travel", pet: "Ozzy",
+  settings: "Settings"
+};
 
 // ─── APP ─────────────────────────────────────────────────────────────────────
 export default function App() {
@@ -2586,14 +3444,29 @@ export default function App() {
   const [checking, setChecking] = useState(true);
   const [calDate, setCalDate] = useState(null);
 
-  // Page persistence — save/restore from localStorage
+  // Page & tracker state — map legacy page names on restore
   const [page, setPage] = useState(() => {
-    return localStorage.getItem("sanctum_page") || "dashboard";
+    const saved = localStorage.getItem("sanctum_page");
+    if (!saved || ["dashboard", "ai"].includes(saved)) return "home";
+    if (TRACKER_PAGES.includes(saved)) return "trackers";
+    if (["home","notes","calendar","trackers","settings"].includes(saved)) return saved;
+    return "home";
+  });
+  const [trackerPage, setTrackerPage] = useState(() => {
+    const saved = localStorage.getItem("sanctum_page");
+    return TRACKER_PAGES.includes(saved) ? saved : null;
   });
 
   const navigate = (p) => {
-    setPage(p);
-    localStorage.setItem("sanctum_page", p);
+    if (TRACKER_PAGES.includes(p)) {
+      setPage("trackers");
+      setTrackerPage(p);
+      localStorage.setItem("sanctum_page", p);
+    } else {
+      setPage(p);
+      setTrackerPage(null);
+      localStorage.setItem("sanctum_page", p);
+    }
   };
 
   const goToCalendarDay = (date) => {
@@ -2622,7 +3495,7 @@ export default function App() {
   }, []);
 
   const handleLogin = (u) => setUser(u);
-  const handleLogout = () => { auth.signOut(); setUser(null); navigate("dashboard"); };
+  const handleLogout = () => { auth.signOut(); setUser(null); setPage("home"); setTrackerPage(null); localStorage.removeItem("sanctum_page"); };
 
   if (checking) return null;
   if (!user) return <><style>{CSS}</style><Login onLogin={handleLogin} /></>;
@@ -2642,57 +3515,65 @@ export default function App() {
   };
 
   const renderPage = () => {
-    if (page === "dashboard") return <Dashboard onNavigate={navigate} onGoToCalendarDay={goToCalendarDay} />;
+    if (page === "home") return <Home onNavigate={navigate} onGoToCalendarDay={goToCalendarDay} />;
     if (page === "notes") return <Notes />;
     if (page === "calendar") return <Calendar initialDate={calDate} />;
-    if (page === "ai") return <AIAssistant onAddTask={addTaskFromAI} onNavigate={navigate} />;
-    if (page === "career") return <Career />;
-    if (page === "finance") return <Finance />;
-    if (page === "study") return <Study />;
-    if (page === "travel") return <Travel />;
-    if (page === "pet") return <Ozzy />;
+    if (page === "trackers") {
+      if (trackerPage === "career")  return <><TrackerBackBar name="Career" onBack={() => { setTrackerPage(null); localStorage.setItem("sanctum_page","trackers"); }} /><Career /></>;
+      if (trackerPage === "study")   return <><TrackerBackBar name="Study & PMP" onBack={() => { setTrackerPage(null); localStorage.setItem("sanctum_page","trackers"); }} /><Study /></>;
+      if (trackerPage === "finance") return <><TrackerBackBar name="Finance" onBack={() => { setTrackerPage(null); localStorage.setItem("sanctum_page","trackers"); }} /><Finance /></>;
+      if (trackerPage === "travel")  return <><TrackerBackBar name="Travel" onBack={() => { setTrackerPage(null); localStorage.setItem("sanctum_page","trackers"); }} /><Travel /></>;
+      if (trackerPage === "pet")     return <><TrackerBackBar name="Ozzy" onBack={() => { setTrackerPage(null); localStorage.setItem("sanctum_page","trackers"); }} /><Ozzy /></>;
+      return <TrackerHub onNavigate={navigate} />;
+    }
     if (page === "settings") return <Settings user={user} onLogout={handleLogout} />;
   };
 
   const today = new Date().toLocaleDateString("en-IE", { weekday: "short", day: "numeric", month: "short", year: "numeric" });
+  const pageTitle = page === "trackers" && trackerPage ? TITLES[trackerPage] : TITLES[page];
 
   const BOTTOM_NAV = [
-    { id: "dashboard", label: "Home", icon: "home" },
-    { id: "notes", label: "Notes", icon: "notes" },
-    { id: "ai", label: "AI", icon: "ai" },
+    { id: "home",     label: "Home",     icon: "home" },
+    { id: "notes",    label: "Notes",    icon: "notes" },
     { id: "calendar", label: "Calendar", icon: "calendar" },
+    { id: "trackers", label: "Trackers", icon: "trackers" },
     { id: "settings", label: "Settings", icon: "settings" },
   ];
+
+  const displayName = localStorage.getItem("sanctum_display_name") || username;
 
   return (
     <>
       <style>{CSS}</style>
       <div className="shell">
+
+        {/* ── Sidebar (desktop) ── */}
         <aside className="sidebar">
           <div className="sidebar-logo">
             <div className="logo-mark">S</div>
             <div>
               <div className="logo-name">Sanctum</div>
-              <div className="logo-sub">{username} · Dublin</div>
+              <div className="logo-sub">{displayName} · Dublin</div>
             </div>
           </div>
 
-          {GROUPS.map(g => (
-            <div key={g.key} className="nav-section">
-              <div className="nav-label">{g.label}</div>
-              {NAV.filter(n => n.group === g.key).map(n => (
-                <div key={n.id} className={`nav-item${page === n.id ? " active" : ""}`} onClick={() => navigate(n.id)}>
-                  <div className="nav-icon"><Icon name={n.icon} size={16} /></div>
-                  {n.label}
-                </div>
-              ))}
-            </div>
-          ))}
+          <div className="nav-section">
+            {NAV.map(n => (
+              <div
+                key={n.id}
+                className={`nav-item${n.id === page ? " active" : ""}`}
+                onClick={() => navigate(n.id)}
+              >
+                <div className="nav-icon"><Icon name={n.icon} size={16} /></div>
+                {n.label}
+              </div>
+            ))}
+          </div>
 
           <div className="sidebar-footer">
-            <div className="nav-item" style={{ fontSize: 12 }}>
+            <div className="nav-item" style={{ cursor: "default" }}>
               <div className="nav-icon"><Icon name="lock" size={14} color="var(--grn)" /></div>
-              <span style={{ color: "var(--grn)", fontSize: 12 }}>Encrypted</span>
+              <span style={{ color: "var(--grn)", fontSize: 12 }}>End-to-end encrypted</span>
             </div>
             <div className="nav-item" onClick={handleLogout}>
               <div className="nav-icon"><Icon name="logout" size={14} /></div>
@@ -2701,10 +3582,11 @@ export default function App() {
           </div>
         </aside>
 
-        <div className="main">
+        {/* ── Main content ── */}
+        <div className="main main-bg">
           <div className="topbar">
             <div className="topbar-left">
-              <div className="topbar-title">{TITLES[page]}</div>
+              <div className="topbar-title">{pageTitle}</div>
             </div>
             <div className="topbar-right">
               <span className="topbar-sub">{today}</span>
@@ -2713,13 +3595,18 @@ export default function App() {
           </div>
           {renderPage()}
         </div>
+
       </div>
 
-      {/* Mobile bottom nav */}
+      {/* ── Bottom nav (mobile) ── */}
       <nav className="bottom-nav">
         <div className="bottom-nav-inner">
           {BOTTOM_NAV.map(n => (
-            <div key={n.id} className={`bottom-nav-item${page === n.id ? " active" : ""}`} onClick={() => navigate(n.id)}>
+            <div
+              key={n.id}
+              className={`bottom-nav-item${n.id === page ? " active" : ""}`}
+              onClick={() => navigate(n.id)}
+            >
               <Icon name={n.icon} size={22} />
               <span>{n.label}</span>
             </div>
