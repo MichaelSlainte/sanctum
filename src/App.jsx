@@ -108,24 +108,24 @@ const CSS = `
   *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
 
   :root {
-    /* Base surfaces — Sanctum Dark (default) */
-    --bg:    #111318;
-    --bg1:   #0d0f14;
-    --bg2:   #1a1c24;
-    --bg3:   #1e2130;
+    /* Base surfaces — Midnight (default) */
+    --bg:    #0d1117;
+    --bg1:   #0d1117;
+    --bg2:   #161b22;
+    --bg3:   #1c2128;
     /* Borders */
-    --b1:    #1e2130;
-    --b2:    #272a38;
-    --b3:    #363a4f;
+    --b1:    #21262d;
+    --b2:    #30363d;
+    --b3:    #484f58;
     /* Text */
-    --t1:    #e8eaf0;
-    --t2:    #8892aa;
-    --t3:    #454d62;
+    --t1:    #e6edf3;
+    --t2:    #8b949e;
+    --t3:    #484f58;
     /* Accent */
-    --blue:  #9180cc;
-    --blue2: #7a6bb8;
-    --bluem: rgba(145,128,204,0.10);
-    --blueb: rgba(145,128,204,0.28);
+    --blue:  #7b8ec8;
+    --blue2: #6a7db8;
+    --bluem: rgba(123,142,200,0.1);
+    --blueb: rgba(123,142,200,0.25);
     --grn:   #10b981;
     --grnm:  rgba(16,185,129,0.10);
     --red:   #ef4444;
@@ -142,61 +142,62 @@ const CSS = `
     --shadow:  0 4px 24px rgba(0,0,0,0.45);
     --shadow2: 0 12px 48px rgba(0,0,0,0.55);
     /* Glass */
-    --glass-bg:     rgba(17,19,24,0.70);
+    --glass-bg:     rgba(13,17,23,0.75);
     --glass-border: rgba(255,255,255,0.06);
-    --glass-blur:   blur(20px) saturate(160%);
+    --glass-blur:   blur(20px) saturate(140%);
   }
 
   [data-theme="light"] {
-    --bg:    #f0efe9;
+    --bg:    #f6f8fa;
     --bg1:   #ffffff;
-    --bg2:   #f5f4f0;
-    --bg3:   #eceae4;
-    --b1:    rgba(0,0,0,0.08);
-    --b2:    rgba(0,0,0,0.12);
-    --b3:    rgba(0,0,0,0.18);
-    --t1:    #1a1a2e;
-    --t2:    #4a5568;
-    --t3:    #9ca3af;
-    --blue:  #2563eb;
-    --blue2: #1d4ed8;
-    --bluem: rgba(37,99,235,0.10);
-    --blueb: rgba(37,99,235,0.25);
-    --grn:   #059669;
-    --grnm:  rgba(5,150,105,0.10);
-    --red:   #dc2626;
-    --amber: #d97706;
+    --bg2:   #f6f8fa;
+    --bg3:   #eaeef2;
+    --b1:    #d0d7de;
+    --b2:    #bfc7cf;
+    --b3:    #8c959f;
+    --t1:    #1f2328;
+    --t2:    #656d76;
+    --t3:    #8c959f;
+    --blue:  #0969da;
+    --blue2: #0550ae;
+    --bluem: rgba(9,105,218,0.1);
+    --blueb: rgba(9,105,218,0.3);
+    --grn:   #1a7f37;
+    --grnm:  rgba(26,127,55,0.10);
+    --red:   #cf222e;
+    --amber: #9a6700;
     --purple:#7c3aed;
     --pink:  #db2777;
     --glass-bg:     rgba(255,255,255,0.85);
-    --glass-border: rgba(0,0,0,0.07);
-    --glass-blur:   blur(20px) saturate(180%);
+    --glass-border: rgba(0,0,0,0.08);
+    --glass-blur:   blur(20px) saturate(140%);
+    --shadow:       0 4px 24px rgba(0,0,0,0.1);
   }
 
   [data-theme="tamara"] {
-    --bg:    #111318;
-    --bg1:   #0d0f14;
-    --bg2:   #1a1c24;
-    --bg3:   #1e2130;
-    --b1:    #1e2130;
-    --b2:    #272a38;
-    --b3:    #363a4f;
-    --t1:    #e8eaf0;
-    --t2:    #8892aa;
-    --t3:    #454d62;
+    --bg:    #0d1117;
+    --bg1:   #0d1117;
+    --bg2:   #161b22;
+    --bg3:   #1c2128;
+    --b1:    #21262d;
+    --b2:    #30363d;
+    --b3:    #484f58;
+    --t1:    #e6edf3;
+    --t2:    #8b949e;
+    --t3:    #484f58;
     --blue:  #ec4899;
     --blue2: #db2777;
-    --bluem: rgba(236,72,153,0.10);
-    --blueb: rgba(236,72,153,0.28);
+    --bluem: rgba(236,72,153,0.1);
+    --blueb: rgba(236,72,153,0.25);
     --grn:   #10b981;
     --grnm:  rgba(16,185,129,0.10);
     --red:   #ef4444;
     --amber: #f59e0b;
     --purple:#f472b6;
     --pink:  #f472b6;
-    --glass-bg:     rgba(17,19,24,0.70);
+    --glass-bg:     rgba(13,17,23,0.75);
     --glass-border: rgba(236,72,153,0.08);
-    --glass-blur:   blur(20px) saturate(160%);
+    --glass-blur:   blur(20px) saturate(140%);
   }
 
   html, body, #root {
@@ -3827,26 +3828,26 @@ function Settings({ user, onLogout, theme, onThemeChange }) {
   const THEMES = [
     {
       id: "dark",
-      name: "Sanctum Dark",
-      desc: "Deep navy, violet accents",
-      sidebar: "#0d0f14",
-      body: "#111318",
-      accent: "#9180cc",
+      name: "Midnight",
+      desc: "Deep navy, blue accents",
+      sidebar: "#0d1117",
+      body: "#161b22",
+      accent: "#7b8ec8",
     },
     {
       id: "light",
       name: "Light",
       desc: "Clean, airy, blue accents",
       sidebar: "#ffffff",
-      body: "#f0efe9",
-      accent: "#2563eb",
+      body: "#f6f8fa",
+      accent: "#0969da",
     },
     {
       id: "tamara",
       name: "Tamara",
       desc: "Dark base, pink accents",
-      sidebar: "#0d0f14",
-      body: "#111318",
+      sidebar: "#0d1117",
+      body: "#161b22",
       accent: "#ec4899",
     },
   ];
