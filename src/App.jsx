@@ -629,7 +629,7 @@ const CSS = `
   .note-body-textarea {
     padding: 22px 32px; min-height: 0; overflow-y: auto;
     background: transparent; border: none; color: var(--t2);
-    font-size: 13px; line-height: 1.9; font-family: var(--mono);
+    font-size: 13px; line-height: 1.9; font-family: var(--sans);
     outline: none; resize: none; tab-size: 2; box-sizing: border-box;
   }
   .note-body-textarea::placeholder { color: var(--t3); opacity: .5; }
@@ -1793,8 +1793,10 @@ function Notes() {
   const [editTags,   setEditTags]   = useState('');
   const [loading,    setLoading]    = useState(false);
   const [saveStatus, setSaveStatus] = useState('idle');
-  const saveTimer = useRef(null);
-  const editorRef  = useRef(null);
+  const saveTimer   = useRef(null);
+  const dirtyRef    = useRef(false);
+  const pendingSave = useRef({ id: null, title: '', body: '', tags: '' });
+  const editorRef   = useRef(null);
   // Collapsible panels
   const [sidebarCollapsed, setSidebarCollapsed] = useState(() => localStorage.getItem('sanctum_sidebar_col') === 'true');
   const [listCollapsed, setListCollapsed] = useState(() => localStorage.getItem('sanctum_list_col') === 'true');
@@ -1873,7 +1875,38 @@ function Notes() {
     setLoading(false);
   };
 
-  const openNote = (n) => {
+  // ── Auto-save (700ms debounce) ────────────────────────────────────────
+  const flushSave = useCallback(async () => {
+    if (!dirtyRef.current) return;
+    if (saveTimer.current) { clearTimeout(saveTimer.current); saveTimer.current = null; }
+    const { id, title, body, tags } = pendingSave.current;
+    if (!id) return;
+    setSaveStatus('saving');
+    const updated = new Date().toISOString();
+    setAllNotes(prev => prev.map(n => n.id === id ? { ...n, title, body, tags, updated_at: updated } : n));
+    try { await sb.from("notes").update({ title, body, tags, updated_at: updated }, { id }); } catch {}
+    dirtyRef.current = false;
+    setSaveStatus('saved');
+    setTimeout(() => setSaveStatus(s => s === 'saved' ? 'idle' : s), 2000);
+  }, []);
+
+  const autoSave = useCallback((id, title, body, tags) => {
+    dirtyRef.current = true;
+    pendingSave.current = { id, title, body, tags };
+    if (saveTimer.current) clearTimeout(saveTimer.current);
+    saveTimer.current = setTimeout(async () => {
+      setSaveStatus('saving');
+      const updated = new Date().toISOString();
+      setAllNotes(prev => prev.map(n => n.id === id ? { ...n, title, body, tags, updated_at: updated } : n));
+      try { await sb.from("notes").update({ title, body, tags, updated_at: updated }, { id }); } catch {}
+      dirtyRef.current = false;
+      setSaveStatus('saved');
+      setTimeout(() => setSaveStatus(s => s === 'saved' ? 'idle' : s), 2000);
+    }, 700);
+  }, []);
+
+  const openNote = async (n) => {
+    if (dirtyRef.current) await flushSave();
     setActiveNote(n.id); setEditTitle(n.title || ''); setEditBody(n.body || ''); setEditTags(n.tags || '');
     if (window.innerWidth < 769) setMobilePanel('editor');
   };
@@ -1883,19 +1916,6 @@ function Notes() {
     const first = allNotes.find(n => n.section === sid);
     if (first) openNote(first); else { setActiveNote(null); setEditTitle(''); setEditBody(''); setEditTags(''); }
   };
-
-  // ── Auto-save (700ms debounce) ────────────────────────────────────────
-  const autoSave = useCallback((id, title, body, tags) => {
-    setSaveStatus('saving');
-    if (saveTimer.current) clearTimeout(saveTimer.current);
-    saveTimer.current = setTimeout(async () => {
-      const updated = new Date().toISOString().slice(0, 10);
-      setAllNotes(prev => prev.map(n => n.id === id ? { ...n, title, body, tags, updated_at: updated } : n));
-      try { await sb.from("notes").update({ title, body, tags, updated_at: updated }, { id }); } catch {}
-      setSaveStatus('saved');
-      setTimeout(() => setSaveStatus('idle'), 2400);
-    }, 700);
-  }, []);
 
   const onTitleChange = (v) => { setEditTitle(v); if (activeNote) autoSave(activeNote, v, editBody, editTags); };
   const onBodyChange  = (v) => {
