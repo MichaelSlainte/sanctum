@@ -4694,12 +4694,9 @@ export default function App() {
 
   const [theme, setTheme] = useState(() => localStorage.getItem("sanctum_theme") || "dark");
 
-  useEffect(() => {
-    document.documentElement.setAttribute("data-theme", theme);
-  }, [theme]);
-
   const applyTheme = (t) => {
     localStorage.setItem("sanctum_theme", t);
+    document.documentElement.setAttribute("data-theme", t);
     setTheme(t);
   };
 
