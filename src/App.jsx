@@ -429,121 +429,226 @@ const CSS = `
   .task-item:hover .task-actions { opacity: 1; }
 
   /* ── Notes ── */
-  .notes-shell { display: flex; flex: 1; overflow: hidden; }
+  .notes-shell { display: flex; flex: 1; overflow: hidden; position: relative; }
   .notes-sidebar {
     width: 200px; min-width: 200px; border-right: 1px solid var(--glass-border);
-    background: rgba(8,12,18,0.92); overflow-y: auto; display: flex; flex-direction: column;
+    background: rgba(8,12,18,0.92); overflow-y: auto; display: flex; flex-direction: column; flex-shrink: 0;
   }
   .notes-sidebar-header {
     padding: 14px 14px 10px; border-bottom: 1px solid rgba(255,255,255,0.06);
     display: flex; align-items: center; justify-content: space-between; flex-shrink: 0;
   }
   .notebook-item {
-    display: flex; align-items: center; gap: 9px;
-    padding: 8px 14px; cursor: pointer; color: var(--t2);
-    font-size: 13px; font-weight: 500; transition: all .15s;
-    border-left: 2px solid transparent;
+    display: flex; align-items: center; gap: 7px;
+    padding: 8px 8px 8px 10px; cursor: pointer; color: var(--t2);
+    font-size: 12px; font-weight: 500; transition: all .15s;
+    border-left: 2px solid transparent; position: relative; user-select: none;
   }
   .notebook-item:hover { background: rgba(255,255,255,0.04); color: var(--t1); }
-  .notebook-item.active { background: var(--bluem); color: var(--blue); border-left-color: var(--blue); }
-  .notebook-icon { width: 26px; height: 26px; border-radius: 7px; display: flex; align-items: center; justify-content: center; font-size: 13px; flex-shrink: 0; }
+  .notebook-item.nb-active { background: var(--bluem); color: var(--blue); border-left-color: var(--blue); }
+  .notebook-item.nb-drag-over { outline: 1.5px dashed var(--blue); border-radius: 6px; }
+  .notebook-icon { width: 22px; height: 22px; border-radius: 6px; display: flex; align-items: center; justify-content: center; font-size: 12px; flex-shrink: 0; }
+  .nb-chev { font-size: 7px; color: var(--t3); flex-shrink: 0; transition: transform .15s; }
+  .nb-count { font-size: 9px; color: var(--t3); font-family: var(--mono); flex-shrink: 0; }
+  .nb-dot-btn {
+    width: 20px; height: 20px; border-radius: 5px; border: none;
+    background: transparent; color: var(--t3); cursor: pointer;
+    font-size: 13px; display: flex; align-items: center; justify-content: center;
+    opacity: 0; transition: opacity .12s, background .12s; flex-shrink: 0; line-height: 1; padding-bottom: 2px;
+  }
+  .notebook-item:hover .nb-dot-btn, .section-item:hover .nb-dot-btn, .note-list-item:hover .nb-dot-btn { opacity: 1; }
+  .nb-dot-btn:hover { background: rgba(255,255,255,0.10); color: var(--t1); opacity: 1; }
+  .nb-dropdown {
+    position: absolute; z-index: 120; right: 4px; top: calc(100% + 2px);
+    background: var(--bg1); border: 1px solid var(--b2); border-radius: 10px;
+    padding: 4px; box-shadow: var(--shadow2); min-width: 156px; animation: fadeIn .1s ease;
+  }
+  .nb-dropdown button {
+    display: flex; align-items: center; gap: 8px; width: 100%;
+    padding: 7px 11px; border: none; border-radius: 7px;
+    background: transparent; color: var(--t2); font-size: 12px;
+    font-family: var(--sans); cursor: pointer; transition: all .12s; text-align: left;
+  }
+  .nb-dropdown button:hover { background: rgba(255,255,255,0.06); color: var(--t1); }
+  .nb-dropdown button.danger { color: var(--red); }
+  .nb-dropdown button.danger:hover { background: rgba(239,68,68,0.1); }
+  .nb-dropdown .dd-sep { height: 1px; background: var(--b1); margin: 3px 0; }
   .section-item {
-    display: flex; align-items: center; gap: 8px;
-    padding: 5px 14px 5px 26px; cursor: pointer; color: var(--t3);
+    display: flex; align-items: center; gap: 7px;
+    padding: 5px 8px 5px 26px; cursor: pointer; color: var(--t3);
     font-size: 11px; font-weight: 500; transition: all .15s;
-    border-left: 2px solid transparent;
+    border-left: 2px solid transparent; position: relative; user-select: none;
   }
   .section-item:hover { background: rgba(255,255,255,0.03); color: var(--t2); }
   .section-item.active { color: var(--blue); border-left-color: var(--blue); background: var(--bluem); }
+  .section-item.sec-drag-over { outline: 1.5px dashed var(--blue); border-radius: 5px; }
   .section-dot { width: 4px; height: 4px; border-radius: 50%; background: var(--b3); flex-shrink: 0; }
   .section-item.active .section-dot { background: var(--blue); }
-
+  .sec-count { font-size: 9px; color: var(--t3); font-family: var(--mono); flex-shrink: 0; }
+  .nb-rename-input {
+    background: rgba(59,130,246,0.12); border: 1px solid var(--blue); border-radius: 5px;
+    color: var(--t1); font-size: 12px; font-family: var(--sans); padding: 1px 5px; outline: none; flex: 1;
+  }
+  .nb-new-input {
+    background: rgba(255,255,255,0.05); border: 1px solid var(--b2); border-radius: 7px;
+    color: var(--t1); font-size: 12px; font-family: var(--sans); padding: 6px 10px; outline: none; flex: 1;
+  }
+  .nb-new-input:focus { border-color: var(--blue); }
   .notes-list {
-    width: 255px; min-width: 255px; border-right: 1px solid rgba(255,255,255,0.06);
-    background: rgba(17,24,39,0.55); overflow-y: auto; display: flex; flex-direction: column;
+    width: 260px; min-width: 260px; border-right: 1px solid rgba(255,255,255,0.06);
+    background: rgba(17,24,39,0.55); overflow-y: auto; display: flex; flex-direction: column; flex-shrink: 0;
   }
   .notes-list-header {
     padding: 10px 12px; border-bottom: 1px solid rgba(255,255,255,0.06);
     display: flex; align-items: center; justify-content: space-between;
-    flex-shrink: 0; background: rgba(10,14,20,0.6);
+    flex-shrink: 0; background: rgba(10,14,20,0.6); gap: 8px;
+  }
+  .notes-list-header-title {
+    font-size: 12px; font-weight: 700; color: var(--t1);
+    overflow: hidden; text-overflow: ellipsis; white-space: nowrap; flex: 1; min-width: 0;
   }
   .note-list-item {
-    padding: 13px 14px; cursor: pointer;
+    padding: 12px 10px 10px 14px; cursor: pointer;
     border-bottom: 1px solid rgba(255,255,255,0.05); transition: background .15s;
-    border-left: 2px solid transparent;
+    border-left: 3px solid transparent; position: relative; user-select: none;
   }
   .note-list-item:hover { background: rgba(255,255,255,0.04); }
-  .note-list-item.active { background: var(--bluem); border-left-color: var(--blue); }
-  .nli-title   { font-size: 13px; font-weight: 600; color: var(--t1); margin-bottom: 3px; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+  .note-list-item.active { background: rgba(59,130,246,0.08); border-left-color: var(--blue); }
+  .note-list-item.note-drag-over { border-top: 2px solid var(--blue); }
+  .note-list-item.note-dragging { opacity: 0.4; }
+  .nli-row   { display: flex; align-items: flex-start; justify-content: space-between; gap: 4px; }
+  .nli-title   { font-size: 13px; font-weight: 600; color: var(--t1); margin-bottom: 3px; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; flex: 1; min-width: 0; }
   .nli-preview { font-size: 11px; color: var(--t3); white-space: nowrap; overflow: hidden; text-overflow: ellipsis; line-height: 1.4; }
-  .nli-date    { font-size: 10px; color: var(--t3); font-family: var(--mono); margin-top: 5px; }
-  .nli-tags    { display: flex; gap: 4px; margin-top: 4px; flex-wrap: wrap; }
-  .nli-tag     { font-size: 9px; padding: 1px 5px; border-radius: 4px; background: var(--bg3); color: var(--t3); font-weight: 500; }
-  .nli-location { font-size: 9px; color: var(--t3); font-family: var(--mono); margin-top: 3px; opacity: .7; }
-
-  .note-editor { flex: 1; display: flex; flex-direction: column; overflow: hidden; background: rgba(8,12,18,0.80); }
-  .note-toolbar {
-    padding: 8px 18px; border-bottom: 1px solid rgba(255,255,255,0.06);
-    display: flex; align-items: center; gap: 4px; flex-wrap: wrap;
-    background: rgba(10,14,20,0.65); flex-shrink: 0;
+  .nli-date    { font-size: 10px; color: var(--t3); font-family: var(--mono); margin-top: 4px; }
+  .nli-tags    { display: flex; gap: 4px; margin-top: 5px; flex-wrap: wrap; }
+  .nli-tag     { font-size: 9px; padding: 2px 6px; border-radius: 20px; background: rgba(59,130,246,0.12); color: var(--blue); font-weight: 600; letter-spacing: .2px; }
+  .note-ctx-menu {
+    position: fixed; z-index: 150; background: var(--bg1); border: 1px solid var(--b2);
+    border-radius: 10px; padding: 4px; box-shadow: var(--shadow2); min-width: 160px; animation: fadeIn .1s ease;
   }
-  .note-toolbar-sep { width: 1px; height: 18px; background: rgba(255,255,255,0.08); margin: 0 4px; }
+  .note-ctx-menu button {
+    display: flex; align-items: center; gap: 8px; width: 100%;
+    padding: 7px 12px; border: none; border-radius: 7px;
+    background: transparent; color: var(--t2); font-size: 12px;
+    font-family: var(--sans); cursor: pointer; transition: all .12s;
+  }
+  .note-ctx-menu button:hover { background: rgba(255,255,255,0.06); color: var(--t1); }
+  .note-ctx-menu button.danger { color: var(--red); }
+  .note-ctx-menu button.danger:hover { background: rgba(239,68,68,0.1); }
+  .note-ctx-menu .ctx-sep { height: 1px; background: var(--b1); margin: 3px 4px; }
+  .note-editor { flex: 1; display: flex; flex-direction: column; overflow: hidden; background: rgba(8,12,18,0.80); position: relative; }
+  .note-toolbar {
+    padding: 7px 16px; border-bottom: 1px solid rgba(255,255,255,0.06);
+    display: flex; align-items: center; gap: 2px; flex-wrap: wrap;
+    background: rgba(10,14,20,0.65); flex-shrink: 0; min-height: 42px;
+  }
+  .note-toolbar-sep { width: 1px; height: 18px; background: rgba(255,255,255,0.08); margin: 0 3px; }
   .note-tool-btn {
-    width: 26px; height: 26px; border-radius: 6px;
+    height: 26px; min-width: 26px; padding: 0 5px; border-radius: 6px;
     display: flex; align-items: center; justify-content: center;
     background: transparent; border: 1px solid transparent;
     color: var(--t3); cursor: pointer; font-size: 11px; font-weight: 700;
-    font-family: var(--mono); transition: all .12s; flex-shrink: 0; line-height: 1;
+    font-family: var(--mono); transition: all .12s; flex-shrink: 0; line-height: 1; white-space: nowrap;
   }
   .note-tool-btn:hover { background: rgba(255,255,255,0.06); border-color: rgba(255,255,255,0.1); color: var(--t1); }
   .note-tool-btn.on { background: var(--bluem); border-color: var(--blueb); color: var(--blue); }
   .note-title-input {
-    width: 100%; padding: 20px 28px 12px;
+    width: 100%; padding: 24px 32px 14px;
     background: transparent; border: none; color: var(--t1);
-    font-size: 22px; font-weight: 700; font-family: var(--sans);
-    outline: none; border-bottom: 1px solid rgba(255,255,255,0.06); letter-spacing: -.3px;
+    font-size: 26px; font-weight: 700; font-family: var(--sans);
+    outline: none; border-bottom: 1px solid rgba(255,255,255,0.06); letter-spacing: -.5px;
+    box-sizing: border-box;
   }
   .note-title-input::placeholder { color: var(--t3); }
-  .note-meta { padding: 7px 28px; display: flex; align-items: center; gap: 12px; border-bottom: 1px solid rgba(255,255,255,0.06); flex-wrap: wrap; }
+  .note-meta { padding: 8px 32px; display: flex; align-items: center; gap: 14px; border-bottom: 1px solid rgba(255,255,255,0.05); flex-wrap: wrap; }
   .note-meta-item { font-size: 10px; color: var(--t3); font-family: var(--mono); display: flex; align-items: center; gap: 4px; }
   .note-body-input {
-    flex: 1; padding: 20px 28px;
+    flex: 1; padding: 22px 32px; min-height: 0;
     background: transparent; border: none; color: var(--t2);
-    font-size: 14px; line-height: 1.85; font-family: var(--sans);
-    outline: none; resize: none;
+    font-size: 14px; line-height: 1.9; font-family: var(--sans);
+    outline: none; resize: none; tab-size: 2;
   }
-  .note-body-input::placeholder { color: var(--t3); }
+  .note-body-input::placeholder { color: var(--t3); opacity: .5; }
+  .note-body-input::selection { background: rgba(59,130,246,0.3); }
+  .note-tags-bar {
+    padding: 10px 32px; border-top: 1px solid rgba(255,255,255,0.06);
+    display: flex; align-items: center; gap: 7px; flex-shrink: 0; flex-wrap: wrap;
+    background: rgba(10,14,20,0.4);
+  }
+  .note-tags-input {
+    background: transparent; border: none; outline: none;
+    color: var(--t3); font-size: 11px; font-family: var(--mono); min-width: 100px; flex: 1;
+  }
   .note-empty {
     flex: 1; display: flex; align-items: center; justify-content: center;
-    flex-direction: column; gap: 12px; color: var(--t3);
+    flex-direction: column; gap: 14px; color: var(--t3);
   }
-  .note-empty-icon { font-size: 44px; opacity: .12; }
+  .note-empty-icon { opacity: .1; margin-bottom: 4px; }
   .enc-badge {
-    display: inline-flex; align-items: center; gap: 4px;
-    padding: 3px 9px; border-radius: 20px;
-    background: rgba(16,185,129,.10); color: var(--grn);
-    font-size: 10px; font-weight: 600;
+    display: inline-flex; align-items: center; gap: 4px; padding: 3px 9px; border-radius: 20px;
+    background: rgba(16,185,129,.10); color: var(--grn); font-size: 10px; font-weight: 600;
   }
-  .save-ind { font-size: 10px; font-family: var(--mono); padding: 2px 8px; border-radius: 6px; transition: all .3s; }
+  @keyframes saveAppear { from { opacity:0; transform:translateY(2px); } to { opacity:1; transform:translateY(0); } }
+  @keyframes saveFade { 0%{opacity:1;} 60%{opacity:1;} 100%{opacity:0;} }
+  .save-ind { font-size: 10px; font-family: var(--mono); padding: 2px 8px; border-radius: 6px; animation: saveAppear .15s ease; }
   .save-ind.saving { color: var(--amber); background: rgba(245,158,11,0.1); }
-  .save-ind.saved  { color: var(--grn);   background: rgba(16,185,129,0.1); }
+  .save-ind.saved  { color: var(--grn); background: rgba(16,185,129,0.1); animation: saveFade 2.2s ease forwards; }
+  .sel-toolbar {
+    position: fixed; z-index: 200; background: var(--bg1); border: 1px solid var(--b2);
+    border-radius: 9px; padding: 3px; box-shadow: var(--shadow2);
+    display: flex; align-items: center; gap: 1px; animation: fadeIn .1s ease; pointer-events: all;
+  }
+  .sel-toolbar button {
+    width: 28px; height: 26px; border-radius: 6px; border: none;
+    background: transparent; color: var(--t2); font-size: 11px; font-weight: 700;
+    font-family: var(--mono); cursor: pointer; transition: all .1s;
+    display: flex; align-items: center; justify-content: center;
+  }
+  .sel-toolbar button:hover { background: rgba(255,255,255,0.08); color: var(--t1); }
 
-  /* ── Markdown preview ── */
+  /* ── Markdown preview (document view) ── */
   .preview-body {
-    flex: 1; overflow-y: auto; padding: 20px 32px;
+    flex: 1; overflow-y: auto; padding: 24px 36px 32px;
     color: var(--t2); line-height: 1.85; font-size: 14px;
   }
-  .preview-body h1 { font-size: 22px; font-weight: 700; color: var(--t1); margin: 24px 0 10px; letter-spacing: -.3px; border-bottom: 1px solid rgba(255,255,255,0.06); padding-bottom: 8px; }
+  .preview-body h1 { font-size: 22px; font-weight: 700; color: var(--t1); margin: 4px 0 10px; letter-spacing: -.3px; border-bottom: 1px solid rgba(255,255,255,0.06); padding-bottom: 8px; }
   .preview-body h2 { font-size: 17px; font-weight: 700; color: var(--t1); margin: 20px 0 8px; }
-  .preview-body h3 { font-size: 14px; font-weight: 600; color: var(--t1); margin: 16px 0 6px; }
+  .preview-body h3 { font-size: 14px; font-weight: 600; color: var(--t2); margin: 16px 0 6px; }
   .preview-body p  { margin-bottom: 10px; }
-  .preview-body ul { margin: 6px 0 10px 20px; }
+  .preview-body ul, .preview-body ol { margin: 6px 0 10px 22px; }
   .preview-body li { margin-bottom: 4px; }
   .preview-body strong { color: var(--t1); font-weight: 700; }
   .preview-body em { font-style: italic; }
+  .preview-body a { color: var(--blue); text-decoration: underline; }
   .preview-body code { background: rgba(59,130,246,0.1); border: 1px solid rgba(59,130,246,0.2); padding: 1px 5px; border-radius: 4px; font-family: var(--mono); font-size: 12px; color: var(--blue); }
   .preview-body pre { background: var(--bg3); border: 1px solid rgba(255,255,255,0.07); border-radius: 10px; padding: 14px 18px; margin: 12px 0; overflow-x: auto; }
   .preview-body pre code { background: none; border: none; padding: 0; color: var(--t2); font-size: 13px; }
+  .preview-body .check-list { list-style: none; margin-left: 4px; }
+  .preview-body .check-item { display: flex; align-items: center; gap: 8px; padding: 2px 0; }
+  .preview-body .check-item input { width: 14px; height: 14px; accent-color: var(--blue); flex-shrink: 0; }
+  .hc-row {
+    display: flex; align-items: center; gap: 6px; cursor: pointer;
+    border-radius: 6px; margin: 0 -6px; padding: 4px 6px; transition: background .12s;
+    user-select: none;
+  }
+  .hc-row:hover { background: rgba(255,255,255,0.04); }
+  .hc-chev {
+    font-size: 8px; color: var(--t3); flex-shrink: 0; width: 12px; text-align: center;
+    transition: transform .15s; display: inline-block;
+  }
+  .hc-chev.open { transform: rotate(0deg); }
+  .hc-chev.closed { transform: rotate(-90deg); }
+  .hc-htag { margin: 0 !important; padding: 0 !important; border: none !important; flex: 1; }
+  .hc-content { overflow: hidden; transition: none; }
+  .hc-content.collapsed { display: none; }
+  .hc-collapsed-hint { font-size: 10px; color: var(--t3); font-style: italic; margin-left: 18px; margin-bottom: 4px; opacity: .7; }
+  .move-modal-sections { max-height: 320px; overflow-y: auto; margin-top: 8px; }
+  .move-modal-nb { font-size: 10px; color: var(--t3); font-weight: 700; text-transform: uppercase; letter-spacing: 1px; padding: 10px 4px 4px; }
+  .move-modal-sec {
+    padding: 8px 12px; border-radius: 8px; cursor: pointer; font-size: 13px; color: var(--t2);
+    transition: all .12s; display: flex; align-items: center; gap: 8px;
+  }
+  .move-modal-sec:hover { background: var(--bluem); color: var(--blue); }
 
   /* ── Calendar ── */
   .cal-header { display: flex; align-items: center; justify-content: space-between; margin-bottom: 22px; flex-wrap: wrap; gap: 12px; }
@@ -793,9 +898,10 @@ const CSS = `
     .grid-3 { grid-template-columns: 1fr 1fr; }
     .grid-2 { grid-template-columns: 1fr; }
     .notes-shell { flex-direction: column; height: auto; }
-    .notes-sidebar { width: 100%; min-width: unset; border-right: none; border-bottom: 1px solid rgba(255,255,255,0.06); max-height: 180px; overflow-x: auto; overflow-y: hidden; flex-direction: row; flex-wrap: nowrap; display: flex; }
-    .notes-list { width: 100%; min-width: unset; border-right: none; border-bottom: 1px solid rgba(255,255,255,0.06); max-height: 200px; }
-    .note-editor { min-height: 300px; }
+    .notes-sidebar { width: 100%; min-width: unset; border-right: none; border-bottom: 1px solid rgba(255,255,255,0.06); max-height: 200px; }
+    .notes-list { width: 100%; min-width: unset; border-right: none; border-bottom: 1px solid rgba(255,255,255,0.06); max-height: 220px; }
+    .note-editor { min-height: 340px; }
+    .sel-toolbar { display: none; }
     .app-table th:nth-child(4), .app-table td:nth-child(4),
     .app-table th:nth-child(5), .app-table td:nth-child(5) { display: none; }
     .topbar { padding: 0 16px; }
@@ -892,7 +998,7 @@ const Icon = ({ name, size = 16, color = "currentColor" }) => {
 };
 
 // ─── NOTEBOOKS CONFIG ────────────────────────────────────────────────────────
-const NOTEBOOKS = [
+const DEFAULT_NOTEBOOKS = [
   {
     id: "finance", label: "Finance", emoji: "💰", color: "#10b981", bg: "rgba(16,185,129,0.15)",
     sections: [
@@ -1347,66 +1453,134 @@ function Dashboard({ onNavigate, onGoToCalendarDay }) {
 
 // ─── NOTES ───────────────────────────────────────────────────────────────────
 function Notes() {
-  const [activeNB, setActiveNB]       = useState("finance");
-  const [activeSection, setSection]   = useState("mortgage");
-  const [allNotes, setAllNotes]       = useState([]);
-  const [activeNote, setActiveNote]   = useState(null);
-  const [editTitle, setEditTitle]     = useState("");
-  const [editBody, setEditBody]       = useState("");
-  const [editTags, setEditTags]       = useState("");
-  const [loading, setLoading]         = useState(false);
-  const [search, setSearch]           = useState("");
-  const [saveStatus, setSaveStatus]   = useState("idle"); // idle | saving | saved
-  const [viewMode, setViewMode]       = useState("edit"); // edit | preview
+  // ── Notebooks (localStorage backed) ──────────────────────────────────
+  const [notebooks, setNotebooks] = useState(() => {
+    try { const s = localStorage.getItem('sanctum_notebooks_v2'); if (s) return JSON.parse(s); } catch {}
+    return DEFAULT_NOTEBOOKS;
+  });
+  const saveNotebooks = useCallback((nbs) => {
+    setNotebooks(nbs);
+    localStorage.setItem('sanctum_notebooks_v2', JSON.stringify(nbs));
+  }, []);
+  const [expandedNBs, setExpandedNBs] = useState(() => {
+    try { const s = localStorage.getItem('sanctum_expanded_nbs'); if (s) return new Set(JSON.parse(s)); } catch {}
+    return new Set([DEFAULT_NOTEBOOKS[0]?.id]);
+  });
+  const toggleExpand = (id) => {
+    setExpandedNBs(prev => {
+      const next = new Set(prev);
+      if (next.has(id)) next.delete(id); else next.add(id);
+      localStorage.setItem('sanctum_expanded_nbs', JSON.stringify([...next]));
+      return next;
+    });
+  };
+
+  // ── Active selection ──────────────────────────────────────────────────
+  const [activeNB,      setActiveNB]      = useState(DEFAULT_NOTEBOOKS[0]?.id || '');
+  const [activeSection, setActiveSection] = useState(DEFAULT_NOTEBOOKS[0]?.sections[0]?.id || '');
+
+  // ── Notes (Supabase) ─────────────────────────────────────────────────
+  const [allNotes,   setAllNotes]   = useState([]);
+  const [activeNote, setActiveNote] = useState(null);
+  const [editTitle,  setEditTitle]  = useState('');
+  const [editBody,   setEditBody]   = useState('');
+  const [editTags,   setEditTags]   = useState('');
+  const [loading,    setLoading]    = useState(false);
+  const [saveStatus, setSaveStatus] = useState('idle');
+  const [viewMode,   setViewMode]   = useState('edit');
   const saveTimer = useRef(null);
   const bodyRef   = useRef(null);
+  const previewRef = useRef(null);
 
-  const notebook = NOTEBOOKS.find(n => n.id === activeNB);
-  const section  = notebook?.sections.find(s => s.id === activeSection);
+  // ── Note ordering ─────────────────────────────────────────────────────
+  const [noteOrder, setNoteOrder] = useState(() => {
+    try { return JSON.parse(localStorage.getItem('sanctum_note_order') || '{}'); } catch { return {}; }
+  });
+  const saveNoteOrder = (order) => { setNoteOrder(order); localStorage.setItem('sanctum_note_order', JSON.stringify(order)); };
+  const getOrderedNotes = useCallback((sectionId, src) => {
+    const notes = (src || allNotes).filter(n => n.section === sectionId);
+    const order = noteOrder[sectionId];
+    if (!order) return notes;
+    return [...notes].sort((a, b) => {
+      const ai = order.indexOf(String(a.id)), bi = order.indexOf(String(b.id));
+      if (ai === -1 && bi === -1) return 0; if (ai === -1) return 1; if (bi === -1) return -1; return ai - bi;
+    });
+  }, [allNotes, noteOrder]);
 
-  // ── Load ──
+  // ── UI state ──────────────────────────────────────────────────────────
+  const [nbMenu,       setNbMenu]       = useState(null);
+  const [noteMenu,     setNoteMenu]     = useState(null);
+  const [dragNBId,     setDragNBId]     = useState(null);
+  const [dragSecId,    setDragSecId]    = useState(null);
+  const [dragNoteId,   setDragNoteId]   = useState(null);
+  const [dragOverId,   setDragOverId]   = useState(null);
+  const [selToolbar,   setSelToolbar]   = useState(null);
+  const [collapsedH,   setCollapsedH]   = useState(new Set());
+  const [renameTarget, setRenameTarget] = useState(null);
+  const [newNBValue,   setNewNBValue]   = useState('');
+  const [showNewNB,    setShowNewNB]    = useState(false);
+  const [moveModal,    setMoveModal]    = useState(null);
+
+  // ── Close menus on outside click ──────────────────────────────────────
+  useEffect(() => {
+    const h = (e) => {
+      if (!e.target.closest('.nb-dropdown') && !e.target.closest('.nb-dot-btn')) setNbMenu(null);
+      if (!e.target.closest('.note-ctx-menu') && !e.target.closest('.nb-dot-btn')) setNoteMenu(null);
+      if (!e.target.closest('.sel-toolbar') && !e.target.closest('.note-body-input')) setSelToolbar(null);
+    };
+    document.addEventListener('mousedown', h);
+    return () => document.removeEventListener('mousedown', h);
+  }, []);
+
+  // ── Collapsible heading click (preview) ──────────────────────────────
+  useEffect(() => {
+    if (viewMode !== 'preview' || !previewRef.current) return;
+    const container = previewRef.current;
+    const h = (e) => {
+      const row = e.target.closest('.hc-row');
+      if (!row) return;
+      const key = row.dataset.key;
+      setCollapsedH(prev => { const next = new Set(prev); if (next.has(key)) next.delete(key); else next.add(key); return next; });
+    };
+    container.addEventListener('click', h);
+    return () => container.removeEventListener('click', h);
+  }, [viewMode, editBody]);
+
+  // ── Load ──────────────────────────────────────────────────────────────
   useEffect(() => { loadNotes(); }, []);
-
   const loadNotes = async () => {
     setLoading(true);
     try {
       const data = await sb.from("notes").select("*");
       if (Array.isArray(data)) {
         setAllNotes(data);
-        const forSection = data.filter(n => n.section === activeSection);
-        if (forSection[0]) openNote(forSection[0]);
+        const first = data.find(n => n.section === activeSection);
+        if (first) openNote(first);
       }
     } catch { setAllNotes([]); }
     setLoading(false);
   };
 
   const openNote = (n) => {
-    setActiveNote(n.id); setEditTitle(n.title || ""); setEditBody(n.body || ""); setEditTags(n.tags || "");
-    setViewMode("edit");
+    setActiveNote(n.id); setEditTitle(n.title || ''); setEditBody(n.body || ''); setEditTags(n.tags || '');
+    setViewMode('edit'); setCollapsedH(new Set());
+  };
+  const selectSection = (sid, nbid) => {
+    setActiveNB(nbid); setActiveSection(sid); setNbMenu(null);
+    const first = allNotes.find(n => n.section === sid);
+    if (first) openNote(first); else { setActiveNote(null); setEditTitle(''); setEditBody(''); setEditTags(''); }
   };
 
-  // Notes visible in list panel
-  const isGlobalSearch = search.length > 1;
-  const sectionNotes   = allNotes.filter(n => n.section === activeSection);
-  const displayedNotes = isGlobalSearch
-    ? allNotes.filter(n =>
-        n.title?.toLowerCase().includes(search.toLowerCase()) ||
-        n.body?.toLowerCase().includes(search.toLowerCase()) ||
-        n.tags?.toLowerCase().includes(search.toLowerCase()))
-    : sectionNotes;
-
-  const currentNote = allNotes.find(n => n.id === activeNote);
-
-  // ── Auto-save ──
+  // ── Auto-save (700ms debounce) ────────────────────────────────────────
   const autoSave = useCallback((id, title, body, tags) => {
-    setSaveStatus("saving");
+    setSaveStatus('saving');
     if (saveTimer.current) clearTimeout(saveTimer.current);
     saveTimer.current = setTimeout(async () => {
       const updated = new Date().toISOString().slice(0, 10);
       setAllNotes(prev => prev.map(n => n.id === id ? { ...n, title, body, tags, updated_at: updated } : n));
       try { await sb.from("notes").update({ title, body, tags, updated_at: updated }, { id }); } catch {}
-      setSaveStatus("saved");
-      setTimeout(() => setSaveStatus("idle"), 2000);
+      setSaveStatus('saved');
+      setTimeout(() => setSaveStatus('idle'), 2400);
     }, 700);
   }, []);
 
@@ -1414,270 +1588,508 @@ function Notes() {
   const onBodyChange  = (v) => { setEditBody(v);  if (activeNote) autoSave(activeNote, editTitle, v, editTags); };
   const onTagsChange  = (v) => { setEditTags(v);  if (activeNote) autoSave(activeNote, editTitle, editBody, v); };
 
-  // ── CRUD ──
+  // ── CRUD ──────────────────────────────────────────────────────────────
   const newNote = async () => {
-    const note = { notebook: activeNB, section: activeSection, title: "Untitled", body: "", tags: "", updated_at: new Date().toISOString().slice(0, 10) };
+    const note = { notebook: activeNB, section: activeSection, title: 'Untitled', body: '', tags: '', updated_at: new Date().toISOString().slice(0, 10) };
     try {
-      const res     = await sb.from("notes").insert(note);
+      const res = await sb.from("notes").insert(note);
       const created = Array.isArray(res) && res[0] ? res[0] : { ...note, id: Date.now().toString() };
-      setAllNotes(prev => [created, ...prev]);
-      openNote(created);
-    } catch {
-      const n = { ...note, id: Date.now().toString() };
-      setAllNotes(prev => [n, ...prev]);
-      openNote(n);
+      setAllNotes(prev => [created, ...prev]); openNote(created);
+    } catch { const n = { ...note, id: Date.now().toString() }; setAllNotes(prev => [n, ...prev]); openNote(n); }
+  };
+
+  const deleteNote = async (id) => {
+    const nid = id || activeNote; if (!nid) return;
+    const remaining = allNotes.filter(n => n.id !== nid); setAllNotes(remaining);
+    if (nid === activeNote) {
+      const next = remaining.find(n => n.section === activeSection);
+      if (next) openNote(next); else { setActiveNote(null); setEditTitle(''); setEditBody(''); setEditTags(''); }
     }
+    try { await sb.from("notes").delete({ id: nid }); } catch {}
+    setNoteMenu(null);
   };
 
-  const deleteNote = async () => {
-    if (!activeNote) return;
-    const remaining = allNotes.filter(n => n.id !== activeNote);
-    setAllNotes(remaining);
-    const next = remaining.find(n => n.section === activeSection);
-    if (next) openNote(next);
-    else { setActiveNote(null); setEditTitle(""); setEditBody(""); setEditTags(""); }
-    try { await sb.from("notes").delete({ id: activeNote }); } catch {}
+  const duplicateNote = async (id) => {
+    const note = allNotes.find(n => n.id === id); if (!note) return;
+    const { id: _id, ...rest } = note;
+    const dup = { ...rest, title: (note.title || 'Untitled') + ' copy', updated_at: new Date().toISOString().slice(0, 10) };
+    try {
+      const res = await sb.from("notes").insert(dup);
+      const created = Array.isArray(res) && res[0] ? res[0] : { ...dup, id: Date.now().toString() };
+      setAllNotes(prev => [created, ...prev]); openNote(created);
+    } catch { const n = { ...dup, id: Date.now().toString() }; setAllNotes(prev => [n, ...prev]); openNote(n); }
+    setNoteMenu(null);
   };
 
-  const selectSection = (sid, nbid) => {
-    if (nbid !== activeNB) setActiveNB(nbid);
-    setSection(sid);
-    setSearch("");
-    const first = allNotes.find(n => n.section === sid);
-    if (first) openNote(first);
-    else { setActiveNote(null); setEditTitle(""); setEditBody(""); setEditTags(""); }
+  const moveNote = async (noteId, toNB, toSection) => {
+    setAllNotes(prev => prev.map(n => n.id === noteId ? { ...n, notebook: toNB, section: toSection } : n));
+    try { await sb.from("notes").update({ notebook: toNB, section: toSection }, { id: noteId }); } catch {}
+    setMoveModal(null); setNoteMenu(null);
   };
 
-  // ── Rich-text formatting ──
+  // ── Formatting ────────────────────────────────────────────────────────
   const applyFormat = (fmt) => {
-    const ta = bodyRef.current;
-    if (!ta) return;
+    const ta = bodyRef.current; if (!ta) return;
     const s = ta.selectionStart, e = ta.selectionEnd;
-    const sel  = editBody.slice(s, e);
-    const pre  = editBody.slice(0, s);
-    const post = editBody.slice(e);
-
+    const sel = editBody.slice(s, e), pre = editBody.slice(0, s), post = editBody.slice(e);
     const lineStart = (str) => str.lastIndexOf('\n') + 1;
-
-    if (fmt === 'h1' || fmt === 'h2' || fmt === 'ul') {
-      const prefix = fmt === 'h1' ? '# ' : fmt === 'h2' ? '## ' : '- ';
-      const li = lineStart(pre);
-      const newBody = editBody.slice(0, li) + prefix + editBody.slice(li);
-      onBodyChange(newBody);
-      setTimeout(() => { ta.focus(); ta.setSelectionRange(s + prefix.length, e + prefix.length); }, 0);
+    if (['h1','h2','h3','ul','ol','check','hr'].includes(fmt)) {
+      const pm = { h1:'# ', h2:'## ', h3:'### ', ul:'- ', ol:'1. ', check:'- [ ] ', hr:'\n---\n' };
+      const px = pm[fmt];
+      if (fmt === 'hr') { onBodyChange(pre + px + post); setTimeout(() => { ta.focus(); ta.setSelectionRange(s+px.length, s+px.length); }, 0); }
+      else { const li = lineStart(pre); onBodyChange(editBody.slice(0,li) + px + editBody.slice(li)); setTimeout(() => { ta.focus(); ta.setSelectionRange(s+px.length, e+px.length); }, 0); }
       return;
     }
-
     let insert = '', ns = s, ne = e;
-    if (fmt === 'bold')      { insert = `**${sel||'bold'}**`;   ns = s+2; ne = ns+(sel.length||4); }
-    else if (fmt === 'italic')   { insert = `_${sel||'italic'}_`;  ns = s+1; ne = ns+(sel.length||6); }
-    else if (fmt === 'code')     { insert = `\`${sel||'code'}\``;   ns = s+1; ne = ns+(sel.length||4); }
-    else if (fmt === 'codeblock'){ insert = `\`\`\`\n${sel||'code'}\n\`\`\``; ns = s+4; ne = ns+(sel.length||4); }
-
+    if (fmt === 'bold')        { insert = `**${sel||'bold'}**`;            ns=s+2; ne=ns+(sel.length||4); }
+    else if (fmt === 'italic') { insert = `_${sel||'italic'}_`;            ns=s+1; ne=ns+(sel.length||6); }
+    else if (fmt === 'code')   { insert = `\`${sel||'code'}\``;            ns=s+1; ne=ns+(sel.length||4); }
+    else if (fmt === 'codeblock') { insert = `\`\`\`\n${sel||'code'}\n\`\`\``; ns=s+4; ne=ns+(sel.length||4); }
+    else if (fmt === 'link')   { insert = `[${sel||'text'}](url)`;         ns=s+1; ne=s+1+(sel.length||4); }
     onBodyChange(pre + insert + post);
     setTimeout(() => { ta.focus(); ta.setSelectionRange(ns, ne); }, 0);
+    setSelToolbar(null);
   };
 
-  // ── Markdown renderer ──
-  const renderMarkdown = (text) => {
-    if (!text) return '<p style="color:var(--t3);font-style:italic">Nothing to preview yet.</p>';
-    const esc   = (s) => s.replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;');
-    const inline = (s) => s
-      .replace(/\*\*(.+?)\*\*/g, '<strong>$1</strong>')
-      .replace(/\*(.+?)\*/g,     '<em>$1</em>')
-      .replace(/_(.+?)_/g,       '<em>$1</em>')
-      .replace(/`(.+?)`/g,       '<code>$1</code>');
+  const onBodyKeyDown = (e) => {
+    if ((e.metaKey||e.ctrlKey) && e.key==='b') { e.preventDefault(); applyFormat('bold'); }
+    if ((e.metaKey||e.ctrlKey) && e.key==='i') { e.preventDefault(); applyFormat('italic'); }
+  };
 
+  const onBodyMouseUp = (e) => {
+    const ta = bodyRef.current; if (!ta) return;
+    setTimeout(() => {
+      if (ta.selectionStart !== ta.selectionEnd) setSelToolbar({ x: e.clientX, y: e.clientY - 52 });
+      else setSelToolbar(null);
+    }, 10);
+  };
+
+  // ── Markdown renderer with collapsible headings ───────────────────────
+  const renderMarkdown = (text, collapsedSet = new Set()) => {
+    if (!text) return '<p style="color:var(--t3);font-style:italic;margin-top:40px;text-align:center">Nothing to preview yet.</p>';
+    const esc    = s => s.replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;');
+    const inline = s => s
+      .replace(/\*\*(.+?)\*\*/g,'<strong>$1</strong>')
+      .replace(/_(.+?)_/g,'<em>$1</em>')
+      .replace(/`(.+?)`/g,'<code>$1</code>')
+      .replace(/\[(.+?)\]\((.+?)\)/g,'<a href="$2" target="_blank">$1</a>');
     const lines = text.split('\n');
-    let html = '', inList = false, inCode = false, codeBuf = [];
-
+    const segs = []; let cur = null, inCode = false, codeBuf = [], hIdx = 0;
+    const flushCur = () => { if (cur && cur.items.length) segs.push({ type:'content', key:cur.key, items:[...cur.items] }); cur = null; };
     for (const line of lines) {
       if (line.trim().startsWith('```')) {
-        if (inCode) { html += `<pre><code>${esc(codeBuf.join('\n'))}</code></pre>`; codeBuf = []; inCode = false; }
-        else { if (inList) { html += '</ul>'; inList = false; } inCode = true; }
-        continue;
+        if (inCode) { if (!cur) cur={key:'root',items:[]}; cur.items.push({t:'code',code:codeBuf.join('\n')}); codeBuf=[]; inCode=false; }
+        else inCode=true; continue;
       }
       if (inCode) { codeBuf.push(line); continue; }
-      const isList = /^[-•*] /.test(line);
-      if (!isList && inList) { html += '</ul>'; inList = false; }
-      if      (line.startsWith('# '))  html += `<h1>${inline(line.slice(2))}</h1>`;
-      else if (line.startsWith('## ')) html += `<h2>${inline(line.slice(3))}</h2>`;
-      else if (line.startsWith('### '))html += `<h3>${inline(line.slice(4))}</h3>`;
-      else if (isList)  { if (!inList) { html += '<ul>'; inList = true; } html += `<li>${inline(line.slice(2))}</li>`; }
-      else if (line.trim() === '') html += '<br>';
-      else html += `<p>${inline(line)}</p>`;
+      const hm = line.match(/^(#{1,3}) (.+)/);
+      if (hm) {
+        flushCur(); hIdx++;
+        const key=`h-${hIdx}`; segs.push({type:'heading',key,level:hm[1].length,content:hm[2]}); cur={key,items:[]};
+        continue;
+      }
+      if (!cur) cur={key:'root',items:[]};
+      cur.items.push({t:'line',text:line});
     }
-    if (inList) html += '</ul>';
-    if (inCode) html += `<pre><code>${esc(codeBuf.join('\n'))}</code></pre>`;
+    flushCur();
+    const renderItems = (items) => {
+      let h='', inList=false, inOL=false;
+      for (const item of items) {
+        if (item.t==='code') {
+          if(inList){h+='</ul>';inList=false;} if(inOL){h+='</ol>';inOL=false;}
+          h+=`<pre><code>${esc(item.code)}</code></pre>`; continue;
+        }
+        const ln=item.text, isBullet=/^[-•*] /.test(ln), isOL=/^\d+\. /.test(ln), isCheck=/^- \[[ x]\] /.test(ln);
+        if(!isBullet&&!isCheck&&inList){h+='</ul>';inList=false;}
+        if(!isOL&&inOL){h+='</ol>';inOL=false;}
+        if (isCheck) {
+          if(!inList){h+='<ul class="check-list">';inList=true;}
+          h+=`<li class="check-item"><input type="checkbox" ${ln.startsWith('- [x]')?'checked':''} disabled> ${inline(ln.replace(/^- \[[ x]\] /,''))}</li>`;
+        } else if (isBullet) {
+          if(!inList){h+='<ul>';inList=true;} h+=`<li>${inline(ln.slice(2))}</li>`;
+        } else if (isOL) {
+          if(!inOL){h+='<ol>';inOL=true;} h+=`<li>${inline(ln.replace(/^\d+\. /,''))}</li>`;
+        } else if (ln.trim()==='---') {
+          h+='<hr style="border:none;border-top:1px solid rgba(255,255,255,0.08);margin:18px 0">';
+        } else if (ln.trim()==='') {
+          h+='<br>';
+        } else {
+          h+=`<p>${inline(ln)}</p>`;
+        }
+      }
+      if(inList)h+='</ul>'; if(inOL)h+='</ol>'; return h;
+    };
+    let html='';
+    for (const seg of segs) {
+      if (seg.type==='heading') {
+        const collapsed=collapsedSet.has(seg.key), tag=`h${seg.level}`;
+        const chevCls = `hc-chev ${collapsed?'closed':'open'}`;
+        html+=`<div class="hc-row" data-key="${seg.key}"><span class="${chevCls}">▶</span><${tag} class="hc-htag">${inline(seg.content)}</${tag}></div>`;
+        if (collapsed) html+=`<div class="hc-collapsed-hint">... (collapsed)</div>`;
+      } else {
+        const collapsed = seg.key!=='root' && collapsedSet.has(seg.key);
+        html+=`<div class="hc-content${collapsed?' collapsed':''}" data-key="${seg.key}">${renderItems(seg.items)}</div>`;
+      }
+    }
     return html;
   };
 
-  const noteNB      = currentNote ? NOTEBOOKS.find(nb => nb.id === currentNote.notebook) : null;
-  const noteSec     = noteNB?.sections.find(s => s.id === currentNote?.section);
+  // ── Notebook CRUD ─────────────────────────────────────────────────────
+  const addNotebook = () => {
+    if (!newNBValue.trim()) { setShowNewNB(false); return; }
+    const id='nb-'+Date.now(), secId='sec-'+Date.now();
+    const nb={id, label:newNBValue.trim(), emoji:'📓', color:'#8b5cf6', bg:'rgba(139,92,246,0.15)', sections:[{id:secId,label:'General'}]};
+    saveNotebooks([...notebooks, nb]); toggleExpand(id);
+    setNewNBValue(''); setShowNewNB(false);
+  };
+  const deleteNotebook = (id) => {
+    const rem = notebooks.filter(n => n.id!==id); saveNotebooks(rem);
+    if (activeNB===id && rem[0]) selectSection(rem[0].sections[0]?.id, rem[0].id);
+    setNbMenu(null);
+  };
+  const addSection = (nbId) => {
+    const id='sec-'+Date.now(), label='New Section';
+    saveNotebooks(notebooks.map(nb => nb.id!==nbId ? nb : {...nb, sections:[...nb.sections,{id,label}]}));
+    setNbMenu(null); setTimeout(() => setRenameTarget({type:'section',id,parentId:nbId,value:label}), 50);
+  };
+  const deleteSection = (secId, parentId) => {
+    const nb=notebooks.find(n=>n.id===parentId); if(!nb||nb.sections.length<=1) return;
+    saveNotebooks(notebooks.map(n=>n.id!==parentId?n:{...n,sections:n.sections.filter(s=>s.id!==secId)}));
+    if (activeSection===secId) { const rem=nb.sections.filter(s=>s.id!==secId); if(rem[0]) selectSection(rem[0].id,parentId); }
+    setNbMenu(null);
+  };
+  const commitRename = () => {
+    if (!renameTarget || !renameTarget.value?.trim()) { setRenameTarget(null); return; }
+    const {type, id, parentId, value} = renameTarget;
+    if (type==='notebook')     saveNotebooks(notebooks.map(nb=>nb.id!==id?nb:{...nb,label:value.trim()}));
+    else if (type==='section') saveNotebooks(notebooks.map(nb=>nb.id!==parentId?nb:{...nb,sections:nb.sections.map(s=>s.id!==id?s:{...s,label:value.trim()})}));
+    else if (type==='note')    onTitleChange(value.trim());
+    setRenameTarget(null);
+  };
+
+  // ── Note counts ───────────────────────────────────────────────────────
+  const noteCountFor = (sid) => allNotes.filter(n => n.section===sid).length;
+  const nbNoteCount  = (nb)  => nb.sections.reduce((sum,s)=>sum+noteCountFor(s.id), 0);
+
+  // ── Notebook drag ─────────────────────────────────────────────────────
+  const onNBDragStart = (e,id) => { setDragNBId(id); e.dataTransfer.effectAllowed='move'; };
+  const onNBDragOver  = (e,id) => { e.preventDefault(); setDragOverId('nb-'+id); };
+  const onNBDrop      = (e,tid) => {
+    e.preventDefault();
+    if (!dragNBId||dragNBId===tid){setDragNBId(null);setDragOverId(null);return;}
+    const arr=[...notebooks], fi=arr.findIndex(n=>n.id===dragNBId), ti=arr.findIndex(n=>n.id===tid);
+    const [m]=arr.splice(fi,1); arr.splice(ti,0,m); saveNotebooks(arr); setDragNBId(null); setDragOverId(null);
+  };
+
+  // ── Section drag ──────────────────────────────────────────────────────
+  const onSecDragStart = (e,sid,nbId) => { e.stopPropagation(); setDragSecId({id:sid,nbId}); e.dataTransfer.effectAllowed='move'; };
+  const onSecDragOver  = (e,sid) => { e.preventDefault(); e.stopPropagation(); setDragOverId('sec-'+sid); };
+  const onSecDrop      = (e,tsid,nbId) => {
+    e.preventDefault(); e.stopPropagation();
+    if (!dragSecId||dragSecId.id===tsid||dragSecId.nbId!==nbId){setDragSecId(null);setDragOverId(null);return;}
+    const nbs=notebooks.map(nb=>{
+      if(nb.id!==nbId) return nb;
+      const secs=[...nb.sections], fi=secs.findIndex(s=>s.id===dragSecId.id), ti=secs.findIndex(s=>s.id===tsid);
+      const [m]=secs.splice(fi,1); secs.splice(ti,0,m); return {...nb,sections:secs};
+    });
+    saveNotebooks(nbs); setDragSecId(null); setDragOverId(null);
+  };
+
+  // ── Note drag ─────────────────────────────────────────────────────────
+  const onNoteDragStart = (e,id) => { setDragNoteId(id); e.dataTransfer.effectAllowed='move'; };
+  const onNoteDragOver  = (e,id) => { e.preventDefault(); setDragOverId('note-'+id); };
+  const onNoteDrop      = (e,tid) => {
+    e.preventDefault();
+    if (!dragNoteId||dragNoteId===tid){setDragNoteId(null);setDragOverId(null);return;}
+    const ordered=getOrderedNotes(activeSection), ids=ordered.map(n=>String(n.id));
+    const fi=ids.indexOf(String(dragNoteId)), ti=ids.indexOf(String(tid));
+    if(fi===-1||ti===-1){setDragNoteId(null);setDragOverId(null);return;}
+    const [m]=ids.splice(fi,1); ids.splice(ti,0,m);
+    saveNoteOrder({...noteOrder,[activeSection]:ids}); setDragNoteId(null); setDragOverId(null);
+  };
+
+  const currentNote    = allNotes.find(n => n.id === activeNote);
+  const currentNB      = notebooks.find(n => n.id === activeNB);
+  const currentSection = currentNB?.sections.find(s => s.id === activeSection);
+  const displayedNotes = getOrderedNotes(activeSection);
 
   return (
-    <div className="notes-shell">
+    <div className="notes-shell" onClick={() => { setNbMenu(null); setNoteMenu(null); }}>
 
-      {/* ── Panel 1: Notebooks sidebar ── */}
-      <div className="notes-sidebar">
+      {/* ── Notebooks sidebar ── */}
+      <div className="notes-sidebar" onClick={e => e.stopPropagation()}>
         <div className="notes-sidebar-header">
-          <span style={{ fontSize: 9, color: "var(--t3)", letterSpacing: 1.5, textTransform: "uppercase", fontWeight: 700 }}>Notebooks</span>
-          <span className="enc-badge"><Icon name="lock" size={8} color="var(--grn)" /> enc</span>
+          <span style={{fontSize:11,fontWeight:700,color:'var(--t1)',letterSpacing:-.2}}>Notes</span>
+          <span className="enc-badge"><Icon name="lock" size={8} color="var(--grn)"/> enc</span>
         </div>
-        {NOTEBOOKS.map(nb => (
-          <div key={nb.id}>
-            <div className={`notebook-item${activeNB === nb.id ? " active" : ""}`}
-              onClick={() => selectSection(nb.sections[0].id, nb.id)}>
-              <div className="notebook-icon" style={{ background: nb.bg }}>{nb.emoji}</div>
-              <span style={{ flex: 1, fontSize: 12 }}>{nb.label}</span>
-              <span style={{ fontSize: 9, color: "var(--t3)", fontFamily: "var(--mono)" }}>{nb.sections.length}</span>
-            </div>
-            {activeNB === nb.id && nb.sections.map(sec => (
-              <div key={sec.id} className={`section-item${activeSection === sec.id ? " active" : ""}`}
-                onClick={() => selectSection(sec.id, nb.id)}>
-                <span className="section-dot" />
-                {sec.label}
+
+        {notebooks.map(nb => {
+          const isExpanded = expandedNBs.has(nb.id);
+          return (
+            <div key={nb.id}>
+              <div
+                className={`notebook-item${activeNB===nb.id?' nb-active':''}${dragOverId==='nb-'+nb.id?' nb-drag-over':''}`}
+                draggable
+                onDragStart={e=>onNBDragStart(e,nb.id)} onDragOver={e=>onNBDragOver(e,nb.id)}
+                onDragLeave={()=>setDragOverId(null)} onDrop={e=>onNBDrop(e,nb.id)}
+                onDragEnd={()=>{setDragNBId(null);setDragOverId(null);}}
+                onClick={() => { toggleExpand(nb.id); if(nb.sections[0]) selectSection(nb.sections[0].id,nb.id); }}
+              >
+                <span className="nb-chev" style={{transform:isExpanded?'rotate(0)':'rotate(-90deg)',display:'inline-block',transition:'transform .15s'}}>▼</span>
+                <div className="notebook-icon" style={{background:nb.bg}}>{nb.emoji}</div>
+                {renameTarget?.type==='notebook'&&renameTarget?.id===nb.id ? (
+                  <input className="nb-rename-input" autoFocus value={renameTarget.value}
+                    onChange={e=>setRenameTarget(r=>({...r,value:e.target.value}))}
+                    onBlur={commitRename} onClick={e=>e.stopPropagation()}
+                    onKeyDown={e=>{if(e.key==='Enter')commitRename();if(e.key==='Escape')setRenameTarget(null);}}/>
+                ) : (
+                  <span style={{flex:1,overflow:'hidden',textOverflow:'ellipsis',whiteSpace:'nowrap'}}>{nb.label}</span>
+                )}
+                {!(renameTarget?.type==='notebook'&&renameTarget?.id===nb.id) && <>
+                  <span className="nb-count">{nbNoteCount(nb)}</span>
+                  <button className="nb-dot-btn" onClick={e=>{e.stopPropagation();setNbMenu(m=>m?.id===nb.id&&m?.type==='notebook'?null:{type:'notebook',id:nb.id});}}>···</button>
+                  {nbMenu?.type==='notebook'&&nbMenu?.id===nb.id&&(
+                    <div className="nb-dropdown" onClick={e=>e.stopPropagation()}>
+                      <button onClick={()=>{setRenameTarget({type:'notebook',id:nb.id,value:nb.label});setNbMenu(null);}}>Rename</button>
+                      <button onClick={()=>addSection(nb.id)}>Add section</button>
+                      <div className="dd-sep"/>
+                      <button className="danger" onClick={()=>deleteNotebook(nb.id)}>Delete notebook</button>
+                    </div>
+                  )}
+                </>}
               </div>
-            ))}
+
+              {isExpanded && nb.sections.map(sec => (
+                <div key={sec.id}
+                  className={`section-item${activeSection===sec.id?' active':''}${dragOverId==='sec-'+sec.id?' sec-drag-over':''}`}
+                  draggable
+                  onDragStart={e=>onSecDragStart(e,sec.id,nb.id)} onDragOver={e=>onSecDragOver(e,sec.id)}
+                  onDragLeave={()=>setDragOverId(null)} onDrop={e=>onSecDrop(e,sec.id,nb.id)}
+                  onDragEnd={()=>{setDragSecId(null);setDragOverId(null);}}
+                  onClick={()=>selectSection(sec.id,nb.id)}
+                >
+                  <span className="section-dot"/>
+                  {renameTarget?.type==='section'&&renameTarget?.id===sec.id ? (
+                    <input className="nb-rename-input" autoFocus value={renameTarget.value} style={{marginRight:4}}
+                      onChange={e=>setRenameTarget(r=>({...r,value:e.target.value}))}
+                      onBlur={commitRename} onClick={e=>e.stopPropagation()}
+                      onKeyDown={e=>{if(e.key==='Enter')commitRename();if(e.key==='Escape')setRenameTarget(null);}}/>
+                  ) : (
+                    <span style={{flex:1,overflow:'hidden',textOverflow:'ellipsis',whiteSpace:'nowrap'}}>{sec.label}</span>
+                  )}
+                  {!(renameTarget?.type==='section'&&renameTarget?.id===sec.id) && <>
+                    <span className="sec-count">{noteCountFor(sec.id)}</span>
+                    <button className="nb-dot-btn" onClick={e=>{e.stopPropagation();setNbMenu(m=>m?.id===sec.id&&m?.type==='section'?null:{type:'section',id:sec.id,parentId:nb.id});}}>···</button>
+                    {nbMenu?.type==='section'&&nbMenu?.id===sec.id&&(
+                      <div className="nb-dropdown" onClick={e=>e.stopPropagation()}>
+                        <button onClick={()=>{setRenameTarget({type:'section',id:sec.id,parentId:nb.id,value:sec.label});setNbMenu(null);}}>Rename</button>
+                        <div className="dd-sep"/>
+                        <button className="danger" onClick={()=>deleteSection(sec.id,nb.id)}>Delete section</button>
+                      </div>
+                    )}
+                  </>}
+                </div>
+              ))}
+            </div>
+          );
+        })}
+
+        {/* New notebook button */}
+        <div style={{padding:'10px',marginTop:'auto',borderTop:'1px solid rgba(255,255,255,0.06)',flexShrink:0}}>
+          {showNewNB ? (
+            <div style={{display:'flex',gap:6,alignItems:'center'}}>
+              <input className="nb-new-input" autoFocus placeholder="Notebook name" value={newNBValue}
+                onChange={e=>setNewNBValue(e.target.value)}
+                onKeyDown={e=>{if(e.key==='Enter')addNotebook();if(e.key==='Escape'){setShowNewNB(false);setNewNBValue('');}}}
+                onBlur={()=>{if(!newNBValue.trim())setShowNewNB(false);}}/>
+              <button className="btn xs primary" onClick={addNotebook}>Add</button>
+            </div>
+          ) : (
+            <button style={{display:'flex',alignItems:'center',gap:6,background:'none',border:'1px dashed rgba(255,255,255,0.12)',borderRadius:7,color:'var(--t3)',cursor:'pointer',padding:'6px 10px',width:'100%',fontSize:11,fontFamily:'var(--sans)',transition:'all .15s',boxSizing:'border-box'}}
+              onMouseEnter={e=>{e.currentTarget.style.color='var(--t2)';e.currentTarget.style.borderColor='rgba(255,255,255,0.22)';}}
+              onMouseLeave={e=>{e.currentTarget.style.color='var(--t3)';e.currentTarget.style.borderColor='rgba(255,255,255,0.12)';}}
+              onClick={()=>setShowNewNB(true)}>
+              <Icon name="plus" size={11}/> New notebook
+            </button>
+          )}
+        </div>
+      </div>
+
+      {/* ── Notes list ── */}
+      <div className="notes-list">
+        <div className="notes-list-header">
+          <span className="notes-list-header-title">{currentSection?.label || 'Notes'}</span>
+          <button className="btn xs primary" onClick={newNote} title="New note" style={{flexShrink:0}}>
+            <Icon name="plus" size={11}/> New
+          </button>
+        </div>
+
+        {loading && <div className="loading" style={{padding:20,textAlign:'center',fontSize:12,color:'var(--t3)'}}>Loading...</div>}
+        {!loading && displayedNotes.length===0 && (
+          <div style={{padding:28,textAlign:'center',color:'var(--t3)',display:'flex',flexDirection:'column',alignItems:'center',gap:10}}>
+            <Icon name="notes" size={32} color="var(--t3)" style={{opacity:.3}}/>
+            <div style={{fontSize:12}}>No notes in this section</div>
+            <button className="btn xs primary" onClick={newNote}><Icon name="plus" size={11}/> New note</button>
+          </div>
+        )}
+
+        {displayedNotes.map(n => (
+          <div key={n.id}
+            className={`note-list-item${activeNote===n.id?' active':''}${dragOverId==='note-'+n.id?' note-drag-over':''}${dragNoteId===n.id?' note-dragging':''}`}
+            draggable
+            onDragStart={e=>onNoteDragStart(e,n.id)} onDragOver={e=>onNoteDragOver(e,n.id)}
+            onDragLeave={()=>setDragOverId(null)} onDrop={e=>onNoteDrop(e,n.id)}
+            onDragEnd={()=>{setDragNoteId(null);setDragOverId(null);}}
+            onClick={()=>openNote(n)}
+            onContextMenu={e=>{e.preventDefault();setNoteMenu({id:n.id,x:e.clientX,y:e.clientY});}}
+          >
+            <div className="nli-row">
+              <div className="nli-title">{n.title||'Untitled'}</div>
+              <button className="nb-dot-btn" onClick={e=>{e.stopPropagation();setNoteMenu(m=>m?.id===n.id?null:{id:n.id,x:e.clientX,y:e.clientY});}}>···</button>
+            </div>
+            <div className="nli-preview">{(n.body||'').replace(/[#*_`\[\]]/g,'').replace(/\n/g,' ').slice(0,72)||'No content'}</div>
+            {n.tags&&<div className="nli-tags">{n.tags.split(',').filter(Boolean).slice(0,3).map(t=><span key={t} className="nli-tag">{t.trim()}</span>)}</div>}
+            <div className="nli-date">{n.updated_at}</div>
           </div>
         ))}
       </div>
 
-      {/* ── Panel 2: Notes list ── */}
-      <div className="notes-list">
-        <div className="notes-list-header">
-          <span style={{ fontSize: 11, fontWeight: 700, color: "var(--t1)", overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap", maxWidth: 140 }}>
-            {isGlobalSearch ? "Search results" : section?.label}
-          </span>
-          <button className="btn sm primary" onClick={newNote}><Icon name="plus" size={12} /></button>
+      {/* Note context menu */}
+      {noteMenu && (
+        <div className="note-ctx-menu" style={{top:noteMenu.y,left:noteMenu.x}} onClick={e=>e.stopPropagation()}>
+          <button onClick={()=>{const n=allNotes.find(x=>x.id===noteMenu.id);if(n){if(n.id!==activeNote)openNote(n);setRenameTarget({type:'note',id:n.id,value:n.title||''});}setNoteMenu(null);}}>Rename</button>
+          <button onClick={()=>duplicateNote(noteMenu.id)}>Duplicate</button>
+          <button onClick={()=>{setMoveModal({noteId:noteMenu.id});setNoteMenu(null);}}>Move to section</button>
+          <div className="ctx-sep"/>
+          <button className="danger" onClick={()=>deleteNote(noteMenu.id)}>Delete</button>
         </div>
+      )}
 
-        {/* Search */}
-        <div style={{ padding: "8px 10px", borderBottom: "1px solid rgba(255,255,255,0.05)" }}>
-          <div style={{ display: "flex", alignItems: "center", gap: 7, background: "rgba(255,255,255,0.04)", border: "1px solid rgba(255,255,255,0.07)", borderRadius: 8, padding: "5px 10px" }}>
-            <Icon name="search" size={12} color="var(--t3)" />
-            <input
-              style={{ background: "transparent", border: "none", outline: "none", color: "var(--t1)", fontSize: 11, fontFamily: "var(--sans)", width: "100%" }}
-              placeholder={isGlobalSearch ? "Searching all notes..." : "Search..."}
-              value={search} onChange={e => setSearch(e.target.value)} />
-            {search && (
-              <button onClick={() => setSearch("")} style={{ background: "none", border: "none", color: "var(--t3)", cursor: "pointer", padding: 0, lineHeight: 1, display:"flex", alignItems:"center" }}><Icon name="x" size={11} /></button>
-            )}
-          </div>
-          {isGlobalSearch && (
-            <div style={{ fontSize: 9, color: "var(--t3)", marginTop: 5, textAlign: "center", letterSpacing: .5 }}>
-              {displayedNotes.length} result{displayedNotes.length !== 1 ? "s" : ""} across all notebooks
-            </div>
-          )}
-        </div>
-
-        {loading && <div className="loading">Loading...</div>}
-        {!loading && displayedNotes.length === 0 && (
-          <div style={{ padding: 20, color: "var(--t3)", fontSize: 12, textAlign: "center" }}>
-            {search ? "No results" : "No notes yet"}<br />
-            {!isGlobalSearch && <button className="btn sm primary" style={{ marginTop: 10 }} onClick={newNote}><Icon name="plus" size={12} /> New note</button>}
-          </div>
-        )}
-        {displayedNotes.map(n => {
-          const nNB  = isGlobalSearch ? NOTEBOOKS.find(nb => nb.id === n.notebook) : null;
-          const nSec = isGlobalSearch ? nNB?.sections.find(s => s.id === n.section) : null;
-          return (
-            <div key={n.id} className={`note-list-item${activeNote === n.id ? " active" : ""}`} onClick={() => { openNote(n); if (isGlobalSearch) { setActiveNB(n.notebook); setSection(n.section); } }}>
-              <div className="nli-title">{n.title || "Untitled"}</div>
-              <div className="nli-preview">{(n.body || "").replace(/[#*_`]/g, "").replace(/\n/g, " ").slice(0, 55) || "No content"}</div>
-              {isGlobalSearch && nNB && (
-                <div className="nli-location">{nNB.emoji} {nNB.label} / {nSec?.label}</div>
-              )}
-              {n.tags && (
-                <div className="nli-tags">
-                  {n.tags.split(",").filter(Boolean).slice(0,3).map(tag => (
-                    <span key={tag} className="nli-tag">{tag.trim()}</span>
-                  ))}
-                </div>
-              )}
-              <div className="nli-date">{n.updated_at}</div>
-            </div>
-          );
-        })}
-      </div>
-
-      {/* ── Panel 3: Editor ── */}
+      {/* ── Note editor ── */}
       <div className="note-editor">
         {currentNote ? (
           <>
             {/* Toolbar */}
             <div className="note-toolbar">
-              <span className="enc-badge"><Icon name="lock" size={8} color="var(--grn)" /> encrypted</span>
-              {saveStatus === "saving" && <span className="save-ind saving">Saving...</span>}
-              {saveStatus === "saved"  && <span className="save-ind saved">Saved</span>}
-              <div style={{ flex: 1 }} />
-
-              {/* Format buttons */}
-              {viewMode === "edit" && <>
-                <button className="note-tool-btn" title="Bold (Ctrl+B)" onClick={() => applyFormat('bold')}><strong>B</strong></button>
-                <button className="note-tool-btn" title="Italic" onClick={() => applyFormat('italic')}><em>I</em></button>
-                <div className="note-toolbar-sep" />
-                <button className="note-tool-btn" title="Heading 1" onClick={() => applyFormat('h1')}>H1</button>
-                <button className="note-tool-btn" title="Heading 2" onClick={() => applyFormat('h2')}>H2</button>
-                <div className="note-toolbar-sep" />
-                <button className="note-tool-btn" title="Bullet list" onClick={() => applyFormat('ul')}><Icon name="list" size={14} /></button>
-                <button className="note-tool-btn" title="Inline code" onClick={() => applyFormat('code')}><Icon name="code" size={14} /></button>
-                <button className="note-tool-btn" title="Code block" onClick={() => applyFormat('codeblock')} style={{ width: 34, fontSize: 9 }}>block</button>
-                <div className="note-toolbar-sep" />
+              <span className="enc-badge"><Icon name="lock" size={8} color="var(--grn)"/> encrypted</span>
+              {saveStatus==='saving' && <span key="saving" className="save-ind saving">Saving...</span>}
+              {saveStatus==='saved'  && <span key="saved"  className="save-ind saved">Saved ✓</span>}
+              <div style={{flex:1}}/>
+              {viewMode==='edit' && <>
+                <button className="note-tool-btn" title="Bold ⌘B"      onMouseDown={e=>{e.preventDefault();applyFormat('bold');}}><strong>B</strong></button>
+                <button className="note-tool-btn" title="Italic ⌘I"    onMouseDown={e=>{e.preventDefault();applyFormat('italic');}}><em>I</em></button>
+                <div className="note-toolbar-sep"/>
+                <button className="note-tool-btn" title="Heading 1"    onMouseDown={e=>{e.preventDefault();applyFormat('h1');}}>H1</button>
+                <button className="note-tool-btn" title="Heading 2"    onMouseDown={e=>{e.preventDefault();applyFormat('h2');}}>H2</button>
+                <button className="note-tool-btn" title="Heading 3"    onMouseDown={e=>{e.preventDefault();applyFormat('h3');}}>H3</button>
+                <div className="note-toolbar-sep"/>
+                <button className="note-tool-btn" title="Bullet list"  onMouseDown={e=>{e.preventDefault();applyFormat('ul');}}>•—</button>
+                <button className="note-tool-btn" title="Numbered list" onMouseDown={e=>{e.preventDefault();applyFormat('ol');}}>1.</button>
+                <button className="note-tool-btn" title="Checkbox"     onMouseDown={e=>{e.preventDefault();applyFormat('check');}}>☐</button>
+                <div className="note-toolbar-sep"/>
+                <button className="note-tool-btn" title="Inline code"  onMouseDown={e=>{e.preventDefault();applyFormat('code');}}><Icon name="code" size={12}/></button>
+                <button className="note-tool-btn" title="Code block"   onMouseDown={e=>{e.preventDefault();applyFormat('codeblock');}} style={{fontSize:9}}>```</button>
+                <button className="note-tool-btn" title="Divider"      onMouseDown={e=>{e.preventDefault();applyFormat('hr');}}>—</button>
+                <div className="note-toolbar-sep"/>
               </>}
-
-              <button className={`note-tool-btn${viewMode === "preview" ? " on" : ""}`}
-                title="Toggle preview"
-                onClick={() => setViewMode(v => v === "edit" ? "preview" : "edit")}>
-                {viewMode === "edit" ? <Icon name="eye" size={14} /> : <Icon name="eyeOff" size={14} />}
+              <button
+                className={`note-tool-btn${viewMode==='preview'?' on':''}`}
+                title={viewMode==='edit'?'Preview (rendered)':'Back to editor'}
+                onClick={()=>setViewMode(v=>v==='edit'?'preview':'edit')}
+              >
+                {viewMode==='edit' ? <Icon name="eye" size={13}/> : <Icon name="eyeOff" size={13}/>}
               </button>
-              <div className="note-toolbar-sep" />
-              <button className="btn xs danger" onClick={deleteNote}><Icon name="trash" size={11} /></button>
+              <div className="note-toolbar-sep"/>
+              <button className="btn xs danger" onClick={()=>deleteNote(activeNote)}><Icon name="trash" size={11}/></button>
             </div>
 
             {/* Title */}
-            <input className="note-title-input" value={editTitle}
-              onChange={e => onTitleChange(e.target.value)} placeholder="Note title" />
+            <input className="note-title-input"
+              value={renameTarget?.type==='note' ? renameTarget.value : editTitle}
+              onChange={e=>{
+                if(renameTarget?.type==='note') setRenameTarget(r=>({...r,value:e.target.value}));
+                else onTitleChange(e.target.value);
+              }}
+              onBlur={()=>{if(renameTarget?.type==='note') commitRename();}}
+              onKeyDown={e=>{if(renameTarget?.type==='note'&&e.key==='Enter'){commitRename();e.target.blur();}}}
+              placeholder="Untitled note"/>
 
-            {/* Meta row */}
+            {/* Meta */}
             <div className="note-meta">
-              <span className="note-meta-item"><Icon name="calendar" size={11} color="var(--t3)" /> {currentNote.updated_at}</span>
-              <span className="note-meta-item"><Icon name="folder" size={11} color="var(--t3)" /> {noteNB?.label} / {noteSec?.label}</span>
-              <div style={{ flex: 1 }} />
-              <div style={{ display: "flex", alignItems: "center", gap: 5 }}>
-                <Icon name="tag" size={11} color="var(--t3)" />
-                <input
-                  style={{ background: "transparent", border: "none", outline: "none", color: "var(--t3)", fontSize: 10, fontFamily: "var(--mono)", width: 150 }}
-                  placeholder="tag1, tag2"
-                  value={editTags} onChange={e => onTagsChange(e.target.value)} />
-              </div>
+              <span className="note-meta-item"><Icon name="calendar" size={10} color="var(--t3)"/> {currentNote.updated_at}</span>
+              <span className="note-meta-item"><Icon name="folder" size={10} color="var(--t3)"/> {currentNB?.label} / {currentSection?.label}</span>
             </div>
 
-            {/* Body — edit or preview */}
-            {viewMode === "edit" ? (
-              <textarea
-                ref={bodyRef}
-                className="note-body-input"
-                value={editBody}
-                onChange={e => onBodyChange(e.target.value)}
-                placeholder={"Start writing...\n\nFormatting tips:\n# Heading 1   ## Heading 2\n**bold**   _italic_   `code`\n- bullet item\n```\ncode block\n```"} />
+            {/* Body: edit or preview */}
+            {viewMode==='edit' ? (
+              <textarea ref={bodyRef} className="note-body-input" value={editBody}
+                onChange={e=>onBodyChange(e.target.value)}
+                onKeyDown={onBodyKeyDown}
+                onMouseUp={onBodyMouseUp}
+                placeholder={"Start writing...\n\n# Heading 1\n## Heading 2\n### Heading 3\n\n**bold**   _italic_   `code`\n- bullet\n1. numbered\n- [ ] checkbox\n\n```\ncode block\n```\n\n--- (divider)"}/>
             ) : (
-              <div
-                className="preview-body"
-                dangerouslySetInnerHTML={{ __html: renderMarkdown(editBody) }} />
+              <div ref={previewRef} className="preview-body"
+                dangerouslySetInnerHTML={{__html: renderMarkdown(editBody, collapsedH)}}/>
             )}
+
+            {/* Tags */}
+            <div className="note-tags-bar">
+              <Icon name="tag" size={11} color="var(--t3)"/>
+              {editTags.split(',').filter(t=>t.trim()).map(t=><span key={t} className="nli-tag">{t.trim()}</span>)}
+              <input className="note-tags-input" placeholder="Add tags: work, idea, ..." value={editTags} onChange={e=>onTagsChange(e.target.value)}/>
+            </div>
           </>
         ) : (
           <div className="note-empty">
-            <div className="note-empty-icon"><Icon name="notes" size={44} color="var(--t3)" /></div>
-            <div style={{ fontSize: 14, fontWeight: 600, color: "var(--t2)" }}>Select a note</div>
-            <div style={{ fontSize: 12, color: "var(--t3)" }}>or create a new one in {section?.label}</div>
-            <button className="btn primary" onClick={newNote} style={{ marginTop: 12 }}>
-              <Icon name="plus" size={14} /> New note
-            </button>
+            <div className="note-empty-icon"><Icon name="notes" size={52} color="var(--t3)"/></div>
+            <div style={{fontSize:16,fontWeight:700,color:'var(--t2)'}}>Select a note</div>
+            <div style={{fontSize:12,color:'var(--t3)',textAlign:'center',lineHeight:1.6}}>
+              or create a new one in<br/>
+              <span style={{color:'var(--t2)'}}>{currentSection?.label || 'this section'}</span>
+            </div>
+            <button className="btn primary" onClick={newNote} style={{marginTop:6}}><Icon name="plus" size={14}/> New note</button>
           </div>
         )}
       </div>
+
+      {/* ── Floating selection toolbar ── */}
+      {selToolbar && viewMode==='edit' && currentNote && (
+        <div className="sel-toolbar" style={{left:Math.max(8,selToolbar.x-80),top:Math.max(8,selToolbar.y)}}>
+          <button onMouseDown={e=>{e.preventDefault();applyFormat('bold');}}   title="Bold"><strong>B</strong></button>
+          <button onMouseDown={e=>{e.preventDefault();applyFormat('italic');}} title="Italic"><em>I</em></button>
+          <div style={{width:1,height:16,background:'rgba(255,255,255,0.1)',margin:'0 1px'}}/>
+          <button onMouseDown={e=>{e.preventDefault();applyFormat('h1');}} title="H1" style={{fontSize:10}}>H1</button>
+          <button onMouseDown={e=>{e.preventDefault();applyFormat('h2');}} title="H2" style={{fontSize:10}}>H2</button>
+          <div style={{width:1,height:16,background:'rgba(255,255,255,0.1)',margin:'0 1px'}}/>
+          <button onMouseDown={e=>{e.preventDefault();applyFormat('link');}} title="Link" style={{fontSize:13}}>🔗</button>
+        </div>
+      )}
+
+      {/* ── Move to section modal ── */}
+      {moveModal && (
+        <div className="modal-overlay" onClick={()=>setMoveModal(null)}>
+          <div className="modal" onClick={e=>e.stopPropagation()}>
+            <div style={{display:'flex',alignItems:'center',justifyContent:'space-between',marginBottom:4}}>
+              <div className="modal-title">Move to section</div>
+              <button className="btn sm ghost" onClick={()=>setMoveModal(null)}><Icon name="x" size={14}/></button>
+            </div>
+            <div className="move-modal-sections">
+              {notebooks.map(nb=>(
+                <div key={nb.id}>
+                  <div className="move-modal-nb">{nb.emoji} {nb.label}</div>
+                  {nb.sections.map(sec=>(
+                    <div key={sec.id} className="move-modal-sec" onClick={()=>moveNote(moveModal.noteId,nb.id,sec.id)}>
+                      <span className="section-dot" style={{background:sec.id===activeSection?'var(--blue)':'var(--b3)'}}/>
+                      {sec.label}
+                      <span style={{marginLeft:'auto',fontSize:10,color:'var(--t3)',fontFamily:'var(--mono)'}}>{noteCountFor(sec.id)}</span>
+                    </div>
+                  ))}
+                </div>
+              ))}
+            </div>
+          </div>
+        </div>
+      )}
     </div>
   );
 }
