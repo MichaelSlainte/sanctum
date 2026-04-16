@@ -2235,7 +2235,7 @@ function Notes() {
             </div>
             <div className="nli-preview">{(n.body||'').replace(/[#*_`\[\]]/g,'').replace(/\n/g,' ').slice(0,72)||'No content'}</div>
             {n.tags&&<div className="nli-tags">{n.tags.split(',').filter(Boolean).slice(0,3).map(t=><span key={t} className="nli-tag">{t.trim()}</span>)}</div>}
-            <div className="nli-date">{n.updated_at}</div>
+            <div className="nli-date">{n.updated_at ? new Date(n.updated_at).toLocaleDateString("en-IE", { day: "numeric", month: "short", year: "numeric" }) : ''}</div>
           </div>
         ))}
       </div>
@@ -2308,8 +2308,8 @@ function Notes() {
 
             {/* Meta */}
             <div className="note-meta">
-              <span className="note-meta-item"><Icon name="calendar" size={10} color="var(--t3)"/> {currentNote.updated_at}</span>
-              <span className="note-meta-item"><Icon name="folder" size={10} color="var(--t3)"/> {currentNB?.label} / {currentSection?.label}</span>
+              <span className="note-meta-item"><Icon name="calendar" size={10} color="var(--t3)"/> {currentNote.updated_at ? new Date(currentNote.updated_at).toLocaleDateString("en-IE", { day: "numeric", month: "short", year: "numeric" }) : ''}</span>
+              <span className="note-meta-item"><Icon name="folder" size={10} color="var(--t3)"/> {currentNB?.label}{currentSection?.label ? ` / ${currentSection.label}` : ''}</span>
             </div>
 
             {/* Split editor: textarea + live preview */}
