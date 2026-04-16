@@ -890,6 +890,30 @@ const CSS = `
   .bottom-nav-item.active { color: var(--blue); }
   .bottom-nav-item svg { width: 22px; height: 22px; }
 
+  /* ── Notes: collapsible panels ── */
+  .notes-sidebar { transition: width .2s, min-width .2s; }
+  .notes-sidebar.collapsed { width: 36px; min-width: 36px; overflow: hidden; }
+  .notes-sidebar.collapsed > *:not(.notes-sidebar-header) { display: none; }
+  .notes-sidebar.collapsed .notes-sidebar-header { padding: 12px 0; justify-content: center; }
+  .notes-sidebar.collapsed .notes-sidebar-header > *:not(.panel-collapse-btn) { display: none; }
+  .notes-list { transition: width .2s, min-width .2s; }
+  .notes-list.collapsed { width: 36px; min-width: 36px; overflow: hidden; }
+  .notes-list.collapsed > *:not(.notes-list-header) { display: none; }
+  .notes-list.collapsed .notes-list-header { padding: 10px 0; justify-content: center; gap: 0; }
+  .notes-list.collapsed .notes-list-header > *:not(.panel-collapse-btn) { display: none; }
+  .panel-collapse-btn {
+    background: none; border: none; cursor: pointer; color: var(--t3);
+    font-size: 15px; width: 24px; height: 24px; border-radius: 6px; flex-shrink: 0;
+    transition: color .15s, background .15s; display: inline-flex; align-items: center; justify-content: center;
+  }
+  .panel-collapse-btn:hover { color: var(--t2); background: rgba(255,255,255,0.07); }
+  .mobile-back-btn { display: none; }
+  .mobile-editor-toolbar { display: none; }
+  .notes-list-header-mobile { display: none; }
+  .preview-body.clickable { cursor: text; }
+  .preview-body.clickable:empty::before { content: 'Click to edit...'; color: var(--t3); font-style: italic; }
+  .preview-edit-hint { text-align: center; padding: 8px; font-size: 11px; color: var(--t3); font-style: italic; }
+
   @media (max-width: 768px) {
     .sidebar { display: none; }
     .bottom-nav { display: block; }
@@ -897,10 +921,22 @@ const CSS = `
     .grid-4 { grid-template-columns: 1fr 1fr; }
     .grid-3 { grid-template-columns: 1fr 1fr; }
     .grid-2 { grid-template-columns: 1fr; }
-    .notes-shell { flex-direction: column; height: auto; }
-    .notes-sidebar { width: 100%; min-width: unset; border-right: none; border-bottom: 1px solid rgba(255,255,255,0.06); max-height: 200px; }
-    .notes-list { width: 100%; min-width: unset; border-right: none; border-bottom: 1px solid rgba(255,255,255,0.06); max-height: 220px; }
-    .note-editor { min-height: 340px; }
+    /* Mobile notes: single-panel navigation via data-mobile-panel */
+    .notes-shell { flex-direction: column; overflow: hidden; height: calc(100vh - 56px - 60px); }
+    .notes-sidebar { transition: none; }
+    .notes-list { transition: none; }
+    .notes-shell[data-mobile-panel="notebooks"] .notes-sidebar { display: flex; flex: 1; width: 100%; min-width: unset; max-height: none; border-right: none; border-bottom: none; }
+    .notes-shell[data-mobile-panel="notebooks"] .notes-list { display: none; }
+    .notes-shell[data-mobile-panel="notebooks"] .note-editor { display: none; }
+    .notes-shell[data-mobile-panel="list"] .notes-sidebar { display: none; }
+    .notes-shell[data-mobile-panel="list"] .notes-list { display: flex; flex: 1; width: 100%; min-width: unset; max-height: none; border-right: none; border-bottom: none; }
+    .notes-shell[data-mobile-panel="list"] .note-editor { display: none; }
+    .notes-shell[data-mobile-panel="editor"] .notes-sidebar { display: none; }
+    .notes-shell[data-mobile-panel="editor"] .notes-list { display: none; }
+    .notes-shell[data-mobile-panel="editor"] .note-editor { display: flex; flex: 1; }
+    .mobile-back-btn { display: inline-flex; align-items: center; gap: 5px; background: none; border: none; color: var(--blue); font-size: 13px; font-family: var(--sans); font-weight: 600; cursor: pointer; padding: 4px 0; }
+    .mobile-editor-toolbar { display: flex; align-items: center; gap: 2px; padding: 8px 10px; border-top: 1px solid rgba(255,255,255,0.06); background: rgba(8,12,18,0.95); overflow-x: auto; flex-shrink: 0; -webkit-overflow-scrolling: touch; }
+    .mobile-editor-toolbar .note-tool-btn { padding: 8px 9px; font-size: 13px; min-width: 34px; min-height: 34px; }
     .sel-toolbar { display: none; }
     .app-table th:nth-child(4), .app-table td:nth-child(4),
     .app-table th:nth-child(5), .app-table td:nth-child(5) { display: none; }
@@ -911,6 +947,12 @@ const CSS = `
     .week-event { font-size: 9px; padding: 3px 5px; }
     .cal-event { font-size: 9px; }
     .modal { margin: 16px; max-width: calc(100vw - 32px); }
+    .notes-list-header-mobile { display: flex; align-items: center; gap: 8px; padding: 8px 12px; border-bottom: 1px solid rgba(255,255,255,0.06); flex-shrink: 0; background: rgba(10,14,20,0.6); }
+  }
+  @media (min-width: 769px) {
+    .mobile-back-btn { display: none; }
+    .mobile-editor-toolbar { display: none; }
+    .notes-list-header-mobile { display: none; }
   }
 
   @media (max-width: 480px) {
@@ -1487,10 +1529,17 @@ function Notes() {
   const [editTags,   setEditTags]   = useState('');
   const [loading,    setLoading]    = useState(false);
   const [saveStatus, setSaveStatus] = useState('idle');
-  const [viewMode,   setViewMode]   = useState('edit');
+  const [viewMode,   setViewMode]   = useState('preview');
   const saveTimer = useRef(null);
+  const previewTimer = useRef(null);
   const bodyRef   = useRef(null);
   const previewRef = useRef(null);
+  // Collapsible panels
+  const [sidebarCollapsed, setSidebarCollapsed] = useState(() => localStorage.getItem('sanctum_sidebar_col') === 'true');
+  const [listCollapsed, setListCollapsed] = useState(() => localStorage.getItem('sanctum_list_col') === 'true');
+  // Mobile single-panel nav
+  const [mobilePanel, setMobilePanel] = useState('notebooks');
+  const [isMobile, setIsMobile] = useState(() => typeof window !== 'undefined' && window.innerWidth < 769);
 
   // ── Note ordering ─────────────────────────────────────────────────────
   const [noteOrder, setNoteOrder] = useState(() => {
@@ -1546,6 +1595,13 @@ function Notes() {
     return () => container.removeEventListener('click', h);
   }, [viewMode, editBody]);
 
+  // ── Mobile resize ─────────────────────────────────────────────────────
+  useEffect(() => {
+    const h = () => setIsMobile(window.innerWidth < 769);
+    window.addEventListener('resize', h);
+    return () => window.removeEventListener('resize', h);
+  }, []);
+
   // ── Load ──────────────────────────────────────────────────────────────
   useEffect(() => { loadNotes(); }, []);
   const loadNotes = async () => {
@@ -1563,10 +1619,12 @@ function Notes() {
 
   const openNote = (n) => {
     setActiveNote(n.id); setEditTitle(n.title || ''); setEditBody(n.body || ''); setEditTags(n.tags || '');
-    setViewMode('edit'); setCollapsedH(new Set());
+    setViewMode('preview'); setCollapsedH(new Set());
+    if (window.innerWidth < 769) setMobilePanel('editor');
   };
   const selectSection = (sid, nbid) => {
     setActiveNB(nbid); setActiveSection(sid); setNbMenu(null);
+    if (window.innerWidth < 769) { setMobilePanel('list'); return; }
     const first = allNotes.find(n => n.section === sid);
     if (first) openNote(first); else { setActiveNote(null); setEditTitle(''); setEditBody(''); setEditTags(''); }
   };
@@ -1585,7 +1643,12 @@ function Notes() {
   }, []);
 
   const onTitleChange = (v) => { setEditTitle(v); if (activeNote) autoSave(activeNote, v, editBody, editTags); };
-  const onBodyChange  = (v) => { setEditBody(v);  if (activeNote) autoSave(activeNote, editTitle, v, editTags); };
+  const onBodyChange  = (v) => {
+    setEditBody(v);
+    if (activeNote) autoSave(activeNote, editTitle, v, editTags);
+    if (previewTimer.current) clearTimeout(previewTimer.current);
+    previewTimer.current = setTimeout(() => setViewMode('preview'), 1500);
+  };
   const onTagsChange  = (v) => { setEditTags(v);  if (activeNote) autoSave(activeNote, editTitle, editBody, v); };
 
   // ── CRUD ──────────────────────────────────────────────────────────────
@@ -1814,13 +1877,16 @@ function Notes() {
   const displayedNotes = getOrderedNotes(activeSection);
 
   return (
-    <div className="notes-shell" onClick={() => { setNbMenu(null); setNoteMenu(null); }}>
+    <div className="notes-shell" data-mobile-panel={mobilePanel} onClick={() => { setNbMenu(null); setNoteMenu(null); }}>
 
       {/* ── Notebooks sidebar ── */}
-      <div className="notes-sidebar" onClick={e => e.stopPropagation()}>
+      <div className={`notes-sidebar${sidebarCollapsed?' collapsed':''}`} onClick={e => e.stopPropagation()}>
         <div className="notes-sidebar-header">
-          <span style={{fontSize:11,fontWeight:700,color:'var(--t1)',letterSpacing:-.2}}>Notes</span>
-          <span className="enc-badge"><Icon name="lock" size={8} color="var(--grn)"/> enc</span>
+          {!sidebarCollapsed && <span style={{fontSize:11,fontWeight:700,color:'var(--t1)',letterSpacing:-.2,flex:1}}>Notes</span>}
+          {!sidebarCollapsed && <span className="enc-badge"><Icon name="lock" size={8} color="var(--grn)"/> enc</span>}
+          <button className="panel-collapse-btn" title={sidebarCollapsed?'Expand sidebar':'Collapse sidebar'}
+            onClick={()=>{const v=!sidebarCollapsed;setSidebarCollapsed(v);localStorage.setItem('sanctum_sidebar_col',String(v));}}
+          >{sidebarCollapsed?'›':'‹'}</button>
         </div>
 
         {notebooks.map(nb => {
@@ -1916,12 +1982,23 @@ function Notes() {
       </div>
 
       {/* ── Notes list ── */}
-      <div className="notes-list">
-        <div className="notes-list-header">
-          <span className="notes-list-header-title">{currentSection?.label || 'Notes'}</span>
-          <button className="btn xs primary" onClick={newNote} title="New note" style={{flexShrink:0}}>
-            <Icon name="plus" size={11}/> New
+      <div className={`notes-list${listCollapsed?' collapsed':''}`}>
+        {/* Mobile back button — list header */}
+        <div className="notes-list-header-mobile">
+          <button className="mobile-back-btn" onClick={()=>setMobilePanel('notebooks')}>
+            ‹ <span>Notebooks</span>
           </button>
+          <span style={{fontSize:12,fontWeight:700,color:'var(--t1)',flex:1,textAlign:'center'}}>{currentSection?.label||'Notes'}</span>
+          <button className="btn xs primary" onClick={newNote} style={{flexShrink:0}}><Icon name="plus" size={11}/></button>
+        </div>
+        <div className="notes-list-header">
+          {!listCollapsed && <span className="notes-list-header-title">{currentSection?.label || 'Notes'}</span>}
+          {!listCollapsed && <button className="btn xs primary" onClick={newNote} title="New note" style={{flexShrink:0}}>
+            <Icon name="plus" size={11}/> New
+          </button>}
+          <button className="panel-collapse-btn" title={listCollapsed?'Expand panel':'Collapse panel'}
+            onClick={()=>{const v=!listCollapsed;setListCollapsed(v);localStorage.setItem('sanctum_list_col',String(v));}}
+          >{listCollapsed?'›':'‹'}</button>
         </div>
 
         {loading && <div className="loading" style={{padding:20,textAlign:'center',fontSize:12,color:'var(--t3)'}}>Loading...</div>}
@@ -1971,7 +2048,9 @@ function Notes() {
           <>
             {/* Toolbar */}
             <div className="note-toolbar">
-              <span className="enc-badge"><Icon name="lock" size={8} color="var(--grn)"/> encrypted</span>
+              {/* Mobile back button */}
+              <button className="mobile-back-btn" style={{marginRight:6}} onClick={()=>setMobilePanel('list')}>‹ Notes</button>
+              <span className="enc-badge" style={{flexShrink:0}}><Icon name="lock" size={8} color="var(--grn)"/> enc</span>
               {saveStatus==='saving' && <span key="saving" className="save-ind saving">Saving...</span>}
               {saveStatus==='saved'  && <span key="saved"  className="save-ind saved">Saved ✓</span>}
               <div style={{flex:1}}/>
@@ -1995,7 +2074,10 @@ function Notes() {
               <button
                 className={`note-tool-btn${viewMode==='preview'?' on':''}`}
                 title={viewMode==='edit'?'Preview (rendered)':'Back to editor'}
-                onClick={()=>setViewMode(v=>v==='edit'?'preview':'edit')}
+                onClick={()=>{
+                  if(viewMode==='edit'){setViewMode('preview');}
+                  else{setViewMode('edit');setTimeout(()=>bodyRef.current?.focus(),50);}
+                }}
               >
                 {viewMode==='edit' ? <Icon name="eye" size={13}/> : <Icon name="eyeOff" size={13}/>}
               </button>
@@ -2020,7 +2102,7 @@ function Notes() {
               <span className="note-meta-item"><Icon name="folder" size={10} color="var(--t3)"/> {currentNB?.label} / {currentSection?.label}</span>
             </div>
 
-            {/* Body: edit or preview */}
+            {/* Body: preview (default) or edit textarea */}
             {viewMode==='edit' ? (
               <textarea ref={bodyRef} className="note-body-input" value={editBody}
                 onChange={e=>onBodyChange(e.target.value)}
@@ -2028,9 +2110,26 @@ function Notes() {
                 onMouseUp={onBodyMouseUp}
                 placeholder={"Start writing...\n\n# Heading 1\n## Heading 2\n### Heading 3\n\n**bold**   _italic_   `code`\n- bullet\n1. numbered\n- [ ] checkbox\n\n```\ncode block\n```\n\n--- (divider)"}/>
             ) : (
-              <div ref={previewRef} className="preview-body"
-                dangerouslySetInnerHTML={{__html: renderMarkdown(editBody, collapsedH)}}/>
+              <div ref={previewRef} className="preview-body clickable"
+                onClick={(e)=>{
+                  if(!e.target.closest('.hc-row')&&!e.target.closest('input')){
+                    setViewMode('edit');
+                    setTimeout(()=>bodyRef.current?.focus(),50);
+                  }
+                }}
+                dangerouslySetInnerHTML={{__html: renderMarkdown(editBody, collapsedH) + '<div class="preview-edit-hint">Click anywhere to edit</div>'}}/>
             )}
+
+            {/* Mobile bottom formatting toolbar */}
+            <div className="mobile-editor-toolbar">
+              <button className="note-tool-btn" onMouseDown={e=>{e.preventDefault();setViewMode('edit');setTimeout(()=>{bodyRef.current?.focus();applyFormat('bold');},30);}}><strong>B</strong></button>
+              <button className="note-tool-btn" onMouseDown={e=>{e.preventDefault();setViewMode('edit');setTimeout(()=>{bodyRef.current?.focus();applyFormat('italic');},30);}}><em>I</em></button>
+              <button className="note-tool-btn" onMouseDown={e=>{e.preventDefault();setViewMode('edit');setTimeout(()=>{bodyRef.current?.focus();applyFormat('h1');},30);}}>H1</button>
+              <button className="note-tool-btn" onMouseDown={e=>{e.preventDefault();setViewMode('edit');setTimeout(()=>{bodyRef.current?.focus();applyFormat('h2');},30);}}>H2</button>
+              <button className="note-tool-btn" onMouseDown={e=>{e.preventDefault();setViewMode('edit');setTimeout(()=>{bodyRef.current?.focus();applyFormat('ul');},30);}}>•—</button>
+              <button className="note-tool-btn" onMouseDown={e=>{e.preventDefault();setViewMode('edit');setTimeout(()=>{bodyRef.current?.focus();applyFormat('check');},30);}}>☐</button>
+              <button className="note-tool-btn" onMouseDown={e=>{e.preventDefault();setViewMode('edit');setTimeout(()=>{bodyRef.current?.focus();applyFormat('code');},30);}}><Icon name="code" size={12}/></button>
+            </div>
 
             {/* Tags */}
             <div className="note-tags-bar">
@@ -3427,12 +3526,19 @@ function TrackerHub({ onNavigate }) {
 
 // ─── SETTINGS ────────────────────────────────────────────────────────────────
 function Settings({ user, onLogout }) {
-  const [displayName, setDisplayName] = useState(() => localStorage.getItem("sanctum_display_name") || "");
+  const userKey = user?.id ? `sanctum_display_name_${user.id}` : "sanctum_display_name";
+  const emailUsername = (user?.email || "").split("@")[0];
+  const [displayName, setDisplayName] = useState(() =>
+    localStorage.getItem(userKey) ||
+    localStorage.getItem("sanctum_display_name") ||
+    emailUsername
+  );
   const [weeklyGoal, setWeeklyGoal] = useState(() => localStorage.getItem("sanctum_weekly_goal") || "10");
   const [saved, setSaved] = useState(false);
 
   const save = () => {
-    localStorage.setItem("sanctum_display_name", displayName);
+    localStorage.setItem(userKey, displayName);
+    localStorage.setItem("sanctum_display_name", displayName); // legacy compat
     localStorage.setItem("sanctum_weekly_goal", weeklyGoal);
     setSaved(true);
     setTimeout(() => setSaved(false), 2000);
@@ -3454,7 +3560,7 @@ function Settings({ user, onLogout }) {
           </div>
           <div className="form-row">
             <label className="form-label">Display name</label>
-            <input className="inp" value={displayName} onChange={e => setDisplayName(e.target.value)} placeholder="Michael" />
+            <input className="inp" value={displayName} onChange={e => setDisplayName(e.target.value)} placeholder={emailUsername || "Your name"} />
           </div>
           <div className="form-row">
             <label className="form-label">Weekly study goal (hours)</label>
@@ -3637,7 +3743,7 @@ For everything else respond naturally in plain text. Be warm, concise, and perso
 }
 
 // ─── HOME ────────────────────────────────────────────────────────────────────
-function Home({ onNavigate, onGoToCalendarDay }) {
+function Home({ user, onNavigate, onGoToCalendarDay }) {
   const [tasks, setTasks] = useState([]);
   const [tasksLoading, setTasksLoading] = useState(true);
   const [showAddTask, setShowAddTask] = useState(false);
@@ -3696,6 +3802,42 @@ function Home({ onNavigate, onGoToCalendarDay }) {
   };
   const onCardDragEnd = () => { setDragOver(null); setDragging(null); dragId.current = null; };
 
+  // Touch drag for stat cards (mobile)
+  const touchDragCardId = useRef(null);
+  const onCardTouchStart = (e, id) => {
+    touchDragCardId.current = id;
+    setDragging(id);
+  };
+  const onCardTouchMove = (e) => {
+    e.preventDefault();
+    if (!touchDragCardId.current) return;
+    const touch = e.touches[0];
+    const el = document.elementFromPoint(touch.clientX, touch.clientY);
+    const card = el?.closest('[data-card-id]');
+    const tid = card?.dataset.cardId;
+    if (tid && tid !== touchDragCardId.current) setDragOver(tid);
+    else setDragOver(null);
+  };
+  const onCardTouchEnd = (e) => {
+    if (!touchDragCardId.current) return;
+    const touch = e.changedTouches[0];
+    const el = document.elementFromPoint(touch.clientX, touch.clientY);
+    const card = el?.closest('[data-card-id]');
+    const tid = card?.dataset.cardId;
+    if (tid && tid !== touchDragCardId.current) {
+      setCardOrder(prev => {
+        const next = [...prev];
+        const from = next.indexOf(touchDragCardId.current);
+        const to = next.indexOf(tid);
+        if (from !== -1 && to !== -1) { next.splice(from, 1); next.splice(to, 0, touchDragCardId.current); localStorage.setItem("sanctum_home_card_order", JSON.stringify(next)); }
+        return next;
+      });
+    }
+    touchDragCardId.current = null;
+    setDragging(null);
+    setDragOver(null);
+  };
+
   // Widget (card) ordering
   const WIDGET_IDS = ["tasks", "week", "trackers"];
   const [widgetOrder, setWidgetOrder] = useState(() => {
@@ -3734,19 +3876,53 @@ function Home({ onNavigate, onGoToCalendarDay }) {
   };
   const onWidgetDragEnd = () => { setWDragOver(null); setWDragging(null); wDragId.current = null; };
 
+  // Touch drag for widget cards (mobile)
+  const touchDragWidgetId = useRef(null);
+  const onWidgetTouchStart = (e, id) => { touchDragWidgetId.current = id; setWDragging(id); };
+  const onWidgetTouchMove = (e) => {
+    e.preventDefault();
+    if (!touchDragWidgetId.current) return;
+    const touch = e.touches[0];
+    const el = document.elementFromPoint(touch.clientX, touch.clientY);
+    const widget = el?.closest('[data-widget-id]');
+    const tid = widget?.dataset.widgetId;
+    if (tid && tid !== touchDragWidgetId.current) setWDragOver(tid); else setWDragOver(null);
+  };
+  const onWidgetTouchEnd = (e) => {
+    if (!touchDragWidgetId.current) return;
+    const touch = e.changedTouches[0];
+    const el = document.elementFromPoint(touch.clientX, touch.clientY);
+    const widget = el?.closest('[data-widget-id]');
+    const tid = widget?.dataset.widgetId;
+    if (tid && tid !== touchDragWidgetId.current) {
+      setWidgetOrder(prev => {
+        const next = [...prev];
+        const from = next.indexOf(touchDragWidgetId.current), to = next.indexOf(tid);
+        if (from !== -1 && to !== -1) { next.splice(from, 1); next.splice(to, 0, touchDragWidgetId.current); localStorage.setItem("sanctum_home_widget_order", JSON.stringify(next)); }
+        return next;
+      });
+    }
+    touchDragWidgetId.current = null; setWDragging(null); setWDragOver(null);
+  };
+
   const wDrag = (id) => ({
+    'data-widget-id': id,
     draggable: true,
-    onDragStart: e => onWidgetDragStart(e, id),
-    onDragOver:  e => onWidgetDragOver(e, id),
-    onDragLeave: e => onWidgetDragLeave(e, id),
-    onDrop:      e => onWidgetDrop(e, id),
-    onDragEnd:   onWidgetDragEnd,
+    onDragStart:    e => onWidgetDragStart(e, id),
+    onDragOver:     e => onWidgetDragOver(e, id),
+    onDragLeave:    e => onWidgetDragLeave(e, id),
+    onDrop:         e => onWidgetDrop(e, id),
+    onDragEnd:      onWidgetDragEnd,
+    onTouchStart:   e => onWidgetTouchStart(e, id),
+    onTouchMove:    onWidgetTouchMove,
+    onTouchEnd:     onWidgetTouchEnd,
   });
 
   const now = new Date();
   const hour = now.getHours();
   const greeting = hour < 12 ? "Good morning" : hour < 17 ? "Good afternoon" : "Good evening";
-  const displayName = localStorage.getItem("sanctum_display_name") || "Michael";
+  const homeUserKey = user?.id ? `sanctum_display_name_${user.id}` : "sanctum_display_name";
+  const displayName = localStorage.getItem(homeUserKey) || localStorage.getItem("sanctum_display_name") || (user?.email?.split("@")[0] || "");
   const dateStr = now.toLocaleDateString("en-IE", { weekday: "long", day: "numeric", month: "long", year: "numeric" });
 
   const EXAM_DATE = new Date("2026-08-31");
@@ -3963,12 +4139,16 @@ RESPONSE RULES — choose one format only:
         {cardOrder.map(id => {
           const cls = `stat${dragging === id ? " is-dragging" : ""}${dragOver === id ? " drag-over" : ""}`;
           const drag = {
+            'data-card-id': id,
             draggable: true,
-            onDragStart: e => onCardDragStart(e, id),
-            onDragOver:  e => onCardDragOver(e, id),
-            onDragLeave: e => onCardDragLeave(e, id),
-            onDrop:      e => onCardDrop(e, id),
-            onDragEnd:   onCardDragEnd,
+            onDragStart:  e => onCardDragStart(e, id),
+            onDragOver:   e => onCardDragOver(e, id),
+            onDragLeave:  e => onCardDragLeave(e, id),
+            onDrop:       e => onCardDrop(e, id),
+            onDragEnd:    onCardDragEnd,
+            onTouchStart: e => onCardTouchStart(e, id),
+            onTouchMove:  onCardTouchMove,
+            onTouchEnd:   onCardTouchEnd,
           };
           if (id === "pmp") return (
             <div key="pmp" className={cls} {...drag}>
@@ -4291,7 +4471,7 @@ export default function App() {
   };
 
   const renderPage = () => {
-    if (page === "home") return <Home onNavigate={navigate} onGoToCalendarDay={goToCalendarDay} />;
+    if (page === "home") return <Home user={user} onNavigate={navigate} onGoToCalendarDay={goToCalendarDay} />;
     if (page === "notes") return <Notes />;
     if (page === "calendar") return <Calendar initialDate={calDate} />;
     if (page === "trackers") {
@@ -4316,7 +4496,8 @@ export default function App() {
     { id: "settings", label: "Settings", icon: "settings" },
   ];
 
-  const displayName = localStorage.getItem("sanctum_display_name") || username;
+  const userDisplayKey = user?.id ? `sanctum_display_name_${user.id}` : "sanctum_display_name";
+  const displayName = localStorage.getItem(userDisplayKey) || localStorage.getItem("sanctum_display_name") || username;
 
   return (
     <>
