@@ -1,4 +1,4 @@
-import { useState, useEffect, useRef, useCallback } from "react";
+import { useState, useEffect, useRef, useCallback, useMemo } from "react";
 
 // ─── SUPABASE ────────────────────────────────────────────────────────────────
 const SUPABASE_URL = "https://hqlgwisfkkosgekotojz.supabase.co";
@@ -447,7 +447,7 @@ const CSS = `
   .notebook-item:hover { background: rgba(255,255,255,0.04); color: var(--t1); }
   .notebook-item.nb-active { background: var(--bluem); color: var(--blue); border-left-color: var(--blue); }
   .notebook-item.nb-drag-over { outline: 1.5px dashed var(--blue); border-radius: 6px; }
-  .notebook-icon { width: 22px; height: 22px; border-radius: 6px; display: flex; align-items: center; justify-content: center; font-size: 12px; flex-shrink: 0; }
+  .notebook-icon { width: 22px; height: 22px; border-radius: 6px; display: flex; align-items: center; justify-content: center; font-size: 10px; flex-shrink: 0; opacity: 0.6; }
   .nb-chev { font-size: 7px; color: var(--t3); flex-shrink: 0; transition: transform .15s; }
   .nb-count { font-size: 9px; color: var(--t3); font-family: var(--mono); flex-shrink: 0; }
   .nb-dot-btn {
@@ -593,55 +593,106 @@ const CSS = `
   .save-ind { font-size: 10px; font-family: var(--mono); padding: 2px 8px; border-radius: 6px; animation: saveAppear .15s ease; }
   .save-ind.saving { color: var(--amber); background: rgba(245,158,11,0.1); }
   .save-ind.saved  { color: var(--grn); background: rgba(16,185,129,0.1); animation: saveFade 2.2s ease forwards; }
-  .sel-toolbar {
-    position: fixed; z-index: 200; background: var(--bg1); border: 1px solid var(--b2);
-    border-radius: 9px; padding: 3px; box-shadow: var(--shadow2);
-    display: flex; align-items: center; gap: 1px; animation: fadeIn .1s ease; pointer-events: all;
+  /* ── WYSIWYG editor ── */
+  .note-body-wysiwyg {
+    flex: 1; padding: 22px 32px; min-height: 0; overflow-y: auto;
+    color: var(--t2); font-size: 14px; line-height: 1.9; font-family: var(--sans);
+    outline: none; caret-color: var(--blue);
   }
-  .sel-toolbar button {
-    width: 28px; height: 26px; border-radius: 6px; border: none;
-    background: transparent; color: var(--t2); font-size: 11px; font-weight: 700;
-    font-family: var(--mono); cursor: pointer; transition: all .1s;
-    display: flex; align-items: center; justify-content: center;
-  }
-  .sel-toolbar button:hover { background: rgba(255,255,255,0.08); color: var(--t1); }
+  .note-body-wysiwyg:empty::before { content: attr(data-placeholder); color: var(--t3); opacity: .5; pointer-events: none; display: block; }
+  .note-body-wysiwyg > div { min-height: 1.4em; }
+  .note-body-wysiwyg .we-h1 { font-size: 22px; font-weight: 700; color: var(--t1); margin: 4px 0 2px; letter-spacing: -.3px; border-bottom: 1px solid rgba(255,255,255,0.06); padding-bottom: 6px; }
+  .note-body-wysiwyg .we-h2 { font-size: 17px; font-weight: 700; color: var(--t1); margin: 14px 0 2px; }
+  .note-body-wysiwyg .we-h3 { font-size: 14px; font-weight: 600; color: var(--t2); margin: 10px 0 2px; }
+  .note-body-wysiwyg .we-ul { display: flex; align-items: baseline; gap: 8px; }
+  .note-body-wysiwyg .we-bullet { color: var(--blue); font-size: 10px; flex-shrink: 0; user-select: none; }
+  .note-body-wysiwyg .we-check { display: flex; align-items: baseline; gap: 8px; }
+  .note-body-wysiwyg .we-checkbox { font-size: 13px; flex-shrink: 0; cursor: default; user-select: none; }
+  .note-body-wysiwyg .we-checkbox.checked { color: var(--grn); }
+  .note-body-wysiwyg .we-hr { pointer-events: none; }
+  .note-body-wysiwyg .we-hr hr { border: none; border-top: 1px solid rgba(255,255,255,0.08); margin: 10px 0; }
+  .note-body-wysiwyg .we-codeblock pre { background: var(--bg3); border: 1px solid rgba(255,255,255,0.07); border-radius: 10px; padding: 14px 18px; margin: 8px 0; overflow-x: auto; }
+  .note-body-wysiwyg .we-codeblock code { color: var(--t2); font-size: 13px; font-family: var(--mono); }
+  .note-body-wysiwyg strong { color: var(--t1); font-weight: 700; }
+  .note-body-wysiwyg em { font-style: italic; }
+  .note-body-wysiwyg code { background: rgba(59,130,246,0.1); border: 1px solid rgba(59,130,246,0.2); padding: 1px 5px; border-radius: 4px; font-family: var(--mono); font-size: 12px; color: var(--blue); }
+  .note-body-wysiwyg a { color: var(--blue); text-decoration: underline; }
 
-  /* ── Markdown preview (document view) ── */
-  .preview-body {
-    flex: 1; overflow-y: auto; padding: 24px 36px 32px;
-    color: var(--t2); line-height: 1.85; font-size: 14px;
+  /* ── Split editor ── */
+  .split-editor-shell { flex: 1; display: flex; flex-direction: column; min-height: 0; overflow: hidden; }
+  .split-editor-modebar {
+    display: flex; align-items: center; gap: 3px; padding: 5px 32px 5px;
+    border-bottom: 1px solid rgba(255,255,255,0.05); flex-shrink: 0; background: rgba(10,14,20,0.4);
   }
-  .preview-body h1 { font-size: 22px; font-weight: 700; color: var(--t1); margin: 4px 0 10px; letter-spacing: -.3px; border-bottom: 1px solid rgba(255,255,255,0.06); padding-bottom: 8px; }
-  .preview-body h2 { font-size: 17px; font-weight: 700; color: var(--t1); margin: 20px 0 8px; }
-  .preview-body h3 { font-size: 14px; font-weight: 600; color: var(--t2); margin: 16px 0 6px; }
-  .preview-body p  { margin-bottom: 10px; }
-  .preview-body ul, .preview-body ol { margin: 6px 0 10px 22px; }
-  .preview-body li { margin-bottom: 4px; }
-  .preview-body strong { color: var(--t1); font-weight: 700; }
-  .preview-body em { font-style: italic; }
-  .preview-body a { color: var(--blue); text-decoration: underline; }
-  .preview-body code { background: rgba(59,130,246,0.1); border: 1px solid rgba(59,130,246,0.2); padding: 1px 5px; border-radius: 4px; font-family: var(--mono); font-size: 12px; color: var(--blue); }
-  .preview-body pre { background: var(--bg3); border: 1px solid rgba(255,255,255,0.07); border-radius: 10px; padding: 14px 18px; margin: 12px 0; overflow-x: auto; }
-  .preview-body pre code { background: none; border: none; padding: 0; color: var(--t2); font-size: 13px; }
-  .preview-body .check-list { list-style: none; margin-left: 4px; }
-  .preview-body .check-item { display: flex; align-items: center; gap: 8px; padding: 2px 0; }
-  .preview-body .check-item input { width: 14px; height: 14px; accent-color: var(--blue); flex-shrink: 0; }
-  .hc-row {
-    display: flex; align-items: center; gap: 6px; cursor: pointer;
-    border-radius: 6px; margin: 0 -6px; padding: 4px 6px; transition: background .12s;
-    user-select: none;
+  .split-editor-modebar span { font-size: 10px; color: var(--t3); margin-right: 4px; }
+  .split-editor-body { flex: 1; display: flex; min-height: 0; overflow: hidden; }
+  .note-body-textarea {
+    padding: 22px 32px; min-height: 0; overflow-y: auto;
+    background: transparent; border: none; color: var(--t2);
+    font-size: 13px; line-height: 1.9; font-family: var(--mono);
+    outline: none; resize: none; tab-size: 2; box-sizing: border-box;
   }
-  .hc-row:hover { background: rgba(255,255,255,0.04); }
-  .hc-chev {
-    font-size: 8px; color: var(--t3); flex-shrink: 0; width: 12px; text-align: center;
-    transition: transform .15s; display: inline-block;
+  .note-body-textarea::placeholder { color: var(--t3); opacity: .5; }
+  .note-body-textarea::selection { background: rgba(59,130,246,0.3); }
+  .note-body-preview {
+    padding: 22px 32px; min-height: 0; overflow-y: auto;
+    color: var(--t2); font-size: 14px; line-height: 1.9; font-family: var(--sans);
+    box-sizing: border-box;
   }
-  .hc-chev.open { transform: rotate(0deg); }
-  .hc-chev.closed { transform: rotate(-90deg); }
-  .hc-htag { margin: 0 !important; padding: 0 !important; border: none !important; flex: 1; }
-  .hc-content { overflow: hidden; transition: none; }
-  .hc-content.collapsed { display: none; }
-  .hc-collapsed-hint { font-size: 10px; color: var(--t3); font-style: italic; margin-left: 18px; margin-bottom: 4px; opacity: .7; }
+  .note-body-preview h1 { font-size: 22px; font-weight: 700; color: var(--t1); margin: 4px 0 6px; letter-spacing: -.3px; border-bottom: 1px solid rgba(255,255,255,0.06); padding-bottom: 6px; }
+  .note-body-preview h2 { font-size: 17px; font-weight: 700; color: var(--t1); margin: 14px 0 4px; }
+  .note-body-preview h3 { font-size: 14px; font-weight: 600; color: var(--t2); margin: 10px 0 3px; }
+  .note-body-preview ul { list-style: none; margin: 4px 0; padding: 0; }
+  .note-body-preview ul li::before { content: "•"; color: var(--blue); margin-right: 8px; font-size: 10px; }
+  .note-body-preview li { display: flex; align-items: baseline; margin: 2px 0; }
+  .note-body-preview strong { color: var(--t1); font-weight: 700; }
+  .note-body-preview em { font-style: italic; }
+  .note-body-preview code { background: rgba(59,130,246,0.1); border: 1px solid rgba(59,130,246,0.2); padding: 1px 5px; border-radius: 4px; font-family: var(--mono); font-size: 12px; color: var(--blue); }
+  .note-body-preview pre { background: var(--bg3); border: 1px solid rgba(255,255,255,0.07); border-radius: 10px; padding: 14px 18px; margin: 8px 0; overflow-x: auto; }
+  .note-body-preview pre code { background: none; border: none; padding: 0; color: var(--t2); font-size: 13px; }
+  .note-body-preview hr { border: none; border-top: 1px solid rgba(255,255,255,0.08); margin: 12px 0; }
+  .note-body-preview p { margin: 3px 0; }
+  .note-body-preview a { color: var(--blue); text-decoration: underline; }
+  /* Split / write / preview modes */
+  .split-mode-write .note-body-textarea { flex: 1; }
+  .split-mode-write .note-body-preview { display: none; }
+  .split-mode-preview .note-body-textarea { display: none; }
+  .split-mode-preview .note-body-preview { flex: 1; }
+  .split-mode-split .note-body-textarea { flex: 1; border-right: 1px solid rgba(255,255,255,0.06); }
+  .split-mode-split .note-body-preview { flex: 1; }
+
+  /* ── Dots menu ── */
+  .note-dots-menu {
+    position: absolute; z-index: 200; right: 0; top: calc(100% + 4px);
+    background: var(--bg1); border: 1px solid var(--b2); border-radius: 10px;
+    padding: 4px; box-shadow: var(--shadow2); min-width: 150px; animation: fadeIn .1s ease;
+  }
+  .note-dots-menu button {
+    display: flex; align-items: center; gap: 8px; width: 100%;
+    padding: 7px 12px; border: none; border-radius: 7px;
+    background: transparent; color: var(--t2); font-size: 12px;
+    font-family: var(--sans); cursor: pointer; transition: all .12s;
+  }
+  .note-dots-menu button.danger { color: var(--red); }
+  .note-dots-menu button.danger:hover { background: rgba(239,68,68,0.1); }
+
+  /* ── Fullscreen buttons ── */
+  .fs-exit-btn, .fs-expand-btn {
+    position: absolute; top: 8px; right: 12px; z-index: 10;
+    background: rgba(255,255,255,0.05); border: 1px solid rgba(255,255,255,0.1);
+    color: var(--t3); border-radius: 7px; width: 28px; height: 28px;
+    display: flex; align-items: center; justify-content: center;
+    cursor: pointer; font-size: 14px; transition: all .15s; flex-shrink: 0;
+  }
+  .fs-exit-btn:hover, .fs-expand-btn:hover { background: rgba(255,255,255,0.12); color: var(--t1); }
+
+  /* ── Notes fullscreen mode ── */
+  body.notes-fullscreen .sidebar,
+  body.notes-fullscreen .topbar,
+  body.notes-fullscreen .bottom-nav { display: none !important; }
+  body.notes-fullscreen .notes-sidebar,
+  body.notes-fullscreen .notes-list { display: none !important; }
+  body.notes-fullscreen .main { height: 100vh; }
   .move-modal-sections { max-height: 320px; overflow-y: auto; margin-top: 8px; }
   .move-modal-nb { font-size: 10px; color: var(--t3); font-weight: 700; text-transform: uppercase; letter-spacing: 1px; padding: 10px 4px 4px; }
   .move-modal-sec {
@@ -1359,7 +1410,7 @@ function Dashboard({ onNavigate, onGoToCalendarDay }) {
           <div className="dw-arrow"><Icon name="chevR" size={16} /></div>
           <div className="dw-icon" style={{ background: "rgba(139,92,246,0.15)", color: "var(--purple)" }}><Icon name="study" size={20} color="var(--purple)" /></div>
           <div className="dw-label">PMP Exam</div>
-          <div className="dw-value">Aug</div>
+          <div className="dw-value">Jul 7</div>
           <div className="dw-sub">2026 target</div>
         </div>
         <div className="dash-widget" onClick={() => onNavigate("finance")}>
@@ -1471,7 +1522,7 @@ function Dashboard({ onNavigate, onGoToCalendarDay }) {
           <div className="stat-icon" style={{ background: "rgba(139,92,246,0.15)" }}>📚</div>
           <div className="stat-label">PMP Study</div>
           <div className="stat-value">2h</div>
-          <div className="stat-sub">Target: Aug 2026 exam</div>
+          <div className="stat-sub">Target: Jul 7 2026</div>
           <div className="stat-bar"><div className="stat-fill" style={{ width: "0.1%" }} /></div>
         </div>
         <div className="stat">
@@ -1488,6 +1539,219 @@ function Dashboard({ onNavigate, onGoToCalendarDay }) {
           <div className="stat-sub">Sep 7–13 · Tamara + Ozzy 🐾</div>
           <div className="stat-bar"><div className="stat-fill amber" style={{ width: "59%" }} /></div>
         </div>
+      </div>
+    </div>
+  );
+}
+
+// ─── WYSIWYG HELPERS ─────────────────────────────────────────────────────────
+
+const mdToHtmlWysiwyg = (text) => {
+  if (!text) return '';
+  const esc = s => s.replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;');
+  const inlineFmt = s => s
+    .replace(/\*\*(.+?)\*\*/g, '<strong>$1</strong>')
+    .replace(/(?<!\*|_)_([^_]+)_(?!\*|_)/g, '<em>$1</em>')
+    .replace(/`([^`]+)`/g, '<code>$1</code>')
+    .replace(/\[(.+?)\]\((.+?)\)/g, '<a href="$2" target="_blank" rel="noopener">$1</a>');
+  const lines = text.split('\n');
+  let html = '', inCode = false, codeBuf = [];
+  for (const line of lines) {
+    if (line.trim().startsWith('```')) {
+      if (inCode) { html += `<div class="we-codeblock"><pre><code>${esc(codeBuf.join('\n'))}</code></pre></div>`; codeBuf = []; inCode = false; }
+      else { inCode = true; }
+      continue;
+    }
+    if (inCode) { codeBuf.push(line); continue; }
+    const hm = line.match(/^(#{1,3}) (.*)/);
+    if (hm) { html += `<div class="we-h we-h${hm[1].length}">${inlineFmt(hm[2] || '')}</div>`; continue; }
+    if (line.trim() === '---') { html += `<div class="we-hr"><hr></div>`; continue; }
+    if (/^[-*] \[[x ]\] /i.test(line)) {
+      const checked = /^[-*] \[x\] /i.test(line);
+      const content = line.replace(/^[-*] \[[x ]\] /i, '');
+      html += `<div class="we-check"><span class="we-checkbox${checked?' checked':''}" contenteditable="false">${checked?'☑':'☐'}</span>${inlineFmt(content)}</div>`;
+      continue;
+    }
+    if (/^[-*] /.test(line)) { html += `<div class="we-ul"><span class="we-bullet" contenteditable="false">•</span>${inlineFmt(line.slice(2))}</div>`; continue; }
+    if (/^\d+\. /.test(line)) { const m = line.match(/^\d+\. (.*)/); html += `<div class="we-ol">${inlineFmt(m?m[1]:line)}</div>`; continue; }
+    if (line.trim() === '') { html += `<div class="we-line"><br></div>`; continue; }
+    html += `<div class="we-line">${inlineFmt(line)}</div>`;
+  }
+  if (inCode) html += `<div class="we-codeblock"><pre><code>${esc(codeBuf.join('\n'))}</code></pre></div>`;
+  return html || `<div class="we-line"><br></div>`;
+};
+
+// ─── MARKDOWN → HTML PREVIEW ─────────────────────────────────────────────────
+const mdToHtmlPreview = (text) => {
+  if (!text) return '';
+  const esc = s => s.replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;');
+  const inline = s => s
+    .replace(/\*\*(.+?)\*\*/g, '<strong>$1</strong>')
+    .replace(/(?<!\*)\*([^*\n]+)\*(?!\*)/g, '<em>$1</em>')
+    .replace(/`([^`]+)`/g, '<code>$1</code>')
+    .replace(/\[(.+?)\]\((.+?)\)/g, '<a href="$2" target="_blank" rel="noopener noreferrer">$1</a>');
+  const lines = text.split('\n');
+  let html = '', inCode = false, codeBuf = [];
+  for (const line of lines) {
+    if (line.trim().startsWith('```')) {
+      if (inCode) { html += `<pre><code>${esc(codeBuf.join('\n'))}</code></pre>`; codeBuf = []; inCode = false; }
+      else { inCode = true; }
+      continue;
+    }
+    if (inCode) { codeBuf.push(line); continue; }
+    const hm = line.match(/^(#{1,3}) (.*)/);
+    if (hm) { html += `<h${hm[1].length}>${inline(hm[2]||'')}</h${hm[1].length}>`; continue; }
+    if (line.trim() === '---') { html += '<hr>'; continue; }
+    if (/^[-*] /.test(line)) { html += `<ul><li>${inline(line.slice(2))}</li></ul>`; continue; }
+    if (line.trim() === '') { html += '<br>'; continue; }
+    html += `<p>${inline(line)}</p>`;
+  }
+  if (inCode) html += `<pre><code>${esc(codeBuf.join('\n'))}</code></pre>`;
+  return html;
+};
+
+const htmlToMd = (el) => {
+  if (!el) return '';
+  let md = '';
+  function walkNode(node) {
+    if (node.nodeType === 3) { md += node.textContent; return; }
+    if (node.nodeType !== 1) return;
+    const tag = node.tagName;
+    const cls = node.className || '';
+    const kids = () => { for (const c of node.childNodes) walkNode(c); };
+    if (tag === 'BR') { md += '\n'; return; }
+    if (tag === 'STRONG' || tag === 'B') { md += '**'; kids(); md += '**'; return; }
+    if (tag === 'EM' || tag === 'I') { md += '_'; kids(); md += '_'; return; }
+    if (tag === 'CODE' && node.parentElement?.tagName !== 'PRE') { md += '`'; kids(); md += '`'; return; }
+    if (tag === 'A') { const href = node.getAttribute('href')||''; let t=''; node.childNodes.forEach(c=>{if(c.nodeType===3)t+=c.textContent;}); md += `[${t||node.textContent}](${href})`; return; }
+    if (tag === 'HR') { md += '---\n'; return; }
+    if (tag === 'PRE') { const code = node.querySelector('code'); md += '```\n' + (code?code.textContent:node.textContent) + '\n```\n'; return; }
+    if (tag === 'SPAN') {
+      if (cls.includes('we-bullet') || cls.includes('we-checkbox')) return;
+      kids(); return;
+    }
+    if (tag === 'DIV' || tag === 'P') {
+      const before = md.length;
+      if (cls.includes('we-h1')) { md += '# '; kids(); if (!md.endsWith('\n')) md += '\n'; return; }
+      if (cls.includes('we-h2')) { md += '## '; kids(); if (!md.endsWith('\n')) md += '\n'; return; }
+      if (cls.includes('we-h3')) { md += '### '; kids(); if (!md.endsWith('\n')) md += '\n'; return; }
+      if (cls.includes('we-hr')) { md += '---\n'; return; }
+      if (cls.includes('we-codeblock')) { const pre = node.querySelector('pre'); const code = node.querySelector('code'); md += '```\n' + (code?code.textContent:(pre?pre.textContent:node.textContent)) + '\n```\n'; return; }
+      if (cls.includes('we-ul')) { md += '- '; kids(); if (!md.endsWith('\n')) md += '\n'; return; }
+      if (cls.includes('we-check')) {
+        const chk = node.querySelector('.we-checkbox'); const checked = chk?.classList.contains('checked');
+        md += checked ? '- [x] ' : '- [ ] '; kids(); if (!md.endsWith('\n')) md += '\n'; return;
+      }
+      if (cls.includes('we-ol')) { md += '1. '; kids(); if (!md.endsWith('\n')) md += '\n'; return; }
+      // plain div / we-line — if this is the root el, just walk children
+      if (node === el) { kids(); return; }
+      if (md.length > 0 && !md.endsWith('\n')) md += '\n';
+      kids();
+      if (md.length > before && !md.endsWith('\n')) md += '\n';
+      return;
+    }
+    kids();
+  }
+  walkNode(el);
+  return md.replace(/\n{3,}/g, '\n\n').trim();
+};
+
+const saveCursorOffset = (el) => {
+  try {
+    const sel = window.getSelection();
+    if (!sel?.rangeCount) return null;
+    const range = sel.getRangeAt(0);
+    const pre = range.cloneRange();
+    pre.selectNodeContents(el);
+    pre.setEnd(range.startContainer, range.startOffset);
+    return pre.toString().length;
+  } catch { return null; }
+};
+
+const restoreCursorOffset = (el, offset) => {
+  if (offset === null || offset === undefined || !el) return;
+  try {
+    const walker = document.createTreeWalker(el, NodeFilter.SHOW_TEXT, null);
+    let remaining = offset, lastNode = null;
+    while (walker.nextNode()) {
+      const node = walker.currentNode;
+      lastNode = node;
+      if (remaining <= node.length) {
+        const range = document.createRange();
+        range.setStart(node, remaining);
+        range.collapse(true);
+        const sel = window.getSelection();
+        sel?.removeAllRanges();
+        sel?.addRange(range);
+        return;
+      }
+      remaining -= node.length;
+    }
+    if (lastNode) {
+      const range = document.createRange();
+      range.setStart(lastNode, lastNode.length);
+      range.collapse(true);
+      const sel = window.getSelection();
+      sel?.removeAllRanges();
+      sel?.addRange(range);
+    }
+  } catch {}
+};
+
+function SplitEditor({ value, onChange, placeholder, textareaRef }) {
+  const innerRef = useRef(null);
+  const ref = textareaRef || innerRef;
+  const [editorMode, setEditorMode] = useState(() =>
+    localStorage.getItem('sanctum_editor_mode') || 'preview'
+  );
+  const setMode = (m) => { setEditorMode(m); localStorage.setItem('sanctum_editor_mode', m); };
+  const preview = useMemo(() => mdToHtmlPreview(value), [value]);
+
+  const handleKeyDown = useCallback((e) => {
+    if ((e.metaKey || e.ctrlKey) && e.key === 'b') {
+      e.preventDefault();
+      const ta = ref.current; if (!ta) return;
+      const s = ta.selectionStart, en = ta.selectionEnd;
+      const sel = value.slice(s, en) || 'bold';
+      const ins = `**${sel}**`;
+      const nv = value.slice(0, s) + ins + value.slice(en);
+      onChange(nv);
+      setTimeout(() => ta.setSelectionRange(s + ins.length, s + ins.length), 0);
+    }
+    if ((e.metaKey || e.ctrlKey) && e.key === 'i') {
+      e.preventDefault();
+      const ta = ref.current; if (!ta) return;
+      const s = ta.selectionStart, en = ta.selectionEnd;
+      const sel = value.slice(s, en) || 'italic';
+      const ins = `_${sel}_`;
+      const nv = value.slice(0, s) + ins + value.slice(en);
+      onChange(nv);
+      setTimeout(() => ta.setSelectionRange(s + ins.length, s + ins.length), 0);
+    }
+  }, [value, onChange, ref]); // eslint-disable-line react-hooks/exhaustive-deps
+
+  return (
+    <div className="split-editor-shell">
+      <div className="split-editor-modebar">
+        <span>View:</span>
+        <button className={`note-tool-btn${editorMode==='write'?' on':''}`} onClick={() => setMode('write')}>Write</button>
+        <button className={`note-tool-btn${editorMode==='split'?' on':''}`} onClick={() => setMode('split')}>Split</button>
+        <button className={`note-tool-btn${editorMode==='preview'?' on':''}`} onClick={() => setMode('preview')}>Preview</button>
+      </div>
+      <div className={`split-editor-body split-mode-${editorMode}`}>
+        <textarea
+          ref={ref}
+          className="note-body-textarea"
+          value={value}
+          onChange={e => onChange(e.target.value)}
+          placeholder={placeholder || 'Start writing in Markdown...\n\n# Heading 1\n## Heading 2\n\n**bold**  _italic_  `code`\n- bullet\n```\ncode block\n```\n--- (divider)'}
+          spellCheck={true}
+          onKeyDown={handleKeyDown}
+        />
+        <div
+          className="note-body-preview"
+          dangerouslySetInnerHTML={{ __html: preview || '<p style="color:var(--t3);opacity:.4;font-size:13px">Start writing to see preview...</p>' }}
+        />
       </div>
     </div>
   );
@@ -1529,11 +1793,8 @@ function Notes() {
   const [editTags,   setEditTags]   = useState('');
   const [loading,    setLoading]    = useState(false);
   const [saveStatus, setSaveStatus] = useState('idle');
-  const [viewMode,   setViewMode]   = useState('preview');
   const saveTimer = useRef(null);
-  const previewTimer = useRef(null);
-  const bodyRef   = useRef(null);
-  const previewRef = useRef(null);
+  const editorRef  = useRef(null);
   // Collapsible panels
   const [sidebarCollapsed, setSidebarCollapsed] = useState(() => localStorage.getItem('sanctum_sidebar_col') === 'true');
   const [listCollapsed, setListCollapsed] = useState(() => localStorage.getItem('sanctum_list_col') === 'true');
@@ -1559,41 +1820,36 @@ function Notes() {
   // ── UI state ──────────────────────────────────────────────────────────
   const [nbMenu,       setNbMenu]       = useState(null);
   const [noteMenu,     setNoteMenu]     = useState(null);
+  const [dotsMenu,     setDotsMenu]     = useState(false);
   const [dragNBId,     setDragNBId]     = useState(null);
   const [dragSecId,    setDragSecId]    = useState(null);
   const [dragNoteId,   setDragNoteId]   = useState(null);
   const [dragOverId,   setDragOverId]   = useState(null);
-  const [selToolbar,   setSelToolbar]   = useState(null);
-  const [collapsedH,   setCollapsedH]   = useState(new Set());
   const [renameTarget, setRenameTarget] = useState(null);
   const [newNBValue,   setNewNBValue]   = useState('');
   const [showNewNB,    setShowNewNB]    = useState(false);
   const [moveModal,    setMoveModal]    = useState(null);
+  const [fullscreen,   setFullscreen]   = useState(() => localStorage.getItem('sanctum_notes_fs') === 'true');
 
   // ── Close menus on outside click ──────────────────────────────────────
   useEffect(() => {
     const h = (e) => {
       if (!e.target.closest('.nb-dropdown') && !e.target.closest('.nb-dot-btn')) setNbMenu(null);
       if (!e.target.closest('.note-ctx-menu') && !e.target.closest('.nb-dot-btn')) setNoteMenu(null);
-      if (!e.target.closest('.sel-toolbar') && !e.target.closest('.note-body-input')) setSelToolbar(null);
+      if (!e.target.closest('.note-dots-menu') && !e.target.closest('.dots-trigger')) setDotsMenu(false);
     };
     document.addEventListener('mousedown', h);
     return () => document.removeEventListener('mousedown', h);
   }, []);
 
-  // ── Collapsible heading click (preview) ──────────────────────────────
+  // ── Fullscreen body class ─────────────────────────────────────────────
   useEffect(() => {
-    if (viewMode !== 'preview' || !previewRef.current) return;
-    const container = previewRef.current;
-    const h = (e) => {
-      const row = e.target.closest('.hc-row');
-      if (!row) return;
-      const key = row.dataset.key;
-      setCollapsedH(prev => { const next = new Set(prev); if (next.has(key)) next.delete(key); else next.add(key); return next; });
-    };
-    container.addEventListener('click', h);
-    return () => container.removeEventListener('click', h);
-  }, [viewMode, editBody]);
+    document.body.classList.toggle('notes-fullscreen', fullscreen);
+    return () => document.body.classList.remove('notes-fullscreen');
+  }, [fullscreen]);
+  const toggleFullscreen = () => {
+    const v = !fullscreen; setFullscreen(v); localStorage.setItem('sanctum_notes_fs', String(v));
+  };
 
   // ── Mobile resize ─────────────────────────────────────────────────────
   useEffect(() => {
@@ -1619,7 +1875,6 @@ function Notes() {
 
   const openNote = (n) => {
     setActiveNote(n.id); setEditTitle(n.title || ''); setEditBody(n.body || ''); setEditTags(n.tags || '');
-    setViewMode('preview'); setCollapsedH(new Set());
     if (window.innerWidth < 769) setMobilePanel('editor');
   };
   const selectSection = (sid, nbid) => {
@@ -1646,8 +1901,6 @@ function Notes() {
   const onBodyChange  = (v) => {
     setEditBody(v);
     if (activeNote) autoSave(activeNote, editTitle, v, editTags);
-    if (previewTimer.current) clearTimeout(previewTimer.current);
-    previewTimer.current = setTimeout(() => setViewMode('preview'), 1500);
   };
   const onTagsChange  = (v) => { setEditTags(v);  if (activeNote) autoSave(activeNote, editTitle, editBody, v); };
 
@@ -1690,113 +1943,49 @@ function Notes() {
     setMoveModal(null); setNoteMenu(null);
   };
 
-  // ── Formatting ────────────────────────────────────────────────────────
+  // ── Formatting (WYSIWYG) ──────────────────────────────────────────────
   const applyFormat = (fmt) => {
-    const ta = bodyRef.current; if (!ta) return;
-    const s = ta.selectionStart, e = ta.selectionEnd;
-    const sel = editBody.slice(s, e), pre = editBody.slice(0, s), post = editBody.slice(e);
-    const lineStart = (str) => str.lastIndexOf('\n') + 1;
+    const ta = editorRef.current; if (!ta) return;
+    ta.focus();
+    const text = editBody;
+    const start = ta.selectionStart ?? text.length;
+    const end   = ta.selectionEnd   ?? text.length;
+    const selText = text.slice(start, end);
+
     if (['h1','h2','h3','ul','ol','check','hr'].includes(fmt)) {
-      const pm = { h1:'# ', h2:'## ', h3:'### ', ul:'- ', ol:'1. ', check:'- [ ] ', hr:'\n---\n' };
+      const pm = { h1:'# ', h2:'## ', h3:'### ', ul:'- ', ol:'1. ', check:'- [ ] ', hr:'---' };
       const px = pm[fmt];
-      if (fmt === 'hr') { onBodyChange(pre + px + post); setTimeout(() => { ta.focus(); ta.setSelectionRange(s+px.length, s+px.length); }, 0); }
-      else { const li = lineStart(pre); onBodyChange(editBody.slice(0,li) + px + editBody.slice(li)); setTimeout(() => { ta.focus(); ta.setSelectionRange(s+px.length, e+px.length); }, 0); }
+      const lineStart = text.lastIndexOf('\n', start - 1) + 1;
+      const lineEnd   = (() => { const i = text.indexOf('\n', start); return i === -1 ? text.length : i; })();
+      const line = text.slice(lineStart, lineEnd);
+      let newText, newCursor;
+      if (fmt === 'hr') {
+        const ins = '\n---\n';
+        newText = text.slice(0, lineEnd) + ins + text.slice(lineEnd);
+        newCursor = lineEnd + ins.length;
+      } else {
+        const existing = Object.entries(pm).find(([,p]) => p !== '---' && line.startsWith(p));
+        const stripped = line.replace(/^#{1,3} |^[-*] \[[ x]\] |^[-*] |^\d+\. /,'');
+        const newLine  = (existing && existing[0] === fmt) ? stripped : px + stripped;
+        newText = text.slice(0, lineStart) + newLine + text.slice(lineEnd);
+        const diff = newLine.length - line.length;
+        newCursor = Math.max(lineStart, start + diff);
+      }
+      onBodyChange(newText);
+      setTimeout(() => ta.setSelectionRange(newCursor, newCursor), 0);
       return;
     }
-    let insert = '', ns = s, ne = e;
-    if (fmt === 'bold')        { insert = `**${sel||'bold'}**`;            ns=s+2; ne=ns+(sel.length||4); }
-    else if (fmt === 'italic') { insert = `_${sel||'italic'}_`;            ns=s+1; ne=ns+(sel.length||6); }
-    else if (fmt === 'code')   { insert = `\`${sel||'code'}\``;            ns=s+1; ne=ns+(sel.length||4); }
-    else if (fmt === 'codeblock') { insert = `\`\`\`\n${sel||'code'}\n\`\`\``; ns=s+4; ne=ns+(sel.length||4); }
-    else if (fmt === 'link')   { insert = `[${sel||'text'}](url)`;         ns=s+1; ne=s+1+(sel.length||4); }
-    onBodyChange(pre + insert + post);
-    setTimeout(() => { ta.focus(); ta.setSelectionRange(ns, ne); }, 0);
-    setSelToolbar(null);
-  };
 
-  const onBodyKeyDown = (e) => {
-    if ((e.metaKey||e.ctrlKey) && e.key==='b') { e.preventDefault(); applyFormat('bold'); }
-    if ((e.metaKey||e.ctrlKey) && e.key==='i') { e.preventDefault(); applyFormat('italic'); }
-  };
-
-  const onBodyMouseUp = (e) => {
-    const ta = bodyRef.current; if (!ta) return;
-    setTimeout(() => {
-      if (ta.selectionStart !== ta.selectionEnd) setSelToolbar({ x: e.clientX, y: e.clientY - 52 });
-      else setSelToolbar(null);
-    }, 10);
+    // Inline formats
+    const map = { bold:`**${selText||'bold'}**`, italic:`_${selText||'italic'}_`, code:`\`${selText||'code'}\``, codeblock:`\`\`\`\n${selText||'code'}\n\`\`\``, link:`[${selText||'text'}](url)` };
+    const insert = map[fmt]; if (!insert) return;
+    const newText = text.slice(0, start) + insert + text.slice(end);
+    onBodyChange(newText);
+    const nc = start + insert.length;
+    setTimeout(() => ta.setSelectionRange(nc, nc), 0);
   };
 
   // ── Markdown renderer with collapsible headings ───────────────────────
-  const renderMarkdown = (text, collapsedSet = new Set()) => {
-    if (!text) return '<p style="color:var(--t3);font-style:italic;margin-top:40px;text-align:center">Nothing to preview yet.</p>';
-    const esc    = s => s.replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;');
-    const inline = s => s
-      .replace(/\*\*(.+?)\*\*/g,'<strong>$1</strong>')
-      .replace(/_(.+?)_/g,'<em>$1</em>')
-      .replace(/`(.+?)`/g,'<code>$1</code>')
-      .replace(/\[(.+?)\]\((.+?)\)/g,'<a href="$2" target="_blank">$1</a>');
-    const lines = text.split('\n');
-    const segs = []; let cur = null, inCode = false, codeBuf = [], hIdx = 0;
-    const flushCur = () => { if (cur && cur.items.length) segs.push({ type:'content', key:cur.key, items:[...cur.items] }); cur = null; };
-    for (const line of lines) {
-      if (line.trim().startsWith('```')) {
-        if (inCode) { if (!cur) cur={key:'root',items:[]}; cur.items.push({t:'code',code:codeBuf.join('\n')}); codeBuf=[]; inCode=false; }
-        else inCode=true; continue;
-      }
-      if (inCode) { codeBuf.push(line); continue; }
-      const hm = line.match(/^(#{1,3}) (.+)/);
-      if (hm) {
-        flushCur(); hIdx++;
-        const key=`h-${hIdx}`; segs.push({type:'heading',key,level:hm[1].length,content:hm[2]}); cur={key,items:[]};
-        continue;
-      }
-      if (!cur) cur={key:'root',items:[]};
-      cur.items.push({t:'line',text:line});
-    }
-    flushCur();
-    const renderItems = (items) => {
-      let h='', inList=false, inOL=false;
-      for (const item of items) {
-        if (item.t==='code') {
-          if(inList){h+='</ul>';inList=false;} if(inOL){h+='</ol>';inOL=false;}
-          h+=`<pre><code>${esc(item.code)}</code></pre>`; continue;
-        }
-        const ln=item.text, isBullet=/^[-•*] /.test(ln), isOL=/^\d+\. /.test(ln), isCheck=/^- \[[ x]\] /.test(ln);
-        if(!isBullet&&!isCheck&&inList){h+='</ul>';inList=false;}
-        if(!isOL&&inOL){h+='</ol>';inOL=false;}
-        if (isCheck) {
-          if(!inList){h+='<ul class="check-list">';inList=true;}
-          h+=`<li class="check-item"><input type="checkbox" ${ln.startsWith('- [x]')?'checked':''} disabled> ${inline(ln.replace(/^- \[[ x]\] /,''))}</li>`;
-        } else if (isBullet) {
-          if(!inList){h+='<ul>';inList=true;} h+=`<li>${inline(ln.slice(2))}</li>`;
-        } else if (isOL) {
-          if(!inOL){h+='<ol>';inOL=true;} h+=`<li>${inline(ln.replace(/^\d+\. /,''))}</li>`;
-        } else if (ln.trim()==='---') {
-          h+='<hr style="border:none;border-top:1px solid rgba(255,255,255,0.08);margin:18px 0">';
-        } else if (ln.trim()==='') {
-          h+='<br>';
-        } else {
-          h+=`<p>${inline(ln)}</p>`;
-        }
-      }
-      if(inList)h+='</ul>'; if(inOL)h+='</ol>'; return h;
-    };
-    let html='';
-    for (const seg of segs) {
-      if (seg.type==='heading') {
-        const collapsed=collapsedSet.has(seg.key), tag=`h${seg.level}`;
-        const chevCls = `hc-chev ${collapsed?'closed':'open'}`;
-        html+=`<div class="hc-row" data-key="${seg.key}"><span class="${chevCls}">▶</span><${tag} class="hc-htag">${inline(seg.content)}</${tag}></div>`;
-        if (collapsed) html+=`<div class="hc-collapsed-hint">... (collapsed)</div>`;
-      } else {
-        const collapsed = seg.key!=='root' && collapsedSet.has(seg.key);
-        html+=`<div class="hc-content${collapsed?' collapsed':''}" data-key="${seg.key}">${renderItems(seg.items)}</div>`;
-      }
-    }
-    return html;
-  };
-
   // ── Notebook CRUD ─────────────────────────────────────────────────────
   const addNotebook = () => {
     if (!newNBValue.trim()) { setShowNewNB(false); return; }
@@ -2051,39 +2240,40 @@ function Notes() {
               {/* Mobile back button */}
               <button className="mobile-back-btn" style={{marginRight:6}} onClick={()=>setMobilePanel('list')}>‹ Notes</button>
               <span className="enc-badge" style={{flexShrink:0}}><Icon name="lock" size={8} color="var(--grn)"/> enc</span>
-              {saveStatus==='saving' && <span key="saving" className="save-ind saving">Saving...</span>}
-              {saveStatus==='saved'  && <span key="saved"  className="save-ind saved">Saved ✓</span>}
+              {saveStatus==='saving' && <span key="saving" className="save-ind saving">saving...</span>}
+              {saveStatus==='saved'  && <span key="saved"  className="save-ind saved">saved ✓</span>}
               <div style={{flex:1}}/>
-              {viewMode==='edit' && <>
-                <button className="note-tool-btn" title="Bold ⌘B"      onMouseDown={e=>{e.preventDefault();applyFormat('bold');}}><strong>B</strong></button>
-                <button className="note-tool-btn" title="Italic ⌘I"    onMouseDown={e=>{e.preventDefault();applyFormat('italic');}}><em>I</em></button>
-                <div className="note-toolbar-sep"/>
-                <button className="note-tool-btn" title="Heading 1"    onMouseDown={e=>{e.preventDefault();applyFormat('h1');}}>H1</button>
-                <button className="note-tool-btn" title="Heading 2"    onMouseDown={e=>{e.preventDefault();applyFormat('h2');}}>H2</button>
-                <button className="note-tool-btn" title="Heading 3"    onMouseDown={e=>{e.preventDefault();applyFormat('h3');}}>H3</button>
-                <div className="note-toolbar-sep"/>
-                <button className="note-tool-btn" title="Bullet list"  onMouseDown={e=>{e.preventDefault();applyFormat('ul');}}>•—</button>
-                <button className="note-tool-btn" title="Numbered list" onMouseDown={e=>{e.preventDefault();applyFormat('ol');}}>1.</button>
-                <button className="note-tool-btn" title="Checkbox"     onMouseDown={e=>{e.preventDefault();applyFormat('check');}}>☐</button>
-                <div className="note-toolbar-sep"/>
-                <button className="note-tool-btn" title="Inline code"  onMouseDown={e=>{e.preventDefault();applyFormat('code');}}><Icon name="code" size={12}/></button>
-                <button className="note-tool-btn" title="Code block"   onMouseDown={e=>{e.preventDefault();applyFormat('codeblock');}} style={{fontSize:9}}>```</button>
-                <button className="note-tool-btn" title="Divider"      onMouseDown={e=>{e.preventDefault();applyFormat('hr');}}>—</button>
-                <div className="note-toolbar-sep"/>
-              </>}
-              <button
-                className={`note-tool-btn${viewMode==='preview'?' on':''}`}
-                title={viewMode==='edit'?'Preview (rendered)':'Back to editor'}
-                onClick={()=>{
-                  if(viewMode==='edit'){setViewMode('preview');}
-                  else{setViewMode('edit');setTimeout(()=>bodyRef.current?.focus(),50);}
-                }}
-              >
-                {viewMode==='edit' ? <Icon name="eye" size={13}/> : <Icon name="eyeOff" size={13}/>}
-              </button>
+              <button className="note-tool-btn" title="Bold ⌘B"      onMouseDown={e=>{e.preventDefault();applyFormat('bold');}}><strong>B</strong></button>
+              <button className="note-tool-btn" title="Italic ⌘I"    onMouseDown={e=>{e.preventDefault();applyFormat('italic');}}><em>I</em></button>
               <div className="note-toolbar-sep"/>
-              <button className="btn xs danger" onClick={()=>deleteNote(activeNote)}><Icon name="trash" size={11}/></button>
+              <button className="note-tool-btn" title="Heading 1"    onMouseDown={e=>{e.preventDefault();applyFormat('h1');}}>H1</button>
+              <button className="note-tool-btn" title="Heading 2"    onMouseDown={e=>{e.preventDefault();applyFormat('h2');}}>H2</button>
+              <div className="note-toolbar-sep"/>
+              <button className="note-tool-btn" title="Bullet list"  onMouseDown={e=>{e.preventDefault();applyFormat('ul');}}>•—</button>
+              <button className="note-tool-btn" title="Checkbox"     onMouseDown={e=>{e.preventDefault();applyFormat('check');}}>☐</button>
+              <button className="note-tool-btn" title="Divider"      onMouseDown={e=>{e.preventDefault();applyFormat('hr');}}>—</button>
+              <div className="note-toolbar-sep"/>
+              <span style={{fontSize:10,color:'var(--t3)',fontFamily:'var(--mono)',padding:'0 3px',flexShrink:0}}>
+                {editBody.split(/\s+/).filter(Boolean).length}w
+              </span>
+              <div style={{position:'relative'}}>
+                <button className="note-tool-btn dots-trigger" title="More" onClick={e=>{e.stopPropagation();setDotsMenu(v=>!v);}}>···</button>
+                {dotsMenu && (
+                  <div className="note-dots-menu" onClick={e=>e.stopPropagation()}>
+                    <button className="danger" onClick={()=>{deleteNote(activeNote);setDotsMenu(false);}}>
+                      <Icon name="trash" size={12}/> Delete note
+                    </button>
+                  </div>
+                )}
+              </div>
             </div>
+
+            {/* Fullscreen expand/exit button — top-right corner of editor */}
+            {fullscreen ? (
+              <button className="fs-exit-btn" onClick={toggleFullscreen} title="Exit fullscreen">✕</button>
+            ) : (
+              <button className="fs-expand-btn" onClick={toggleFullscreen} title="Fullscreen">⊞</button>
+            )}
 
             {/* Title */}
             <input className="note-title-input"
@@ -2102,33 +2292,22 @@ function Notes() {
               <span className="note-meta-item"><Icon name="folder" size={10} color="var(--t3)"/> {currentNB?.label} / {currentSection?.label}</span>
             </div>
 
-            {/* Body: preview (default) or edit textarea */}
-            {viewMode==='edit' ? (
-              <textarea ref={bodyRef} className="note-body-input" value={editBody}
-                onChange={e=>onBodyChange(e.target.value)}
-                onKeyDown={onBodyKeyDown}
-                onMouseUp={onBodyMouseUp}
-                placeholder={"Start writing...\n\n# Heading 1\n## Heading 2\n### Heading 3\n\n**bold**   _italic_   `code`\n- bullet\n1. numbered\n- [ ] checkbox\n\n```\ncode block\n```\n\n--- (divider)"}/>
-            ) : (
-              <div ref={previewRef} className="preview-body clickable"
-                onClick={(e)=>{
-                  if(!e.target.closest('.hc-row')&&!e.target.closest('input')){
-                    setViewMode('edit');
-                    setTimeout(()=>bodyRef.current?.focus(),50);
-                  }
-                }}
-                dangerouslySetInnerHTML={{__html: renderMarkdown(editBody, collapsedH) + '<div class="preview-edit-hint">Click anywhere to edit</div>'}}/>
-            )}
+            {/* Split editor: textarea + live preview */}
+            <SplitEditor
+              textareaRef={editorRef}
+              value={editBody}
+              onChange={onBodyChange}
+            />
 
             {/* Mobile bottom formatting toolbar */}
             <div className="mobile-editor-toolbar">
-              <button className="note-tool-btn" onMouseDown={e=>{e.preventDefault();setViewMode('edit');setTimeout(()=>{bodyRef.current?.focus();applyFormat('bold');},30);}}><strong>B</strong></button>
-              <button className="note-tool-btn" onMouseDown={e=>{e.preventDefault();setViewMode('edit');setTimeout(()=>{bodyRef.current?.focus();applyFormat('italic');},30);}}><em>I</em></button>
-              <button className="note-tool-btn" onMouseDown={e=>{e.preventDefault();setViewMode('edit');setTimeout(()=>{bodyRef.current?.focus();applyFormat('h1');},30);}}>H1</button>
-              <button className="note-tool-btn" onMouseDown={e=>{e.preventDefault();setViewMode('edit');setTimeout(()=>{bodyRef.current?.focus();applyFormat('h2');},30);}}>H2</button>
-              <button className="note-tool-btn" onMouseDown={e=>{e.preventDefault();setViewMode('edit');setTimeout(()=>{bodyRef.current?.focus();applyFormat('ul');},30);}}>•—</button>
-              <button className="note-tool-btn" onMouseDown={e=>{e.preventDefault();setViewMode('edit');setTimeout(()=>{bodyRef.current?.focus();applyFormat('check');},30);}}>☐</button>
-              <button className="note-tool-btn" onMouseDown={e=>{e.preventDefault();setViewMode('edit');setTimeout(()=>{bodyRef.current?.focus();applyFormat('code');},30);}}><Icon name="code" size={12}/></button>
+              <button className="note-tool-btn" onMouseDown={e=>{e.preventDefault();applyFormat('bold');}}><strong>B</strong></button>
+              <button className="note-tool-btn" onMouseDown={e=>{e.preventDefault();applyFormat('italic');}}><em>I</em></button>
+              <button className="note-tool-btn" onMouseDown={e=>{e.preventDefault();applyFormat('h1');}}>H1</button>
+              <button className="note-tool-btn" onMouseDown={e=>{e.preventDefault();applyFormat('h2');}}>H2</button>
+              <button className="note-tool-btn" onMouseDown={e=>{e.preventDefault();applyFormat('ul');}}>•—</button>
+              <button className="note-tool-btn" onMouseDown={e=>{e.preventDefault();applyFormat('check');}}>☐</button>
+              <button className="note-tool-btn" onMouseDown={e=>{e.preventDefault();applyFormat('code');}}><Icon name="code" size={12}/></button>
             </div>
 
             {/* Tags */}
@@ -2150,19 +2329,6 @@ function Notes() {
           </div>
         )}
       </div>
-
-      {/* ── Floating selection toolbar ── */}
-      {selToolbar && viewMode==='edit' && currentNote && (
-        <div className="sel-toolbar" style={{left:Math.max(8,selToolbar.x-80),top:Math.max(8,selToolbar.y)}}>
-          <button onMouseDown={e=>{e.preventDefault();applyFormat('bold');}}   title="Bold"><strong>B</strong></button>
-          <button onMouseDown={e=>{e.preventDefault();applyFormat('italic');}} title="Italic"><em>I</em></button>
-          <div style={{width:1,height:16,background:'rgba(255,255,255,0.1)',margin:'0 1px'}}/>
-          <button onMouseDown={e=>{e.preventDefault();applyFormat('h1');}} title="H1" style={{fontSize:10}}>H1</button>
-          <button onMouseDown={e=>{e.preventDefault();applyFormat('h2');}} title="H2" style={{fontSize:10}}>H2</button>
-          <div style={{width:1,height:16,background:'rgba(255,255,255,0.1)',margin:'0 1px'}}/>
-          <button onMouseDown={e=>{e.preventDefault();applyFormat('link');}} title="Link" style={{fontSize:13}}>🔗</button>
-        </div>
-      )}
 
       {/* ── Move to section modal ── */}
       {moveModal && (
@@ -2770,7 +2936,7 @@ function Finance() {
 }
 
 function Study() {
-  const EXAM_DATE = new Date("2026-08-31");
+  const EXAM_DATE = new Date("2026-07-07T13:30");
   const today = new Date();
   const daysLeft = Math.ceil((EXAM_DATE - today) / (1000 * 60 * 60 * 24));
   const weeklyGoal = 10; // hours
@@ -2874,7 +3040,7 @@ function Study() {
           <div className="stat-icon" style={{ background: "rgba(239,68,68,0.15)" }}>⏰</div>
           <div className="stat-label">Days to exam</div>
           <div className="stat-value" style={{ color: daysLeft < 60 ? "var(--red)" : daysLeft < 120 ? "var(--amber)" : "var(--t1)" }}>{daysLeft}</div>
-          <div className="stat-sub">PMP — Aug 2026</div>
+          <div className="stat-sub">PMP — Jul 7 2026</div>
           <div className="stat-bar"><div className="stat-fill red" style={{ width: `${Math.max(0, 100 - (daysLeft / 365) * 100)}%` }} /></div>
         </div>
         <div className="stat">
@@ -2964,7 +3130,7 @@ function Study() {
         <div style={{ display: "flex", alignItems: "flex-start", gap: 14 }}>
           <div style={{ fontSize: 24, flexShrink: 0 }}>💡</div>
           <div>
-            <div style={{ fontSize: 13, fontWeight: 600, color: "var(--t1)", marginBottom: 4 }}>Study plan to hit August</div>
+            <div style={{ fontSize: 13, fontWeight: 600, color: "var(--t1)", marginBottom: 4 }}>Study plan to hit July 7</div>
             <div style={{ fontSize: 13, color: "var(--t2)", lineHeight: 1.6 }}>
               You need <strong style={{ color: "var(--purple)" }}>{Math.max(0, targetHours - totalHours).toFixed(0)}h</strong> more to reach the {targetHours}h target.
               With {daysLeft} days left, that's <strong style={{ color: "var(--purple)" }}>{((targetHours - totalHours) / (daysLeft / 7)).toFixed(1)}h/week</strong> —
@@ -3431,7 +3597,7 @@ function TrackerBackBar({ name, onBack }) {
 
 // ─── TRACKER HUB ─────────────────────────────────────────────────────────────
 const TRACKERS = [
-  { id: "study",   emoji: "📚", name: "Study",   sub: "PMP tracker — PMBOK knowledge areas, hours logged, progress toward August exam" },
+  { id: "study",   emoji: "📚", name: "Study",   sub: "PMP tracker — PMBOK knowledge areas, hours logged, progress toward July 7 exam" },
   { id: "career",  emoji: "💼", name: "Career",  sub: "Job applications — track every opportunity, status, interviews, and notes" },
   { id: "finance", emoji: "💰", name: "Finance", sub: "Income, expenses, balance — full picture of your monthly finances" },
   { id: "travel",  emoji: "✈️", name: "Travel",  sub: "Trips, checklists, budgets — Scotland, Italy, and beyond" },
@@ -3630,7 +3796,7 @@ function AIAssistant({ onAddTask, onNavigate }) {
     try {
       const systemPrompt = `You are Sanctum AI, a personal life assistant embedded in a private life organiser app called Sanctum.
 The user is Michael Rodrigues Marques, based in Dublin, Ireland. He has a wife named Tamara and a Golden Retriever named Ozzy (born Nov 2025).
-He is pursuing PMP certification (August 2026 target) and starting an MSc in Cybersecurity at SETU in September 2026.
+He is pursuing PMP certification (July 7 2026 target) and starting an MSc in Cybersecurity at SETU in September 2026.
 Active job applications: Anthropic (Copyright Ops PM), Google (Sr Analyst Trust & Safety), Google (TPM Analytics EU).
 Upcoming trips: Italy Jun 12-17 2026, Scotland Sep 7-13 2026 (with Tamara and Ozzy).
 
@@ -3925,7 +4091,7 @@ function Home({ user, onNavigate, onGoToCalendarDay }) {
   const displayName = localStorage.getItem(homeUserKey) || localStorage.getItem("sanctum_display_name") || (user?.email?.split("@")[0] || "");
   const dateStr = now.toLocaleDateString("en-IE", { weekday: "long", day: "numeric", month: "long", year: "numeric" });
 
-  const EXAM_DATE = new Date("2026-08-31");
+  const EXAM_DATE = new Date("2026-07-07T13:30");
   const SCOTLAND_DATE = new Date("2026-09-07");
   const MSC_DATE = new Date("2026-09-14");
   const daysTo = (d) => Math.ceil((d - now) / 864e5);
@@ -4002,7 +4168,7 @@ function Home({ user, onNavigate, onGoToCalendarDay }) {
 Today is ${todayISO}. User: ${displayName}, Dublin, Ireland.
 Personal: Wife Tamara. Dog Ozzy (Golden Retriever, born Nov 2025).
 Career: Applications open at Anthropic (Copyright Ops PM), Google (Sr Analyst T&S), Google (TPM Analytics EU).
-Study: PMP exam target August 31 2026. MSc Cybersecurity at SETU starts Sep 14 2026.
+Study: PMP exam target July 7 2026. MSc Cybersecurity at SETU starts Sep 14 2026.
 Travel: Italy Jun 12-17 2026. Scotland Sep 7-13 2026 (with Tamara + Ozzy).
 Active tasks: ${activeTasks.length} open, ${archivedTasks.length} completed.
 IMPORTANT: You CANNOT read note content — notes are private and encrypted on-device.
@@ -4156,7 +4322,7 @@ RESPONSE RULES — choose one format only:
               <div className="stat-icon" style={{ background: "rgba(139,92,246,0.15)" }}><Icon name="study" size={18} color="var(--purple)" /></div>
               <div className="stat-label">PMP Exam</div>
               <div className="stat-value" style={{ color: daysToExam < 60 ? "var(--red)" : daysToExam < 120 ? "var(--amber)" : "var(--t1)" }}>{daysToExam}d</div>
-              <div className="stat-sub">Aug 31 2026</div>
+              <div className="stat-sub">Jul 7 2026</div>
               <div className="stat-bar"><div className="stat-fill" style={{ width: `${Math.min(Math.max(0, 100 - (daysToExam / 420) * 100), 100)}%` }} /></div>
             </div>
           );
