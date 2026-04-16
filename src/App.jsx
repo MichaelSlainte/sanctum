@@ -108,29 +108,29 @@ const CSS = `
   *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
 
   :root {
-    /* Base surfaces */
-    --bg:    #0a0e14;
-    --bg1:   #0f1520;
-    --bg2:   #161e2d;
-    --bg3:   #1c2638;
+    /* Base surfaces — Sanctum Dark (default) */
+    --bg:    #111318;
+    --bg1:   #0d0f14;
+    --bg2:   #1a1c24;
+    --bg3:   #1e2130;
     /* Borders */
-    --b1:    #1e2a3d;
-    --b2:    #273548;
-    --b3:    #364d6a;
+    --b1:    #1e2130;
+    --b2:    #272a38;
+    --b3:    #363a4f;
     /* Text */
-    --t1:    #eef2f7;
-    --t2:    #8fa3be;
-    --t3:    #475569;
+    --t1:    #e8eaf0;
+    --t2:    #8892aa;
+    --t3:    #454d62;
     /* Accent */
-    --blue:  #3b82f6;
-    --blue2: #2563eb;
-    --bluem: rgba(59,130,246,0.10);
-    --blueb: rgba(59,130,246,0.28);
+    --blue:  #9180cc;
+    --blue2: #7a6bb8;
+    --bluem: rgba(145,128,204,0.10);
+    --blueb: rgba(145,128,204,0.28);
     --grn:   #10b981;
     --grnm:  rgba(16,185,129,0.10);
     --red:   #ef4444;
     --amber: #f59e0b;
-    --purple:#8b5cf6;
+    --purple:#a78bcc;
     --pink:  #ec4899;
     /* Type */
     --mono:  'JetBrains Mono', monospace;
@@ -142,8 +142,60 @@ const CSS = `
     --shadow:  0 4px 24px rgba(0,0,0,0.45);
     --shadow2: 0 12px 48px rgba(0,0,0,0.55);
     /* Glass */
-    --glass-bg:     rgba(13,19,30,0.68);
-    --glass-border: rgba(255,255,255,0.065);
+    --glass-bg:     rgba(17,19,24,0.70);
+    --glass-border: rgba(255,255,255,0.06);
+    --glass-blur:   blur(20px) saturate(160%);
+  }
+
+  [data-theme="light"] {
+    --bg:    #f0efe9;
+    --bg1:   #ffffff;
+    --bg2:   #f5f4f0;
+    --bg3:   #eceae4;
+    --b1:    rgba(0,0,0,0.08);
+    --b2:    rgba(0,0,0,0.12);
+    --b3:    rgba(0,0,0,0.18);
+    --t1:    #1a1a2e;
+    --t2:    #4a5568;
+    --t3:    #9ca3af;
+    --blue:  #2563eb;
+    --blue2: #1d4ed8;
+    --bluem: rgba(37,99,235,0.10);
+    --blueb: rgba(37,99,235,0.25);
+    --grn:   #059669;
+    --grnm:  rgba(5,150,105,0.10);
+    --red:   #dc2626;
+    --amber: #d97706;
+    --purple:#7c3aed;
+    --pink:  #db2777;
+    --glass-bg:     rgba(255,255,255,0.85);
+    --glass-border: rgba(0,0,0,0.07);
+    --glass-blur:   blur(20px) saturate(180%);
+  }
+
+  [data-theme="tamara"] {
+    --bg:    #111318;
+    --bg1:   #0d0f14;
+    --bg2:   #1a1c24;
+    --bg3:   #1e2130;
+    --b1:    #1e2130;
+    --b2:    #272a38;
+    --b3:    #363a4f;
+    --t1:    #e8eaf0;
+    --t2:    #8892aa;
+    --t3:    #454d62;
+    --blue:  #ec4899;
+    --blue2: #db2777;
+    --bluem: rgba(236,72,153,0.10);
+    --blueb: rgba(236,72,153,0.28);
+    --grn:   #10b981;
+    --grnm:  rgba(16,185,129,0.10);
+    --red:   #ef4444;
+    --amber: #f59e0b;
+    --purple:#f472b6;
+    --pink:  #f472b6;
+    --glass-bg:     rgba(17,19,24,0.70);
+    --glass-border: rgba(236,72,153,0.08);
     --glass-blur:   blur(20px) saturate(160%);
   }
 
@@ -158,9 +210,9 @@ const CSS = `
 
   .main-bg {
     background-image:
-      radial-gradient(ellipse at 12% 20%, rgba(59,130,246,0.08) 0%, transparent 52%),
-      radial-gradient(ellipse at 88% 80%, rgba(139,92,246,0.06) 0%, transparent 52%),
-      radial-gradient(ellipse at 50% 50%, rgba(16,185,129,0.02) 0%, transparent 60%);
+      radial-gradient(ellipse at 12% 20%, var(--bluem) 0%, transparent 52%),
+      radial-gradient(ellipse at 88% 80%, var(--bluem) 0%, transparent 52%),
+      radial-gradient(ellipse at 50% 50%, var(--grnm) 0%, transparent 60%);
   }
 
   /* ── Sidebar ── */
@@ -179,11 +231,11 @@ const CSS = `
   }
   .logo-mark {
     width: 36px; height: 36px; border-radius: 10px;
-    background: linear-gradient(135deg, #3b82f6, #2563eb);
+    background: linear-gradient(135deg, var(--blue), var(--purple));
     display: flex; align-items: center; justify-content: center;
     font-family: var(--mono); font-size: 14px; font-weight: 700;
     color: #fff; flex-shrink: 0;
-    box-shadow: 0 4px 16px rgba(59,130,246,0.45), 0 0 0 1px rgba(59,130,246,0.2);
+    box-shadow: 0 4px 16px var(--bluem), 0 0 0 1px var(--blueb);
   }
   .logo-name { font-size: 15px; font-weight: 700; color: var(--t1); letter-spacing: -.3px; }
   .logo-sub  { font-size: 10px; color: var(--t3); font-family: var(--mono); margin-top: 2px; letter-spacing: .3px; }
@@ -1052,7 +1104,26 @@ const CSS = `
   /* ── Animations ── */
   @keyframes fadeInUp { from { opacity: 0; transform: translateY(8px); } to { opacity: 1; transform: translateY(0); } }
   .animate-in { animation: fadeInUp .3s ease both; }
+
+  /* ── Theme switcher ── */
+  .theme-cards { display: flex; gap: 12px; flex-wrap: wrap; }
+  .theme-card {
+    flex: 1; min-width: 120px; padding: 14px; border-radius: 12px;
+    border: 2px solid var(--b2); background: var(--bg2);
+    cursor: pointer; transition: all .15s; user-select: none;
+  }
+  .theme-card:hover { border-color: var(--b3); background: var(--bg3); }
+  .theme-card.active { border-color: var(--blue); }
+  .theme-swatch {
+    display: flex; gap: 4px; margin-bottom: 10px; border-radius: 6px;
+    overflow: hidden; height: 32px;
+  }
+  .theme-swatch-sidebar { width: 28%; border-radius: 4px 0 0 4px; }
+  .theme-swatch-body { flex: 1; border-radius: 0 4px 4px 0; }
+  .theme-card-name { font-size: 12px; font-weight: 600; color: var(--t1); margin-bottom: 2px; }
+  .theme-card-desc { font-size: 11px; color: var(--t3); line-height: 1.4; }
 `;
+
 
 // ─── ICONS ───────────────────────────────────────────────────────────────────
 const Icon = ({ name, size = 16, color = "currentColor" }) => {
@@ -3734,7 +3805,7 @@ function TrackerHub({ onNavigate }) {
 }
 
 // ─── SETTINGS ────────────────────────────────────────────────────────────────
-function Settings({ user, onLogout }) {
+function Settings({ user, onLogout, theme, onThemeChange }) {
   const userKey = user?.id ? `sanctum_display_name_${user.id}` : "sanctum_display_name";
   const emailUsername = (user?.email || "").split("@")[0];
   const [displayName, setDisplayName] = useState(() =>
@@ -3753,8 +3824,57 @@ function Settings({ user, onLogout }) {
     setTimeout(() => setSaved(false), 2000);
   };
 
+  const THEMES = [
+    {
+      id: "dark",
+      name: "Sanctum Dark",
+      desc: "Deep navy, violet accents",
+      sidebar: "#0d0f14",
+      body: "#111318",
+      accent: "#9180cc",
+    },
+    {
+      id: "light",
+      name: "Light",
+      desc: "Clean, airy, blue accents",
+      sidebar: "#ffffff",
+      body: "#f0efe9",
+      accent: "#2563eb",
+    },
+    {
+      id: "tamara",
+      name: "Tamara",
+      desc: "Dark base, pink accents",
+      sidebar: "#0d0f14",
+      body: "#111318",
+      accent: "#ec4899",
+    },
+  ];
+
   return (
     <div className="page-body animate-in">
+      <div className="card mb18">
+        <div className="card-header"><div className="card-title">Appearance</div></div>
+        <div className="theme-cards">
+          {THEMES.map(t => (
+            <div
+              key={t.id}
+              className={`theme-card${theme === t.id ? " active" : ""}`}
+              onClick={() => onThemeChange(t.id)}
+            >
+              <div className="theme-swatch">
+                <div className="theme-swatch-sidebar" style={{ background: t.sidebar }} />
+                <div className="theme-swatch-body" style={{ background: t.body, display: "flex", alignItems: "center", justifyContent: "center" }}>
+                  <div style={{ width: 10, height: 10, borderRadius: "50%", background: t.accent }} />
+                </div>
+              </div>
+              <div className="theme-card-name">{t.name}</div>
+              <div className="theme-card-desc">{t.desc}</div>
+            </div>
+          ))}
+        </div>
+      </div>
+
       <div className="grid-2 mb18">
         <div className="card">
           <div className="card-header"><div className="card-title">Profile</div></div>
@@ -4571,6 +4691,17 @@ export default function App() {
   const [checking, setChecking] = useState(true);
   const [calDate, setCalDate] = useState(null);
 
+  const [theme, setTheme] = useState(() => localStorage.getItem("sanctum_theme") || "dark");
+
+  useEffect(() => {
+    document.documentElement.setAttribute("data-theme", theme);
+  }, [theme]);
+
+  const applyTheme = (t) => {
+    localStorage.setItem("sanctum_theme", t);
+    setTheme(t);
+  };
+
   // Page & tracker state — map legacy page names on restore
   const [page, setPage] = useState(() => {
     const saved = localStorage.getItem("sanctum_page");
@@ -4691,7 +4822,7 @@ export default function App() {
       if (trackerPage === "pet")     return <><TrackerBackBar name="Ozzy" onBack={() => { setTrackerPage(null); localStorage.setItem("sanctum_page","trackers"); }} /><Ozzy /></>;
       return <TrackerHub onNavigate={navigate} />;
     }
-    if (page === "settings") return <Settings user={user} onLogout={handleLogout} />;
+    if (page === "settings") return <Settings user={user} onLogout={handleLogout} theme={theme} onThemeChange={applyTheme} />;
   };
 
   const today = new Date().toLocaleDateString("en-IE", { weekday: "short", day: "numeric", month: "short", year: "numeric" });
