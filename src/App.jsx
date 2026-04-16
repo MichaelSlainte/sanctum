@@ -1781,9 +1781,9 @@ function Notes() {
     });
   };
 
-  // ── Active selection ──────────────────────────────────────────────────
-  const [activeNB,      setActiveNB]      = useState(DEFAULT_NOTEBOOKS[0]?.id || '');
-  const [activeSection, setActiveSection] = useState(DEFAULT_NOTEBOOKS[0]?.sections[0]?.id || '');
+  // ── Active selection (localStorage backed) ───────────────────────────
+  const [activeNB,      setActiveNB]      = useState(() => localStorage.getItem('sanctum_active_nb') || DEFAULT_NOTEBOOKS[0]?.id || '');
+  const [activeSection, setActiveSection] = useState(() => localStorage.getItem('sanctum_active_sec') || null);
 
   // ── Notes (Supabase) ─────────────────────────────────────────────────
   const [allNotes,   setAllNotes]   = useState([]);
@@ -1868,7 +1868,13 @@ function Notes() {
       const data = await sb.from("notes").select("*");
       if (Array.isArray(data)) {
         setAllNotes(data);
-        const first = data.find(n => n.section === activeSection);
+        // Restore last viewed state: try active section first, then active notebook, then first note
+        const storedNB  = localStorage.getItem('sanctum_active_nb')  || DEFAULT_NOTEBOOKS[0]?.id || '';
+        const storedSec = localStorage.getItem('sanctum_active_sec') || '';
+        let first;
+        if (storedSec) first = data.find(n => n.section === storedSec);
+        if (!first && storedNB) first = data.find(n => n.notebook === storedNB);
+        if (!first && data.length > 0) first = data[0];
         if (first) openNote(first);
       }
     } catch { setAllNotes([]); }
@@ -1911,9 +1917,19 @@ function Notes() {
     if (window.innerWidth < 769) setMobilePanel('editor');
   };
   const selectSection = (sid, nbid) => {
-    setActiveNB(nbid); setActiveSection(sid); setNbMenu(null);
+    setActiveNB(nbid); localStorage.setItem('sanctum_active_nb', nbid);
+    setActiveSection(sid); localStorage.setItem('sanctum_active_sec', sid || '');
+    setNbMenu(null);
     if (window.innerWidth < 769) { setMobilePanel('list'); return; }
     const first = allNotes.find(n => n.section === sid);
+    if (first) openNote(first); else { setActiveNote(null); setEditTitle(''); setEditBody(''); setEditTags(''); }
+  };
+  const selectNotebook = (nbid) => {
+    setActiveNB(nbid); localStorage.setItem('sanctum_active_nb', nbid);
+    setActiveSection(null); localStorage.setItem('sanctum_active_sec', '');
+    setNbMenu(null);
+    if (window.innerWidth < 769) { setMobilePanel('list'); return; }
+    const first = allNotes.find(n => n.notebook === nbid);
     if (first) openNote(first); else { setActiveNote(null); setEditTitle(''); setEditBody(''); setEditTags(''); }
   };
 
@@ -1926,7 +1942,9 @@ function Notes() {
 
   // ── CRUD ──────────────────────────────────────────────────────────────
   const newNote = async () => {
-    const note = { notebook: activeNB, section: activeSection, title: 'Untitled', body: '', tags: '', updated_at: new Date().toISOString().slice(0, 10) };
+    const nb = notebooks.find(n => n.id === activeNB);
+    const sectionId = activeSection || nb?.sections[0]?.id || '';
+    const note = { notebook: activeNB, section: sectionId, title: 'Untitled', body: '', tags: '', updated_at: new Date().toISOString().slice(0, 10) };
     try {
       const res = await sb.from("notes").insert(note);
       const created = Array.isArray(res) && res[0] ? res[0] : { ...note, id: Date.now().toString() };
@@ -1938,7 +1956,9 @@ function Notes() {
     const nid = id || activeNote; if (!nid) return;
     const remaining = allNotes.filter(n => n.id !== nid); setAllNotes(remaining);
     if (nid === activeNote) {
-      const next = remaining.find(n => n.section === activeSection);
+      const next = activeSection
+        ? remaining.find(n => n.section === activeSection)
+        : remaining.find(n => n.notebook === activeNB);
       if (next) openNote(next); else { setActiveNote(null); setEditTitle(''); setEditBody(''); setEditTags(''); }
     }
     try { await sb.from("notes").delete({ id: nid }); } catch {}
@@ -2073,6 +2093,7 @@ function Notes() {
   const onNoteDrop      = (e,tid) => {
     e.preventDefault();
     if (!dragNoteId||dragNoteId===tid){setDragNoteId(null);setDragOverId(null);return;}
+    if (!activeSection){setDragNoteId(null);setDragOverId(null);return;}
     const ordered=getOrderedNotes(activeSection), ids=ordered.map(n=>String(n.id));
     const fi=ids.indexOf(String(dragNoteId)), ti=ids.indexOf(String(tid));
     if(fi===-1||ti===-1){setDragNoteId(null);setDragOverId(null);return;}
@@ -2083,7 +2104,9 @@ function Notes() {
   const currentNote    = allNotes.find(n => n.id === activeNote);
   const currentNB      = notebooks.find(n => n.id === activeNB);
   const currentSection = currentNB?.sections.find(s => s.id === activeSection);
-  const displayedNotes = getOrderedNotes(activeSection);
+  const displayedNotes = activeSection
+    ? getOrderedNotes(activeSection)
+    : allNotes.filter(n => n.notebook === activeNB);
 
   return (
     <div className="notes-shell" data-mobile-panel={mobilePanel} onClick={() => { setNbMenu(null); setNoteMenu(null); }}>
@@ -2108,7 +2131,7 @@ function Notes() {
                 onDragStart={e=>onNBDragStart(e,nb.id)} onDragOver={e=>onNBDragOver(e,nb.id)}
                 onDragLeave={()=>setDragOverId(null)} onDrop={e=>onNBDrop(e,nb.id)}
                 onDragEnd={()=>{setDragNBId(null);setDragOverId(null);}}
-                onClick={() => { toggleExpand(nb.id); if(nb.sections[0]) selectSection(nb.sections[0].id,nb.id); }}
+                onClick={() => { toggleExpand(nb.id); selectNotebook(nb.id); }}
               >
                 <span className="nb-chev" style={{transform:isExpanded?'rotate(0)':'rotate(-90deg)',display:'inline-block',transition:'transform .15s'}}>▼</span>
                 <div className="notebook-icon" style={{background:nb.bg}}>{nb.emoji}</div>
@@ -2134,7 +2157,7 @@ function Notes() {
                 </>}
               </div>
 
-              {isExpanded && nb.sections.map(sec => (
+              {isExpanded && nb.sections.filter(sec => sec.label !== 'New Section').map(sec => (
                 <div key={sec.id}
                   className={`section-item${activeSection===sec.id?' active':''}${dragOverId==='sec-'+sec.id?' sec-drag-over':''}`}
                   draggable
