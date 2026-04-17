@@ -1770,13 +1770,9 @@ const restoreCursorOffset = (el, offset) => {
   } catch {}
 };
 
-function SplitEditor({ value, onChange, placeholder, textareaRef }) {
+function SplitEditor({ value, onChange, placeholder, textareaRef, editorMode, setMode }) {
   const innerRef = useRef(null);
   const ref = textareaRef || innerRef;
-  const [editorMode, setEditorMode] = useState(() =>
-    localStorage.getItem('sanctum_editor_mode') || 'preview'
-  );
-  const setMode = (m) => { setEditorMode(m); localStorage.setItem('sanctum_editor_mode', m); };
   const preview = useMemo(() => mdToHtmlPreview(value), [value]);
 
   const handleKeyDown = useCallback((e) => {
@@ -1869,6 +1865,8 @@ function Notes() {
   const dirtyRef    = useRef(false);
   const pendingSave = useRef({ id: null, title: '', body: '', tags: '' });
   const editorRef   = useRef(null);
+  const [editorMode, setEditorMode] = useState(() => localStorage.getItem('sanctum_editor_mode') || 'write');
+  const setMode = (m) => { setEditorMode(m); localStorage.setItem('sanctum_editor_mode', m); };
   // Collapsible panels
   const [sidebarCollapsed, setSidebarCollapsed] = useState(() => localStorage.getItem('sanctum_sidebar_col') === 'true');
   const [listCollapsed, setListCollapsed] = useState(() => localStorage.getItem('sanctum_list_col') === 'true');
@@ -2058,6 +2056,7 @@ function Notes() {
   // ── Formatting (WYSIWYG) ──────────────────────────────────────────────
   const applyFormat = (fmt) => {
     const ta = editorRef.current; if (!ta) return;
+    if (editorMode !== 'write' && editorMode !== 'split') setMode('write');
     ta.focus();
     const text = editBody;
     const start = ta.selectionStart ?? text.length;
@@ -2111,29 +2110,43 @@ function Notes() {
     if (activeNB===id && rem[0]) selectSection(rem[0].sections[0]?.id, rem[0].id);
     setNbMenu(null);
   };
-  const addSection = (nbId) => {
+  const addSection = async (nbId) => {
     const id='sec-'+Date.now(), label='New Section';
     saveNotebooks(notebooks.map(nb => nb.id!==nbId ? nb : {...nb, sections:[...nb.sections,{id,label}]}));
-    setNbMenu(null); setTimeout(() => setRenameTarget({type:'section',id,parentId:nbId,value:label}), 50);
+    setNbMenu(null);
+    try {
+      const res = await sb.from("notes").insert({ notebook: nbId, section: id, title: label, body: '', tags: '' });
+      const created = Array.isArray(res) && res[0] ? res[0] : { notebook: nbId, section: id, title: label, body: '', tags: '', id: Date.now().toString() };
+      setAllNotes(prev => [...prev, created]);
+    } catch {}
+    setTimeout(() => setRenameTarget({type:'section',id,parentId:nbId,value:label}), 50);
   };
-  const deleteSection = (secId, parentId) => {
+  const deleteSection = async (secId, parentId) => {
     const nb=notebooks.find(n=>n.id===parentId); if(!nb||nb.sections.length<=1) return;
     saveNotebooks(notebooks.map(n=>n.id!==parentId?n:{...n,sections:n.sections.filter(s=>s.id!==secId)}));
     if (activeSection===secId) { const rem=nb.sections.filter(s=>s.id!==secId); if(rem[0]) selectSection(rem[0].id,parentId); }
+    setAllNotes(prev => prev.filter(n => n.section !== secId));
+    try { await sb.from("notes").delete({ section: secId, notebook: parentId }); } catch {}
     setNbMenu(null);
   };
-  const commitRename = () => {
+  const commitRename = async () => {
     if (!renameTarget || !renameTarget.value?.trim()) { setRenameTarget(null); return; }
     const {type, id, parentId, value} = renameTarget;
-    if (type==='notebook')     saveNotebooks(notebooks.map(nb=>nb.id!==id?nb:{...nb,label:value.trim()}));
-    else if (type==='section') saveNotebooks(notebooks.map(nb=>nb.id!==parentId?nb:{...nb,sections:nb.sections.map(s=>s.id!==id?s:{...s,label:value.trim()})}));
-    else if (type==='note')    onTitleChange(value.trim());
+    if (type==='notebook') saveNotebooks(notebooks.map(nb=>nb.id!==id?nb:{...nb,label:value.trim()}));
+    else if (type==='section') {
+      const newLabel = value.trim();
+      saveNotebooks(notebooks.map(nb=>nb.id!==parentId?nb:{...nb,sections:nb.sections.map(s=>s.id!==id?s:{...s,id:newLabel,label:newLabel})}));
+      setAllNotes(prev => prev.map(n => n.section===id ? {...n,section:newLabel} : n));
+      if (activeSection===id) { setActiveSection(newLabel); localStorage.setItem('sanctum_active_sec', newLabel); }
+      try { await sb.from("notes").update({section:newLabel},{section:id,notebook:parentId}); } catch {}
+    }
+    else if (type==='note') onTitleChange(value.trim());
     setRenameTarget(null);
   };
 
   // ── Note counts ───────────────────────────────────────────────────────
-  const noteCountFor = (sid) => allNotes.filter(n => n.section===sid).length;
-  const nbNoteCount  = (nb)  => nb.sections.reduce((sum,s)=>sum+noteCountFor(s.id), 0);
+  const noteCountFor = (sid, nbId) => allNotes.filter(n => n.section===sid && (!nbId || n.notebook===nbId)).length;
+  const nbNoteCount  = (nb)  => allNotes.filter(n => n.notebook === nb.id).length;
 
   // ── Notebook drag ─────────────────────────────────────────────────────
   const onNBDragStart = (e,id) => { setDragNBId(id); e.dataTransfer.effectAllowed='move'; };
@@ -2248,7 +2261,7 @@ function Notes() {
                     <span style={{flex:1,overflow:'hidden',textOverflow:'ellipsis',whiteSpace:'nowrap'}}>{sec.label}</span>
                   )}
                   {!(renameTarget?.type==='section'&&renameTarget?.id===sec.id) && <>
-                    <span className="sec-count">{noteCountFor(sec.id)}</span>
+                    <span className="sec-count">{noteCountFor(sec.id, nb.id)}</span>
                     <button className="nb-dot-btn" onClick={e=>{e.stopPropagation();setNbMenu(m=>m?.id===sec.id&&m?.type==='section'?null:{type:'section',id:sec.id,parentId:nb.id});}}>···</button>
                     {nbMenu?.type==='section'&&nbMenu?.id===sec.id&&(
                       <div className="nb-dropdown" onClick={e=>e.stopPropagation()}>
@@ -2412,6 +2425,8 @@ function Notes() {
               textareaRef={editorRef}
               value={editBody}
               onChange={onBodyChange}
+              editorMode={editorMode}
+              setMode={setMode}
             />
 
             {/* Mobile bottom formatting toolbar */}
@@ -2461,7 +2476,7 @@ function Notes() {
                     <div key={sec.id} className="move-modal-sec" onClick={()=>moveNote(moveModal.noteId,nb.id,sec.id)}>
                       <span className="section-dot" style={{background:sec.id===activeSection?'var(--blue)':'var(--b3)'}}/>
                       {sec.label}
-                      <span style={{marginLeft:'auto',fontSize:10,color:'var(--t3)',fontFamily:'var(--mono)'}}>{noteCountFor(sec.id)}</span>
+                      <span style={{marginLeft:'auto',fontSize:10,color:'var(--t3)',fontFamily:'var(--mono)'}}>{noteCountFor(sec.id, nb.id)}</span>
                     </div>
                   ))}
                 </div>
