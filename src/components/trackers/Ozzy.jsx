@@ -5,6 +5,7 @@ import { Icon, Modal } from "../shared";
 const DEFAULT_PROFILE = {
   Breed: "Golden Retriever",
   Born: "November 2025",
+  Location: "Dublin, Ireland",
   "Chip number": "Check vet records",
   Vet: "Local Dublin vet",
   Insurance: "€25/month",
@@ -309,13 +310,13 @@ export default function Ozzy({ user }) {
           </div>
           <div style={{ flex: 1 }}>
             <div style={{ fontSize: 22, fontWeight: 700, color: "var(--t1)", marginBottom: 4 }}>Ozzy</div>
-            <div style={{ fontSize: 13, color: "var(--t2)", marginBottom: 12 }}>Golden Retriever · Born November 2025 · Dublin, Ireland</div>
+            <div style={{ fontSize: 13, color: "var(--t2)", marginBottom: 12 }}>{profile["Breed"] || "Golden Retriever"} · Born {profile["Born"] || "November 2025"} · {profile["Location"] || "Dublin, Ireland"}</div>
             <div style={{ display: "flex", gap: 8, flexWrap: "wrap" }}>
               <span className="badge amber">Belarmine</span>
               <span className="badge green">Vaccinated</span>
               <span className="badge blue">Microchipped</span>
-              <span className="badge muted">600 kcal/day</span>
-              <span className="badge purple">Insurance: €25/mo</span>
+              {profile["Daily calories"] && <span className="badge muted">{profile["Daily calories"]}</span>}
+              {profile["Insurance"] && <span className="badge purple">Insurance: {profile["Insurance"]}</span>}
             </div>
           </div>
           <div style={{ textAlign: "right", flexShrink: 0 }}>
@@ -516,7 +517,7 @@ export default function Ozzy({ user }) {
             ))}
             <div style={{ marginTop: 14, padding: 12, background: "rgba(245,158,11,0.08)", borderRadius: 10, border: "1px solid rgba(245,158,11,0.2)" }}>
               <div style={{ display: "flex", alignItems: "center", gap: 6, fontSize: 11, color: "var(--amber)", fontWeight: 600, marginBottom: 4 }}><Icon name="alert" size={12} color="var(--amber)" /> Daily limit</div>
-              <div style={{ fontSize: 13, color: "var(--t2)" }}>Maximum 600 kcal per day. No human food. Fresh water always available.</div>
+              <div style={{ fontSize: 13, color: "var(--t2)" }}>Maximum {profile["Daily calories"] || "600 kcal max"} per day. No human food. Fresh water always available.</div>
             </div>
           </div>
           <div className="card">
