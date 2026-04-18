@@ -6,10 +6,10 @@ export default function Travel() {
   const [activeTrip, setActiveTrip] = useState(null);
   const [trips, setTrips] = useState(() => JSON.parse(localStorage.getItem("sanctum_trips") || JSON.stringify([
     {
-      id: "scotland-2026", name: "Scotland Road Trip", emoji: "🏴󠁧󠁢󠁳󠁣󠁴󠁿",
+      id: "scotland-2026", name: "Scotland Road Trip",
       start: "2026-09-07", end: "2026-09-13",
       status: "planning", budget: 2000, spent: 0,
-      travelers: "Michael, Tamara, Ozzy 🐾",
+      travelers: "Michael, Tamara, Ozzy",
       notes: "Edinburgh → Highlands → Skye. Dog-friendly accommodation needed.",
       checklist: [
         { id: "c1", text: "Book accommodation", done: false },
@@ -20,7 +20,7 @@ export default function Travel() {
       ]
     },
     {
-      id: "italy-2026", name: "Italy Trip", emoji: "🇮🇹",
+      id: "italy-2026", name: "Italy Trip",
       start: "2026-06-12", end: "2026-06-17",
       status: "booked", budget: 1500, spent: 344,
       travelers: "Michael, Tamara",
@@ -34,7 +34,7 @@ export default function Travel() {
     },
   ])));
 
-  const [newTrip, setNewTrip] = useState({ name: "", emoji: "✈️", start: "", end: "", budget: "", travelers: "", notes: "" });
+  const [newTrip, setNewTrip] = useState({ name: "", start: "", end: "", budget: "", travelers: "", notes: "" });
 
   const saveTrips = (t) => { setTrips(t); localStorage.setItem("sanctum_trips", JSON.stringify(t)); };
 
@@ -42,7 +42,7 @@ export default function Travel() {
     if (!newTrip.name || !newTrip.start) return;
     const trip = { ...newTrip, id: Date.now().toString(), status: "planning", spent: 0, budget: parseFloat(newTrip.budget) || 0, checklist: [] };
     saveTrips([trip, ...trips]);
-    setNewTrip({ name: "", emoji: "✈️", start: "", end: "", budget: "", travelers: "", notes: "" });
+    setNewTrip({ name: "", start: "", end: "", budget: "", travelers: "", notes: "" });
     setShowAdd(false);
   };
 
@@ -72,10 +72,7 @@ export default function Travel() {
     <div className="page-body animate-in">
       {showAdd && (
         <Modal title="Add trip" onClose={() => setShowAdd(false)} wide>
-          <div className="grid-2" style={{ gap: 12 }}>
-            <div className="form-row"><label className="form-label">Trip name</label><input className="inp" value={newTrip.name} onChange={e => setNewTrip(n => ({ ...n, name: e.target.value }))} placeholder="Scotland Road Trip" autoFocus /></div>
-            <div className="form-row"><label className="form-label">Emoji</label><input className="inp" value={newTrip.emoji} onChange={e => setNewTrip(n => ({ ...n, emoji: e.target.value }))} placeholder="✈️" /></div>
-          </div>
+          <div className="form-row"><label className="form-label">Trip name</label><input className="inp" value={newTrip.name} onChange={e => setNewTrip(n => ({ ...n, name: e.target.value }))} placeholder="Scotland Road Trip" autoFocus /></div>
           <div className="grid-2" style={{ gap: 12 }}>
             <div className="form-row"><label className="form-label">Start date</label><input className="inp" type="date" value={newTrip.start} onChange={e => setNewTrip(n => ({ ...n, start: e.target.value }))} /></div>
             <div className="form-row"><label className="form-label">End date</label><input className="inp" type="date" value={newTrip.end} onChange={e => setNewTrip(n => ({ ...n, end: e.target.value }))} /></div>
@@ -92,19 +89,19 @@ export default function Travel() {
       {/* Header stats */}
       <div className="grid-3 mb18">
         <div className="stat">
-          <div className="stat-icon" style={{ background: "rgba(59,130,246,0.15)" }}>✈️</div>
+          <div className="stat-icon" style={{ background: "rgba(59,130,246,0.15)" }}><Icon name="travel" size={18} color="var(--blue)" /></div>
           <div className="stat-label">Upcoming trips</div>
           <div className="stat-value">{trips.filter(t => t.status !== "completed").length}</div>
           <div className="stat-sub">Planned & booked</div>
         </div>
         <div className="stat">
-          <div className="stat-icon" style={{ background: "rgba(16,185,129,0.15)" }}>📅</div>
+          <div className="stat-icon" style={{ background: "rgba(16,185,129,0.15)" }}><Icon name="calendar" size={18} color="var(--grn)" /></div>
           <div className="stat-label">Next trip</div>
           <div className="stat-value" style={{ fontSize: 18 }}>{trips.filter(t => t.status !== "completed").sort((a, b) => a.start.localeCompare(b.start))[0]?.name || "None"}</div>
           <div className="stat-sub">{trips.filter(t => t.status !== "completed").sort((a, b) => a.start.localeCompare(b.start))[0] ? daysUntil(trips.filter(t => t.status !== "completed").sort((a, b) => a.start.localeCompare(b.start))[0].start) : ""}</div>
         </div>
         <div className="stat">
-          <div className="stat-icon" style={{ background: "rgba(245,158,11,0.15)" }}>💶</div>
+          <div className="stat-icon" style={{ background: "rgba(245,158,11,0.15)" }}><Icon name="finance" size={18} color="var(--amber)" /></div>
           <div className="stat-label">Total budget</div>
           <div className="stat-value">€{trips.reduce((s, t) => s + (t.budget || 0), 0).toLocaleString()}</div>
           <div className="stat-sub">Across all trips</div>
@@ -134,7 +131,7 @@ export default function Travel() {
                   }}>
                   <div style={{ display: "flex", alignItems: "flex-start", justifyContent: "space-between", gap: 12 }}>
                     <div style={{ display: "flex", alignItems: "center", gap: 14, flex: 1 }}>
-                      <div style={{ fontSize: 32, flexShrink: 0 }}>{trip.emoji}</div>
+                      <div style={{ flexShrink: 0, width: 36, height: 36, borderRadius: 10, background: "var(--bg2)", display: "flex", alignItems: "center", justifyContent: "center" }}><Icon name="travel" size={18} color="var(--blue)" /></div>
                       <div style={{ flex: 1 }}>
                         <div style={{ fontSize: 15, fontWeight: 700, color: "var(--t1)", marginBottom: 4 }}>{trip.name}</div>
                         <div style={{ fontSize: 12, color: "var(--t3)", fontFamily: "var(--mono)", marginBottom: 6 }}>
@@ -142,7 +139,7 @@ export default function Travel() {
                         </div>
                         <div style={{ display: "flex", gap: 8, alignItems: "center", flexWrap: "wrap" }}>
                           <span style={{ fontSize: 11, padding: "2px 8px", borderRadius: 20, background: st.bg, color: st.color, fontWeight: 600 }}>{st.label}</span>
-                          <span className="badge muted">💶 €{(trip.budget || 0).toLocaleString()}</span>
+                          <span className="badge muted">€{(trip.budget || 0).toLocaleString()}</span>
                           {trip.checklist.length > 0 && <span className="badge muted">✓ {doneChecks}/{trip.checklist.length}</span>}
                           <span style={{ fontSize: 11, color: "var(--blue)", fontFamily: "var(--mono)" }}>{daysUntil(trip.start)}</span>
                         </div>
@@ -162,7 +159,7 @@ export default function Travel() {
         {/* Trip detail */}
         {selected && (
           <div>
-            <div style={{ fontSize: 14, fontWeight: 700, color: "var(--t1)", marginBottom: 14 }}>{selected.emoji} {selected.name}</div>
+            <div style={{ fontSize: 14, fontWeight: 700, color: "var(--t1)", marginBottom: 14 }}>{selected.name}</div>
             <div className="card mb18">
               <div className="card-header"><div className="card-title">Checklist</div>
                 <span className="badge green">{selected.checklist.filter(c => c.done).length}/{selected.checklist.length}</span>

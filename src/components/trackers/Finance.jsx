@@ -61,10 +61,10 @@ export default function Finance() {
       )}
 
       <div className="grid-3 mb18">
-        <div className="stat"><div className="stat-icon" style={{ background: "rgba(16,185,129,0.15)" }}>💰</div><div className="stat-label">Income</div><div className="stat-value" style={{ color: "var(--grn)" }}>€{income.toLocaleString()}</div><div className="stat-sub">April 2026</div></div>
-        <div className="stat"><div className="stat-icon" style={{ background: "rgba(239,68,68,0.15)" }}>💳</div><div className="stat-label">Expenses</div><div className="stat-value" style={{ color: "var(--red)" }}>€{expenses.toLocaleString()}</div><div className="stat-sub">All outgoings</div></div>
+        <div className="stat"><div className="stat-icon" style={{ background: "rgba(16,185,129,0.15)" }}><Icon name="finance" size={18} color="var(--grn)" /></div><div className="stat-label">Income</div><div className="stat-value" style={{ color: "var(--grn)" }}>€{income.toLocaleString()}</div><div className="stat-sub">April 2026</div></div>
+        <div className="stat"><div className="stat-icon" style={{ background: "rgba(239,68,68,0.15)" }}><Icon name="card" size={18} color="var(--red)" /></div><div className="stat-label">Expenses</div><div className="stat-value" style={{ color: "var(--red)" }}>€{expenses.toLocaleString()}</div><div className="stat-sub">All outgoings</div></div>
         <div className="stat">
-          <div className="stat-icon" style={{ background: balance >= 0 ? "rgba(16,185,129,0.15)" : "rgba(239,68,68,0.15)" }}>🏦</div>
+          <div className="stat-icon" style={{ background: balance >= 0 ? "rgba(16,185,129,0.15)" : "rgba(239,68,68,0.15)" }}><Icon name="bank" size={18} color={balance >= 0 ? "var(--grn)" : "var(--red)"} /></div>
           <div className="stat-label">Balance</div>
           <div className="stat-value" style={{ color: balance >= 0 ? "var(--grn)" : "var(--red)" }}>€{balance.toLocaleString()}</div>
           <div className="stat-sub">After all expenses</div>
@@ -77,10 +77,10 @@ export default function Finance() {
           <div style={{ fontSize: 13, fontWeight: 700, color: "var(--t1)", marginBottom: 14 }}>By category</div>
           <div style={{ display: "grid", gridTemplateColumns: "repeat(auto-fill, minmax(140px, 1fr))", gap: 12 }}>
             {grouped.map(g => {
-              const info = CAT_ICONS[g.cat] || { emoji: "💳", color: "var(--blue)", bg: "var(--bluem)" };
+              const info = CAT_ICONS[g.cat] || { icon: "card", color: "var(--blue)", bg: "var(--bluem)" };
               return (
                 <div key={g.cat} className="fin-category-card">
-                  <div className="fin-cat-icon" style={{ background: info.bg }}>{info.emoji}</div>
+                  <div className="fin-cat-icon" style={{ background: info.bg }}><Icon name={info.icon} size={16} color={info.color} /></div>
                   <div className="fin-cat-name">{g.cat.charAt(0).toUpperCase() + g.cat.slice(1)}</div>
                   <div className="fin-cat-amount" style={{ color: info.color }}>€{g.total.toLocaleString()}</div>
                 </div>
@@ -96,11 +96,11 @@ export default function Finance() {
           <button className="btn sm primary" onClick={() => setShowAdd(true)}><Icon name="plus" size={13} /> Add</button>
         </div>
         {loading ? <div className="loading">Loading...</div> : entries.map(e => {
-          const info = CAT_ICONS[e.category] || { emoji: "💳", color: "var(--t1)", bg: "var(--bg3)" };
+          const info = CAT_ICONS[e.category] || { icon: "card", color: "var(--t1)", bg: "var(--bg3)" };
           return (
             <div key={e.id} className="fin-row">
               <div style={{ display: "flex", alignItems: "center", flex: 1 }}>
-                <div className="fin-icon" style={{ background: info.bg }}>{info.emoji}</div>
+                <div className="fin-icon" style={{ background: info.bg }}><Icon name={info.icon} size={14} color={info.color} /></div>
                 <div>
                   <div className="fin-label">{e.label}</div>
                   <div className="fin-cat-tag">{e.category}</div>

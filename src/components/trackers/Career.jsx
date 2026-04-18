@@ -62,9 +62,9 @@ export default function Career() {
       )}
 
       <div className="grid-3 mb18">
-        <div className="stat"><div className="stat-icon" style={{ background: "rgba(59,130,246,0.15)" }}>📨</div><div className="stat-label">Active</div><div className="stat-value">{active}</div><div className="stat-sub">In progress</div><div className="stat-bar"><div className="stat-fill" style={{ width: `${(active / Math.max(apps.length, 1)) * 100}%` }} /></div></div>
-        <div className="stat"><div className="stat-icon" style={{ background: "rgba(245,158,11,0.15)" }}>🎤</div><div className="stat-label">Interviews</div><div className="stat-value">{interviews}</div><div className="stat-sub">Scheduled or completed</div></div>
-        <div className="stat"><div className="stat-icon" style={{ background: "rgba(16,185,129,0.15)" }}>📊</div><div className="stat-label">Total applied</div><div className="stat-value">{apps.length}</div><div className="stat-sub">All time</div></div>
+        <div className="stat"><div className="stat-icon" style={{ background: "rgba(59,130,246,0.15)" }}><Icon name="mail" size={18} color="var(--blue)" /></div><div className="stat-label">Active</div><div className="stat-value">{active}</div><div className="stat-sub">In progress</div><div className="stat-bar"><div className="stat-fill" style={{ width: `${(active / Math.max(apps.length, 1)) * 100}%` }} /></div></div>
+        <div className="stat"><div className="stat-icon" style={{ background: "rgba(245,158,11,0.15)" }}><Icon name="mic" size={18} color="var(--amber)" /></div><div className="stat-label">Interviews</div><div className="stat-value">{interviews}</div><div className="stat-sub">Scheduled or completed</div></div>
+        <div className="stat"><div className="stat-icon" style={{ background: "rgba(16,185,129,0.15)" }}><Icon name="chart" size={18} color="var(--grn)" /></div><div className="stat-label">Total applied</div><div className="stat-value">{apps.length}</div><div className="stat-sub">All time</div></div>
       </div>
 
       <div className="card">

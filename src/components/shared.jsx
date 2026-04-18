@@ -32,6 +32,23 @@ export const Icon = ({ name, size = 16, color = "currentColor" }) => {
     code: <><polyline points="16 18 22 12 16 6"/><polyline points="8 6 2 12 8 18"/></>,
     list: <><line x1="9" y1="6" x2="20" y2="6"/><line x1="9" y1="12" x2="20" y2="12"/><line x1="9" y1="18" x2="20" y2="18"/><line x1="4" y1="6" x2="4.01" y2="6" strokeWidth="3" strokeLinecap="round"/><line x1="4" y1="12" x2="4.01" y2="12" strokeWidth="3" strokeLinecap="round"/><line x1="4" y1="18" x2="4.01" y2="18" strokeWidth="3" strokeLinecap="round"/></>,
     folder: <><path d="M22 19a2 2 0 01-2 2H4a2 2 0 01-2-2V5a2 2 0 012-2h5l2 3h9a2 2 0 012 2z"/></>,
+    clock: <><circle cx="12" cy="12" r="10"/><polyline points="12 6 12 12 16 14"/></>,
+    target: <><circle cx="12" cy="12" r="10"/><circle cx="12" cy="12" r="6"/><circle cx="12" cy="12" r="2"/></>,
+    flag: <><path d="M4 15s1-1 4-1 5 2 8 2 4-1 4-1V3s-1 1-4 1-5-2-8-2-4 1-4 1z"/><line x1="4" y1="22" x2="4" y2="15"/></>,
+    chart: <><line x1="18" y1="20" x2="18" y2="10"/><line x1="12" y1="20" x2="12" y2="4"/><line x1="6" y1="20" x2="6" y2="14"/></>,
+    mail: <><path d="M4 4h16c1.1 0 2 .9 2 2v12c0 1.1-.9 2-2 2H4c-1.1 0-2-.9-2-2V6c0-1.1.9-2 2-2z"/><polyline points="22,6 12,13 2,6"/></>,
+    mic: <><path d="M12 1a3 3 0 00-3 3v8a3 3 0 006 0V4a3 3 0 00-3-3z"/><path d="M19 10v2a7 7 0 01-14 0v-2"/><line x1="12" y1="19" x2="12" y2="23"/><line x1="8" y1="23" x2="16" y2="23"/></>,
+    card: <><rect x="1" y="4" width="22" height="16" rx="2"/><line x1="1" y1="10" x2="23" y2="10"/></>,
+    bank: <><line x1="3" y1="22" x2="21" y2="22"/><line x1="6" y1="18" x2="6" y2="11"/><line x1="10" y1="18" x2="10" y2="11"/><line x1="14" y1="18" x2="14" y2="11"/><line x1="18" y1="18" x2="18" y2="11"/><polygon points="12 2 20 7 4 7"/></>,
+    shield: <><path d="M12 22s8-4 8-10V5l-8-3-8 3v7c0 6 8 10 8 10z"/></>,
+    phone: <><rect x="5" y="2" width="14" height="20" rx="2"/><line x1="12" y1="18" x2="12.01" y2="18" strokeWidth="3" strokeLinecap="round"/></>,
+    link: <><path d="M10 13a5 5 0 007.54.54l3-3a5 5 0 00-7.07-7.07l-1.72 1.71"/><path d="M14 11a5 5 0 00-7.54-.54l-3 3a5 5 0 007.07 7.07l1.71-1.71"/></>,
+    maximize: <><path d="M8 3H5a2 2 0 00-2 2v3m18 0V5a2 2 0 00-2-2h-3m0 18h3a2 2 0 002-2v-3M3 16v3a2 2 0 002 2h3"/></>,
+    table: <><rect x="3" y="3" width="18" height="18" rx="2"/><line x1="3" y1="9" x2="21" y2="9"/><line x1="3" y1="15" x2="21" y2="15"/><line x1="9" y1="9" x2="9" y2="21"/><line x1="15" y1="9" x2="15" y2="21"/></>,
+    alert: <><path d="M10.29 3.86L1.82 18a2 2 0 001.71 3h16.94a2 2 0 001.71-3L13.71 3.86a2 2 0 00-3.42 0z"/><line x1="12" y1="9" x2="12" y2="13"/><line x1="12" y1="17" x2="12.01" y2="17" strokeWidth="2.5" strokeLinecap="round"/></>,
+    doc: <><path d="M14 2H6a2 2 0 00-2 2v16a2 2 0 002 2h12a2 2 0 002-2V8z"/><polyline points="14 2 14 8 20 8"/></>,
+    fire: <><path d="M8.5 14.5A2.5 2.5 0 0011 12c0-1.38-.5-2-1-3-1.072-2.143-.224-4.054 2-6 .5 2.5 2 4.9 4 6.5 2 1.6 3 3.5 3 5.5a7 7 0 01-7 7 7 7 0 01-7-7c0-1.153.433-2.294 1-3a2.5 2.5 0 002.5 2.5z"/></>,
+    users: <><path d="M17 21v-2a4 4 0 00-4-4H5a4 4 0 00-4 4v2"/><circle cx="9" cy="7" r="4"/><path d="M23 21v-2a4 4 0 00-3-3.87"/><path d="M16 3.13a4 4 0 010 7.75"/></>,
   };
   return <svg viewBox="0 0 24 24" style={s}>{p[name]}</svg>;
 };
@@ -59,7 +76,7 @@ export function Modal({ title, onClose, children, wide }) {
 // ─── NOTEBOOKS CONFIG ────────────────────────────────────────────────────────
 export const DEFAULT_NOTEBOOKS = [
   {
-    id: "finance", label: "Finance", emoji: "💰", color: "#10b981", bg: "rgba(16,185,129,0.15)",
+    id: "finance", label: "Finance", icon: "finance", color: "#10b981", bg: "rgba(16,185,129,0.15)",
     sections: [
       { id: "mortgage", label: "Mortgage & House" },
       { id: "expenses", label: "Monthly Expenses" },
@@ -68,7 +85,7 @@ export const DEFAULT_NOTEBOOKS = [
     ]
   },
   {
-    id: "travel", label: "Travel", emoji: "✈️", color: "#3b82f6", bg: "rgba(59,130,246,0.15)",
+    id: "travel", label: "Travel", icon: "travel", color: "#3b82f6", bg: "rgba(59,130,246,0.15)",
     sections: [
       { id: "scotland", label: "Scotland Sep 2026" },
       { id: "italy", label: "Italy Jun 2026" },
@@ -77,7 +94,7 @@ export const DEFAULT_NOTEBOOKS = [
     ]
   },
   {
-    id: "career", label: "Career", emoji: "💼", color: "#f59e0b", bg: "rgba(245,158,11,0.15)",
+    id: "career", label: "Career", icon: "career", color: "#f59e0b", bg: "rgba(245,158,11,0.15)",
     sections: [
       { id: "applications", label: "Applications" },
       { id: "pmp", label: "PMP Study" },
@@ -86,16 +103,16 @@ export const DEFAULT_NOTEBOOKS = [
     ]
   },
   {
-    id: "personal", label: "Personal", emoji: "🌿", color: "#ec4899", bg: "rgba(236,72,153,0.15)",
+    id: "personal", label: "Personal", icon: "home", color: "#ec4899", bg: "rgba(236,72,153,0.15)",
     sections: [
       { id: "health", label: "Health & Fitness" },
       { id: "reading", label: "Reading List" },
       { id: "home", label: "Home & House" },
-      { id: "ozzy", label: "Ozzy 🐾" },
+      { id: "ozzy", label: "Ozzy" },
     ]
   },
   {
-    id: "ideas", label: "Ideas", emoji: "💡", color: "#8b5cf6", bg: "rgba(139,92,246,0.15)",
+    id: "ideas", label: "Ideas", icon: "ai", color: "#8b5cf6", bg: "rgba(139,92,246,0.15)",
     sections: [
       { id: "sanctum", label: "Sanctum App" },
       { id: "projects", label: "Projects" },
@@ -106,12 +123,12 @@ export const DEFAULT_NOTEBOOKS = [
 
 export const STATUS_COLORS = { submitted: "blue", interview: "amber", offer: "green", rejected: "red", withdrawn: "muted" };
 export const CAT_ICONS = {
-  expense: { emoji: "💳", color: "#ef4444", bg: "rgba(239,68,68,0.15)" },
-  income: { emoji: "💰", color: "#10b981", bg: "rgba(16,185,129,0.15)" },
-  mortgage: { emoji: "🏠", color: "#3b82f6", bg: "rgba(59,130,246,0.15)" },
-  insurance: { emoji: "🛡️", color: "#f59e0b", bg: "rgba(245,158,11,0.15)" },
-  subscription: { emoji: "📱", color: "#8b5cf6", bg: "rgba(139,92,246,0.15)" },
-  savings: { emoji: "🏦", color: "#10b981", bg: "rgba(16,185,129,0.15)" },
+  expense: { icon: "card", color: "#ef4444", bg: "rgba(239,68,68,0.15)" },
+  income: { icon: "finance", color: "#10b981", bg: "rgba(16,185,129,0.15)" },
+  mortgage: { icon: "home", color: "#3b82f6", bg: "rgba(59,130,246,0.15)" },
+  insurance: { icon: "shield", color: "#f59e0b", bg: "rgba(245,158,11,0.15)" },
+  subscription: { icon: "phone", color: "#8b5cf6", bg: "rgba(139,92,246,0.15)" },
+  savings: { icon: "bank", color: "#10b981", bg: "rgba(16,185,129,0.15)" },
 };
 export const EVENT_COLORS = {
   personal: { color: "#3b82f6", bg: "rgba(59,130,246,0.2)" },

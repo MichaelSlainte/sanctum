@@ -30,10 +30,10 @@ export default function Ozzy() {
   const VET_TYPES = ["Annual checkup", "Vaccination", "Grooming", "Dental", "Emergency", "Medication", "Other"];
 
   const tabs = [
-    { id: "overview", label: "Overview", emoji: "🐾" },
-    { id: "health", label: "Health", emoji: "🏥" },
-    { id: "diet", label: "Diet", emoji: "🍖" },
-    { id: "documents", label: "Documents", emoji: "📋" },
+    { id: "overview", label: "Overview" },
+    { id: "health", label: "Health" },
+    { id: "diet", label: "Diet" },
+    { id: "documents", label: "Documents" },
   ];
 
   return (
@@ -66,16 +66,16 @@ export default function Ozzy() {
       {/* Ozzy profile card */}
       <div className="card mb18" style={{ background: "linear-gradient(135deg, rgba(245,158,11,0.1), rgba(16,185,129,0.08))", borderColor: "rgba(245,158,11,0.2)" }}>
         <div style={{ display: "flex", alignItems: "center", gap: 20 }}>
-          <div style={{ fontSize: 56, flexShrink: 0 }}>🐕</div>
+          <div style={{ flexShrink: 0, width: 56, height: 56, borderRadius: 16, background: "rgba(245,158,11,0.15)", display: "flex", alignItems: "center", justifyContent: "center" }}><Icon name="pet" size={28} color="var(--amber)" /></div>
           <div style={{ flex: 1 }}>
             <div style={{ fontSize: 22, fontWeight: 700, color: "var(--t1)", marginBottom: 4 }}>Ozzy</div>
             <div style={{ fontSize: 13, color: "var(--t2)", marginBottom: 12 }}>Golden Retriever · Born November 2025 · Dublin, Ireland</div>
             <div style={{ display: "flex", gap: 8, flexWrap: "wrap" }}>
-              <span className="badge amber">🏠 Belarmine</span>
-              <span className="badge green">✅ Vaccinated</span>
-              <span className="badge blue">🔖 Microchipped</span>
-              <span className="badge muted">🍖 600 kcal/day</span>
-              <span className="badge purple">💉 Insurance: €25/mo</span>
+              <span className="badge amber">Belarmine</span>
+              <span className="badge green">Vaccinated</span>
+              <span className="badge blue">Microchipped</span>
+              <span className="badge muted">600 kcal/day</span>
+              <span className="badge purple">Insurance: €25/mo</span>
             </div>
           </div>
           <div style={{ textAlign: "right", flexShrink: 0 }}>
@@ -92,7 +92,7 @@ export default function Ozzy() {
         {tabs.map(t => (
           <button key={t.id} className={`btn${activeTab === t.id ? " primary" : ""}`}
             onClick={() => setActiveTab(t.id)}>
-            {t.emoji} {t.label}
+            {t.label}
           </button>
         ))}
       </div>
@@ -185,12 +185,12 @@ export default function Ozzy() {
               </div>
             ))}
             <div style={{ marginTop: 14, padding: 12, background: "rgba(245,158,11,0.08)", borderRadius: 10, border: "1px solid rgba(245,158,11,0.2)" }}>
-              <div style={{ fontSize: 11, color: "var(--amber)", fontWeight: 600, marginBottom: 4 }}>⚠️ Daily limit</div>
+              <div style={{ display: "flex", alignItems: "center", gap: 6, fontSize: 11, color: "var(--amber)", fontWeight: 600, marginBottom: 4 }}><Icon name="alert" size={12} color="var(--amber)" /> Daily limit</div>
               <div style={{ fontSize: 13, color: "var(--t2)" }}>Maximum 600 kcal per day. No human food. Fresh water always available.</div>
             </div>
           </div>
           <div className="card">
-            <div className="card-header"><div className="card-title">Foods to avoid 🚫</div></div>
+            <div className="card-header"><div className="card-title">Foods to avoid</div></div>
             {["Chocolate", "Grapes & raisins", "Onions & garlic", "Macadamia nuts", "Xylitol (sugar-free products)", "Alcohol", "Cooked bones", "Avocado"].map(food => (
               <div key={food} style={{ display: "flex", alignItems: "center", gap: 10, padding: "8px 0", borderBottom: "1px solid var(--b1)" }}>
                 <span style={{ color: "var(--red)" }}>✕</span>
@@ -205,14 +205,14 @@ export default function Ozzy() {
         <div className="card">
           <div className="card-header"><div className="card-title">Documents & records</div></div>
           {[
-            { label: "Vaccination certificate", status: "✅ Up to date", color: "var(--grn)" },
-            { label: "Microchip registration", status: "✅ Registered", color: "var(--grn)" },
-            { label: "Pet insurance", status: "✅ Active — €25/mo", color: "var(--grn)" },
-            { label: "Vet registration", status: "✅ Registered", color: "var(--grn)" },
-            { label: "Passport (if travelling)", status: "⏳ Check requirements", color: "var(--amber)" },
+            { label: "Vaccination certificate", status: "Up to date", color: "var(--grn)" },
+            { label: "Microchip registration", status: "Registered", color: "var(--grn)" },
+            { label: "Pet insurance", status: "Active — €25/mo", color: "var(--grn)" },
+            { label: "Vet registration", status: "Registered", color: "var(--grn)" },
+            { label: "Passport (if travelling)", status: "Check requirements", color: "var(--amber)" },
           ].map(doc => (
             <div key={doc.label} className="fin-row">
-              <span style={{ fontSize: 13, color: "var(--t1)", fontWeight: 500 }}>📄 {doc.label}</span>
+              <span style={{ display: "flex", alignItems: "center", gap: 6, fontSize: 13, color: "var(--t1)", fontWeight: 500 }}><Icon name="doc" size={13} color="var(--t3)" /> {doc.label}</span>
               <span style={{ fontSize: 12, color: doc.color, fontWeight: 600 }}>{doc.status}</span>
             </div>
           ))}

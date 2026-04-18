@@ -247,24 +247,24 @@ function Dashboard({ onNavigate, onGoToCalendarDay }) {
       {/* Progress */}
       <div className="grid-3">
         <div className="stat">
-          <div className="stat-icon" style={{ background: "rgba(139,92,246,0.15)" }}>📚</div>
+          <div className="stat-icon" style={{ background: "rgba(139,92,246,0.15)" }}><Icon name="study" size={18} color="var(--purple)" /></div>
           <div className="stat-label">PMP Study</div>
           <div className="stat-value">2h</div>
           <div className="stat-sub">Target: Jul 7 2026</div>
           <div className="stat-bar"><div className="stat-fill" style={{ width: "0.1%" }} /></div>
         </div>
         <div className="stat">
-          <div className="stat-icon" style={{ background: "rgba(16,185,129,0.15)" }}>🎓</div>
+          <div className="stat-icon" style={{ background: "rgba(16,185,129,0.15)" }}><Icon name="notes" size={18} color="var(--grn)" /></div>
           <div className="stat-label">MSc Cybersecurity</div>
           <div className="stat-value">159d</div>
           <div className="stat-sub">SETU — Sep 14 2026</div>
           <div className="stat-bar"><div className="stat-fill grn" style={{ width: "62%" }} /></div>
         </div>
         <div className="stat">
-          <div className="stat-icon" style={{ background: "rgba(59,130,246,0.15)" }}>✈️</div>
+          <div className="stat-icon" style={{ background: "rgba(59,130,246,0.15)" }}><Icon name="travel" size={18} color="var(--blue)" /></div>
           <div className="stat-label">Scotland trip</div>
           <div className="stat-value">152d</div>
-          <div className="stat-sub">Sep 7–13 · Tamara + Ozzy 🐾</div>
+          <div className="stat-sub">Sep 7–13 · Tamara + Ozzy</div>
           <div className="stat-bar"><div className="stat-fill amber" style={{ width: "59%" }} /></div>
         </div>
       </div>

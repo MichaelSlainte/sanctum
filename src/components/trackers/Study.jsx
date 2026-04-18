@@ -29,18 +29,18 @@ export default function Study() {
   const [newPmp, setNewPmp] = useState({ topic: "", hours: "", notes: "", date: today.toISOString().slice(0, 10) });
 
   const DEFAULT_TOPICS = [
-    { id: "integration",    label: "Integration Management",    icon: "🔗" },
-    { id: "scope",          label: "Scope Management",          icon: "📐" },
-    { id: "schedule",       label: "Schedule Management",       icon: "📅" },
-    { id: "cost",           label: "Cost Management",           icon: "💰" },
-    { id: "quality",        label: "Quality Management",        icon: "⭐" },
-    { id: "resource",       label: "Resource Management",       icon: "👥" },
-    { id: "communications", label: "Communications Management", icon: "📢" },
-    { id: "risk",           label: "Risk Management",           icon: "⚠️" },
-    { id: "procurement",    label: "Procurement Management",    icon: "📦" },
-    { id: "stakeholder",    label: "Stakeholder Management",    icon: "🤝" },
-    { id: "agile",          label: "Agile & Hybrid",            icon: "🔄" },
-    { id: "ethics",         label: "Ethics & Professional",     icon: "🎯" },
+    { id: "integration",    label: "Integration Management",    icon: "link" },
+    { id: "scope",          label: "Scope Management",          icon: "target" },
+    { id: "schedule",       label: "Schedule Management",       icon: "calendar" },
+    { id: "cost",           label: "Cost Management",           icon: "finance" },
+    { id: "quality",        label: "Quality Management",        icon: "check" },
+    { id: "resource",       label: "Resource Management",       icon: "users" },
+    { id: "communications", label: "Communications Management", icon: "mail" },
+    { id: "risk",           label: "Risk Management",           icon: "alert" },
+    { id: "procurement",    label: "Procurement Management",    icon: "card" },
+    { id: "stakeholder",    label: "Stakeholder Management",    icon: "users" },
+    { id: "agile",          label: "Agile & Hybrid",            icon: "trackers" },
+    { id: "ethics",         label: "Ethics & Professional",     icon: "shield" },
   ];
   const [topics, setTopics] = useState(() => {
     try { const s = JSON.parse(localStorage.getItem("sanctum_pmbok_topics")); if (Array.isArray(s) && s.length > 0) return s; } catch {}
@@ -55,7 +55,7 @@ export default function Study() {
   const deleteTopic   = (id) => saveTopics(topics.filter(t => t.id !== id));
   const addTopic      = () => {
     const id = `topic_${Date.now()}`;
-    const t = [...topics, { id, label: "New Topic", icon: "📖" }];
+    const t = [...topics, { id, label: "New Topic", icon: "notes" }];
     saveTopics(t); setEditTopicId(id); setEditTopicText("New Topic");
   };
   const saveTopicName = (id) => {
@@ -158,7 +158,7 @@ export default function Study() {
 
       {/* Tab bar */}
       <div style={{ display: "flex", gap: 8, marginBottom: 20 }}>
-        {[{ id: "pmp", label: "📚 PMP Study" }, { id: "thm", label: "🛡️ TryHackMe" }].map(t => (
+        {[{ id: "pmp", label: "PMP Study" }, { id: "thm", label: "TryHackMe" }].map(t => (
           <button key={t.id} className={`btn${tab === t.id ? " primary" : ""}`}
             style={{ fontWeight: tab === t.id ? 700 : 500 }}
             onClick={() => setTab(t.id)}>{t.label}</button>
@@ -175,7 +175,7 @@ export default function Study() {
                   <label className="form-label">Topic</label>
                   <select className="inp" value={newPmp.topic} onChange={e => setNewPmp(n => ({ ...n, topic: e.target.value }))}>
                     <option value="">Select topic...</option>
-                    {TOPICS.map(t => <option key={t.id} value={t.id}>{t.icon} {t.label}</option>)}
+                    {TOPICS.map(t => <option key={t.id} value={t.id}>{t.label}</option>)}
                   </select>
                 </div>
                 <div className="form-row">
@@ -221,28 +221,28 @@ export default function Study() {
 
           <div className="grid-4 mb18">
             <div className="stat">
-              <div className="stat-icon" style={{ background: "rgba(239,68,68,0.15)" }}>⏰</div>
+              <div className="stat-icon" style={{ background: "rgba(239,68,68,0.15)" }}><Icon name="clock" size={18} color="var(--red)" /></div>
               <div className="stat-label">Days to exam</div>
               <div className="stat-value" style={{ color: daysLeft < 60 ? "var(--red)" : daysLeft < 120 ? "var(--amber)" : "var(--t1)" }}>{daysLeft}</div>
               <div className="stat-sub">{weeksLeft} weeks · Jul 7 2026</div>
               <div className="stat-bar"><div className="stat-fill red" style={{ width: `${Math.max(0, 100 - (daysLeft / 365) * 100)}%` }} /></div>
             </div>
             <div className="stat">
-              <div className="stat-icon" style={{ background: "rgba(139,92,246,0.15)" }}>📚</div>
+              <div className="stat-icon" style={{ background: "rgba(139,92,246,0.15)" }}><Icon name="study" size={18} color="var(--purple)" /></div>
               <div className="stat-label">Total hours</div>
               <div className="stat-value">{totalHours.toFixed(1)}h</div>
               <div className="stat-sub">Target: {targetHours}h</div>
               <div className="stat-bar"><div className="stat-fill" style={{ width: `${Math.min((totalHours / targetHours) * 100, 100)}%` }} /></div>
             </div>
             <div className="stat">
-              <div className="stat-icon" style={{ background: "rgba(16,185,129,0.15)" }}>📅</div>
+              <div className="stat-icon" style={{ background: "rgba(16,185,129,0.15)" }}><Icon name="calendar" size={18} color="var(--grn)" /></div>
               <div className="stat-label">This week</div>
               <div className="stat-value" style={{ color: thisWeekHours >= weeklyGoal ? "var(--grn)" : "var(--t1)" }}>{thisWeekHours.toFixed(1)}h</div>
               <div className="stat-sub">Goal: {weeklyGoal}h/week</div>
               <div className="stat-bar"><div className="stat-fill grn" style={{ width: `${Math.min((thisWeekHours / weeklyGoal) * 100, 100)}%` }} /></div>
             </div>
             <div className="stat">
-              <div className="stat-icon" style={{ background: "rgba(245,158,11,0.15)" }}>🎯</div>
+              <div className="stat-icon" style={{ background: "rgba(245,158,11,0.15)" }}><Icon name="target" size={18} color="var(--amber)" /></div>
               <div className="stat-label">Sessions logged</div>
               <div className="stat-value">{pmpSessions.length}</div>
               <div className="stat-sub">Keep the momentum</div>
@@ -266,7 +266,7 @@ export default function Study() {
                     style={{ fill: "var(--t1)", fontFamily: "var(--mono)" }}>{thisWeekHours.toFixed(1)}h</text>
                   <text x="60" y="71" textAnchor="middle" fontSize="12" style={{ fill: "var(--t3)" }}>/ {weeklyGoal}h goal</text>
                   <text x="60" y="87" textAnchor="middle" fontSize="10" style={{ fill: ringColor }}>
-                    {pct >= 1 ? "Goal met! 🎉" : pct >= 0.5 ? "Halfway there" : "Keep pushing"}
+                    {pct >= 1 ? "Goal met!" : pct >= 0.5 ? "Halfway there" : "Keep pushing"}
                   </text>
                 </svg>
                 <div className="weekly-ring-label">This week's progress</div>
@@ -287,7 +287,7 @@ export default function Study() {
                     <button className="btn xs ghost" style={{ padding: "0 5px", fontSize: 9, lineHeight: 1.4 }}
                       onClick={() => moveTopicDown(idx)} disabled={idx === topics.length - 1}>▼</button>
                   </div>
-                  <span style={{ fontSize: 14, flexShrink: 0 }}>{t.icon}</span>
+                  <span style={{ flexShrink: 0, display: "flex", alignItems: "center" }}><Icon name={t.icon || "notes"} size={14} color="var(--t3)" /></span>
                   {editTopicId === t.id ? (
                     <input className="inp" style={{ flex: 1, padding: "3px 8px", fontSize: 12 }}
                       value={editTopicText} autoFocus
@@ -328,7 +328,7 @@ export default function Study() {
                 return (
                   <div key={s.id} className="fin-row">
                     <div style={{ display: "flex", alignItems: "center", gap: 10, flex: 1 }}>
-                      <div style={{ fontSize: 20 }}>{topic?.icon || "📖"}</div>
+                      <div style={{ display: "flex", alignItems: "center", flexShrink: 0 }}><Icon name={topic?.icon || "notes"} size={20} color="var(--t3)" /></div>
                       <div>
                         <div style={{ fontSize: 13, fontWeight: 600, color: "var(--t1)" }}>{topic?.label || s.topic}</div>
                         <div style={{ fontSize: 11, color: "var(--t3)", fontFamily: "var(--mono)" }}>{s.date}{s.notes ? ` · ${s.notes.slice(0, 40)}` : ""}</div>
@@ -346,13 +346,13 @@ export default function Study() {
 
           <div className="card" style={{ background: "rgba(139,92,246,0.08)", borderColor: "rgba(139,92,246,0.2)" }}>
             <div style={{ display: "flex", alignItems: "flex-start", gap: 14 }}>
-              <div style={{ fontSize: 24, flexShrink: 0 }}>💡</div>
+              <div style={{ flexShrink: 0 }}><Icon name="ai" size={24} color="var(--purple)" /></div>
               <div>
                 <div style={{ fontSize: 13, fontWeight: 600, color: "var(--t1)", marginBottom: 4 }}>Study plan to hit July 7</div>
                 <div style={{ fontSize: 13, color: "var(--t2)", lineHeight: 1.6 }}>
                   You need <strong style={{ color: "var(--purple)" }}>{Math.max(0, targetHours - totalHours).toFixed(0)}h</strong> more to reach the {targetHours}h target.
                   With {daysLeft} days left, that's <strong style={{ color: "var(--purple)" }}>{((targetHours - totalHours) / Math.max(daysLeft / 7, 0.1)).toFixed(1)}h/week</strong> —
-                  {((targetHours - totalHours) / Math.max(daysLeft / 7, 0.1)) <= weeklyGoal ? " within your weekly goal. You're on track. 🎉" : " above your current goal. Consider increasing weekly hours."}
+                  {((targetHours - totalHours) / Math.max(daysLeft / 7, 0.1)) <= weeklyGoal ? " within your weekly goal. You're on track." : " above your current goal. Consider increasing weekly hours."}
                 </div>
               </div>
             </div>
@@ -409,27 +409,27 @@ export default function Study() {
 
           <div className="grid-4 mb18">
             <div className="stat">
-              <div className="stat-icon" style={{ background: "rgba(16,185,129,0.15)" }}>🔥</div>
+              <div className="stat-icon" style={{ background: "rgba(16,185,129,0.15)" }}><Icon name="fire" size={18} color="var(--grn)" /></div>
               <div className="stat-label">Current streak</div>
               <div className="stat-value" style={{ color: thmStreak >= 7 ? "var(--grn)" : thmStreak >= 3 ? "var(--amber)" : "var(--t1)" }}>{thmStreak}</div>
               <div className="stat-sub">{thmStreak === 1 ? "day" : "days"} in a row</div>
               <div className="stat-bar"><div className="stat-fill grn" style={{ width: `${Math.min((thmStreak / 30) * 100, 100)}%` }} /></div>
             </div>
             <div className="stat">
-              <div className="stat-icon" style={{ background: "rgba(123,142,200,0.15)" }}>🏁</div>
+              <div className="stat-icon" style={{ background: "rgba(123,142,200,0.15)" }}><Icon name="flag" size={18} color="#7b8ec8" /></div>
               <div className="stat-label">Rooms completed</div>
               <div className="stat-value">{thmCompleted}</div>
               <div className="stat-sub">of {thmSessions.length} logged</div>
               <div className="stat-bar"><div className="stat-fill" style={{ width: `${thmSessions.length ? (thmCompleted / thmSessions.length) * 100 : 0}%` }} /></div>
             </div>
             <div className="stat">
-              <div className="stat-icon" style={{ background: "rgba(245,158,11,0.15)" }}>📊</div>
+              <div className="stat-icon" style={{ background: "rgba(245,158,11,0.15)" }}><Icon name="chart" size={18} color="var(--amber)" /></div>
               <div className="stat-label">This week</div>
               <div className="stat-value">{thmSessions.filter(s => new Date(s.date) >= weekStart).length}</div>
               <div className="stat-sub">sessions this week</div>
             </div>
             <div className="stat">
-              <div className="stat-icon" style={{ background: "rgba(236,72,153,0.15)" }}>🗂️</div>
+              <div className="stat-icon" style={{ background: "rgba(236,72,153,0.15)" }}><Icon name="folder" size={18} color="var(--pink)" /></div>
               <div className="stat-label">Categories</div>
               <div className="stat-value">{new Set(thmSessions.map(s => s.category).filter(Boolean)).size}</div>
               <div className="stat-sub">areas covered</div>
@@ -471,7 +471,7 @@ export default function Study() {
               {thmSessions.slice(0, 12).map(s => (
                 <div key={s.id} className="fin-row">
                   <div style={{ display: "flex", alignItems: "center", gap: 10, flex: 1 }}>
-                    <div style={{ fontSize: 18, flexShrink: 0 }}>{s.completed ? "✅" : "🔄"}</div>
+                    <div style={{ flexShrink: 0 }}><Icon name={s.completed ? "check" : "clock"} size={16} color={s.completed ? "var(--grn)" : "var(--t3)"} /></div>
                     <div>
                       <div style={{ fontSize: 13, fontWeight: 600, color: "var(--t1)" }}>{s.room_name}</div>
                       <div style={{ fontSize: 11, color: "var(--t3)", fontFamily: "var(--mono)" }}>

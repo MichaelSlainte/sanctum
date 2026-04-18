@@ -804,7 +804,7 @@
     opacity: 0; transition: opacity .2s;
   }
   .tracker-card:hover::before { opacity: 1; }
-  .tc-emoji { font-size: 34px; margin-bottom: 16px; }
+  .tc-icon { width: 40px; height: 40px; border-radius: 10px; background: var(--bg2); display: flex; align-items: center; justify-content: center; margin-bottom: 16px; }
   .tc-name { font-size: 16px; font-weight: 700; color: var(--t1); margin-bottom: 6px; letter-spacing: -.3px; }
   .tc-sub { font-size: 12px; color: var(--t3); line-height: 1.55; }
   .tc-arrow { position: absolute; right: 20px; top: 20px; color: var(--t3); opacity: 0; transition: opacity .2s; font-size: 18px; }

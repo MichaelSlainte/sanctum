@@ -493,7 +493,7 @@ export default function Notes() {
   const addNotebook = () => {
     if (!newNBValue.trim()) { setShowNewNB(false); return; }
     const id='nb-'+Date.now(), secId='sec-'+Date.now();
-    const nb={id, label:newNBValue.trim(), emoji:'📓', color:'#8b5cf6', bg:'rgba(139,92,246,0.15)', sections:[{id:secId,label:'General'}]};
+    const nb={id, label:newNBValue.trim(), icon:'notes', color:'#8b5cf6', bg:'rgba(139,92,246,0.15)', sections:[{id:secId,label:'General'}]};
     saveNotebooks([...notebooks, nb]); toggleExpand(id);
     setNewNBValue(''); setShowNewNB(false);
   };
@@ -633,7 +633,7 @@ export default function Notes() {
                 onClick={() => { toggleExpand(nb.id); if (!isMobile) selectNotebook(nb.id); }}
               >
                 <span className="nb-chev" style={{transform:isExpanded?'rotate(0)':'rotate(-90deg)',display:'inline-block',transition:'transform .15s'}}>▼</span>
-                <div className="notebook-icon" style={{background:nb.bg}}>{nb.emoji}</div>
+                <div className="notebook-icon" style={{background:nb.bg}}><Icon name={nb.icon || "notes"} size={13} color={nb.color} /></div>
                 {renameTarget?.type==='notebook'&&renameTarget?.id===nb.id ? (
                   <input className="nb-rename-input" autoFocus value={renameTarget.value}
                     onChange={e=>setRenameTarget(r=>({...r,value:e.target.value}))}
@@ -803,9 +803,9 @@ export default function Notes() {
               <button className="note-tool-btn" title="Italic ⌘I"    onMouseDown={e=>{e.preventDefault();applyFormat('italic');}}><em>I</em></button>
               <button className="note-tool-btn" title="Underline"    onMouseDown={e=>{e.preventDefault();applyFormat('underline');}} style={{textDecoration:'underline'}}>U</button>
               <div className="note-toolbar-sep"/>
-              <button className="note-tool-btn" title="Checkbox"     onMouseDown={e=>{e.preventDefault();applyFormat('check');}}>☐</button>
-              <button className="note-tool-btn" title="Insert table" onMouseDown={e=>{e.preventDefault();applyFormat('table');}}>⊞</button>
-              <button className="note-tool-btn" title="Link"          onMouseDown={e=>{e.preventDefault();applyFormat('link');}}>🔗</button>
+              <button className="note-tool-btn" title="Checkbox"     onMouseDown={e=>{e.preventDefault();applyFormat('check');}}><Icon name="check" size={13} /></button>
+              <button className="note-tool-btn" title="Insert table" onMouseDown={e=>{e.preventDefault();applyFormat('table');}}><Icon name="table" size={13} /></button>
+              <button className="note-tool-btn" title="Link"          onMouseDown={e=>{e.preventDefault();applyFormat('link');}}><Icon name="link" size={13} /></button>
               <div className="note-toolbar-sep"/>
               <span style={{fontSize:10,color:'var(--t3)',fontFamily:'var(--mono)',padding:'0 3px',flexShrink:0}}>
                 {editBody.split(/\s+/).filter(Boolean).length}w
@@ -816,7 +816,7 @@ export default function Notes() {
             {fullscreen ? (
               <button className="fs-exit-btn" onClick={toggleFullscreen} title="Exit fullscreen">✕</button>
             ) : (
-              <button className="fs-expand-btn" onClick={toggleFullscreen} title="Fullscreen">⊞</button>
+              <button className="fs-expand-btn" onClick={toggleFullscreen} title="Fullscreen"><Icon name="maximize" size={14} /></button>
             )}
 
             {/* Title */}
@@ -913,7 +913,7 @@ export default function Notes() {
             <div className="move-modal-sections">
               {notebooks.map(nb=>(
                 <div key={nb.id}>
-                  <div className="move-modal-nb">{nb.emoji} {nb.label}</div>
+                  <div className="move-modal-nb" style={{display:"flex",alignItems:"center",gap:6}}><Icon name={nb.icon || "notes"} size={12} color={nb.color} /> {nb.label}</div>
                   {nb.sections.map(sec=>(
                     <div key={sec.id} className="move-modal-sec" onClick={()=>moveNote(moveModal.noteId,nb.id,sec.id)}>
                       <span className="section-dot" style={{background:sec.id===activeSection?'var(--blue)':'var(--b3)'}}/>

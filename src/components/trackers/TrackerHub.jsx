@@ -15,10 +15,10 @@ const MiniRing = ({ percent, color }) => {
   );
 };
 
-export function PlaceholderPage({ label, emoji }) {
+export function PlaceholderPage({ label }) {
   return (
     <div className="page-body" style={{ display: "flex", alignItems: "center", justifyContent: "center", height: "100%", flexDirection: "column", gap: 16 }}>
-      <div style={{ fontSize: 56, opacity: .2 }}>{emoji || "🚧"}</div>
+      <Icon name="trackers" size={48} color="var(--b2)" />
       <div style={{ fontSize: 18, fontWeight: 700, color: "var(--t1)" }}>{label}</div>
       <div style={{ fontSize: 13, color: "var(--t3)" }}>Coming in the next build</div>
     </div>
@@ -38,11 +38,11 @@ export function TrackerBackBar({ name, onBack }) {
 }
 
 const TRACKERS = [
-  { id: "study",   emoji: "📚", name: "Study",   sub: "PMP tracker — PMBOK knowledge areas, hours logged, progress toward July 7 exam" },
-  { id: "career",  emoji: "💼", name: "Career",  sub: "Job applications — track every opportunity, status, interviews, and notes" },
-  { id: "finance", emoji: "💰", name: "Finance", sub: "Income, expenses, balance — full picture of your monthly finances" },
-  { id: "travel",  emoji: "✈️", name: "Travel",  sub: "Trips, checklists, budgets — Scotland, Italy, and beyond" },
-  { id: "pet",     emoji: "🐾", name: "Ozzy",    sub: "Golden Retriever — vet visits, weight, diet, documents" },
+  { id: "study",   icon: "study",   name: "Study",   sub: "PMP tracker — PMBOK knowledge areas, hours logged, progress toward July 7 exam" },
+  { id: "career",  icon: "career",  name: "Career",  sub: "Job applications — track every opportunity, status, interviews, and notes" },
+  { id: "finance", icon: "finance", name: "Finance", sub: "Income, expenses, balance — full picture of your monthly finances" },
+  { id: "travel",  icon: "travel",  name: "Travel",  sub: "Trips, checklists, budgets — Scotland, Italy, and beyond" },
+  { id: "pet",     icon: "pet",     name: "Ozzy",    sub: "Golden Retriever — vet visits, weight, diet, documents" },
 ];
 
 export default function TrackerHub({ onNavigate }) {
@@ -157,7 +157,7 @@ export default function TrackerHub({ onNavigate }) {
                 {t.id === "pet"     && <MiniRing percent={ringData.ozzyRing} color="var(--pink)" />}
                 {t.id === "travel"  && <MiniRing percent={0.4} color="var(--blue)" />}
               </div>
-              <div className="tc-emoji">{t.emoji}</div>
+              <div className="tc-icon"><Icon name={t.icon} size={22} color="var(--t2)" /></div>
               <div className="tc-name">{t.name}</div>
               <div className="tc-sub">{t.sub}</div>
             </div>
