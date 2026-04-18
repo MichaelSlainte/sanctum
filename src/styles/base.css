@@ -169,7 +169,7 @@
   .sidebar-footer { margin-top: auto; padding: 12px; border-top: 1px solid var(--b1); }
 
   /* ── Main ── */
-  .main { flex: 1; display: flex; flex-direction: column; overflow: hidden; position: relative; }
+  .main { flex: 1; display: flex; flex-direction: column; overflow: hidden; overflow-x: hidden; position: relative; }
   .topbar {
     height: 56px;
     background: transparent;
@@ -182,7 +182,7 @@
   .topbar-title { font-size: 16px; font-weight: 700; color: var(--t1); letter-spacing: -.4px; }
   .topbar-sub   { font-size: 12px; color: var(--t2); font-family: var(--mono); letter-spacing: .2px; }
   .topbar-right { display: flex; align-items: center; gap: 10px; }
-  .page-body { flex: 1; overflow-y: auto; padding: 32px; }
+  .page-body { flex: 1; overflow-y: auto; overflow-x: hidden; padding: 32px; width: 100%; max-width: 100%; box-sizing: border-box; }
 
   /* ── Cards ── */
   .card {
@@ -299,19 +299,23 @@
 
   /* ── Modal ── */
   .modal-overlay {
-    position: fixed; inset: 0; background: rgba(0,0,0,.7);
+    position: fixed; top: 0; left: 0; width: 100vw; height: 100vh;
+    background: rgba(0,0,0,.7);
     display: flex; align-items: center; justify-content: center;
     z-index: 200; backdrop-filter: blur(8px);
+    padding: 16px; box-sizing: border-box;
     animation: fadeIn .15s ease;
   }
   .modal {
     background: var(--bg1); border: 1px solid var(--b2);
-    border-radius: 20px; padding: 28px; width: 100%; max-width: 460px;
-    box-shadow: var(--shadow2);
+    border-radius: 16px; padding: 24px; width: 100%; max-width: 560px;
+    max-height: 90vh; overflow-y: auto;
+    box-shadow: var(--shadow2); box-sizing: border-box; position: relative;
     animation: slideUp .2s ease;
   }
   @keyframes fadeIn { from { opacity: 0; } to { opacity: 1; } }
   @keyframes slideUp { from { opacity: 0; transform: translateY(16px); } to { opacity: 1; transform: translateY(0); } }
+  @keyframes slideUpMobile { from { transform: translateY(100%); } to { transform: translateY(0); } }
   .modal-title { font-size: 16px; font-weight: 700; color: var(--t1); }
   .form-row { margin-bottom: 14px; }
   .form-label { font-size: 11px; color: var(--t3); margin-bottom: 6px; display: block; font-weight: 600; letter-spacing: .5px; text-transform: uppercase; }
@@ -685,16 +689,16 @@
   .cal-header { display: flex; align-items: center; justify-content: space-between; margin-bottom: 22px; flex-wrap: wrap; gap: 12px; }
   .cal-month-nav { display: flex; align-items: center; gap: 14px; }
   .cal-month-title { font-size: 19px; font-weight: 700; color: var(--t1); letter-spacing: -.4px; min-width: 200px; text-align: center; }
-  .cal-grid-header { display: grid; grid-template-columns: repeat(7,1fr); gap: 6px; margin-bottom: 6px; }
+  .cal-grid-header { display: grid; grid-template-columns: repeat(7,1fr); gap: 6px; margin-bottom: 6px; width: 100%; box-sizing: border-box; }
   .cal-day-header { text-align: center; font-size: 9px; font-weight: 700; letter-spacing: 1.5px; text-transform: uppercase; color: var(--t3); padding: 6px 0; }
-  .cal-grid { display: grid; grid-template-columns: repeat(7,1fr); gap: 6px; }
+  .cal-grid { display: grid; grid-template-columns: repeat(7,1fr); gap: 6px; width: 100%; box-sizing: border-box; overflow: hidden; }
   .cal-cell {
     min-height: 88px;
     background: var(--glass-bg);
     backdrop-filter: blur(12px); -webkit-backdrop-filter: blur(12px);
     border: 1px solid var(--glass-border);
     border-radius: 11px; padding: 8px; cursor: pointer; transition: all .2s;
-    display: flex; flex-direction: column;
+    display: flex; flex-direction: column; min-width: 0; box-sizing: border-box; overflow: hidden;
   }
   .cal-cell:hover { border-color: var(--b2); background: var(--bg2); }
   .cal-cell.today { border-color: var(--blueb); background: rgba(59,130,246,0.1); }
@@ -1079,7 +1083,8 @@
     .week-col-num { font-size: 13px; }
     .week-event { font-size: 9px; padding: 3px 5px; }
     .cal-event { font-size: 9px; }
-    .modal { position: fixed !important; top: 0 !important; left: 0 !important; width: 100% !important; max-width: 100% !important; height: 100vh !important; border-radius: 0 !important; margin: 0 !important; overflow-y: auto; }
+    .modal-overlay { align-items: flex-end; padding: 0; }
+    .modal { position: fixed !important; bottom: 0 !important; left: 0 !important; right: 0 !important; top: auto !important; width: 100% !important; max-width: 100% !important; max-height: 85vh !important; height: auto !important; border-radius: 16px 16px 0 0 !important; margin: 0 !important; overflow-y: auto; animation: slideUpMobile .25s ease !important; }
     .modal-actions .btn { min-height: 44px; }
     .inp { min-height: 44px; font-size: 16px !important; }
     textarea.inp { min-height: 80px; }
