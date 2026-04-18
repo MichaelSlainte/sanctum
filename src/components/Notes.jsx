@@ -956,7 +956,8 @@ export default function Notes({ user }) {
                   </div>
                 )}
                 <button className="btn primary" onClick={verifyPin} disabled={typeof pinError === 'string' || unlockPin.length < 4}>Unlock</button>
-                <div style={{fontSize:11,color:'var(--t3)',marginTop:8}}>Locked notes are private and only visible to you</div>
+                <button className="btn" style={{fontSize:11,color:'var(--t3)',marginTop:4}} onClick={()=>{setPinModal('remove');setPinInput('');setPinError(false);}}>Forgot PIN? Remove lock</button>
+                <div style={{fontSize:11,color:'var(--t3)',marginTop:4}}>Locked notes are private and only visible to you</div>
               </div>
             ) : (
               <>
