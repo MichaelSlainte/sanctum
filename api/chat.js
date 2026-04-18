@@ -34,14 +34,30 @@ export default async function handler(req, res) {
   const apiKey = process.env.ANTHROPIC_API_KEY;
   if (!apiKey) return res.status(500).json({ error: 'No API key' });
 
+  if (!req.headers['content-type']?.includes('application/json')) {
+    return res.status(400).json({ error: 'Invalid content type' });
+  }
+
   const { messages, system } = req.body || {};
   if (!messages || !Array.isArray(messages)) return res.status(400).json({ error: 'messages array required' });
+  if (messages.length > 20) return res.status(400).json({ error: 'Too many messages' });
+
+  const safeSystem = (system || 'You are a helpful personal assistant.').slice(0, 5000);
+  const safeMessages = messages
+    .filter(m => m.role && m.content)
+    .map(m => ({
+      role: m.role === 'user' ? 'user' : 'assistant',
+      content: String(m.content).slice(0, 2000),
+    }))
+    .slice(-10);
+
+  if (safeMessages.length === 0) return res.status(400).json({ error: 'No valid messages' });
 
   const payload = JSON.stringify({
     model: 'claude-haiku-4-5-20251001',
     max_tokens: 1000,
-    system: system || 'You are a helpful personal assistant.',
-    messages,
+    system: safeSystem,
+    messages: safeMessages,
   });
 
   return new Promise((resolve) => {

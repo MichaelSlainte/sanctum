@@ -2,6 +2,21 @@ import { useState, useEffect, useRef, useCallback } from "react";
 import { sb } from "../lib/supabase";
 import { Icon, Modal, DEFAULT_NOTEBOOKS } from "./shared";
 
+const sanitizeHtml = (html) => {
+  const div = document.createElement('div');
+  div.innerHTML = html;
+  div.querySelectorAll('script').forEach(s => s.remove());
+  div.querySelectorAll('iframe,object,embed,form').forEach(el => el.remove());
+  div.querySelectorAll('*').forEach(el => {
+    [...el.attributes].forEach(attr => {
+      if (attr.name.startsWith('on') || attr.name === 'href' && attr.value.startsWith('javascript:')) {
+        el.removeAttribute(attr.name);
+      }
+    });
+  });
+  return div.innerHTML;
+};
+
 const mdToHtmlWysiwyg = (text) => {
   if (!text) return '';
   const esc = s => s.replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;');
@@ -311,7 +326,7 @@ export default function Notes({ user }) {
   // body is read from editorRef at call time so new notes always save current HTML
   const autoSave = useCallback((id, title, tags) => {
     dirtyRef.current = true;
-    const body = editorRef.current?.innerHTML || '';
+    const body = sanitizeHtml(editorRef.current?.innerHTML || '');
     pendingSave.current = { id, title, body, tags };
     if (saveTimer.current) clearTimeout(saveTimer.current);
     saveTimer.current = setTimeout(async () => {
