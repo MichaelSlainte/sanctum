@@ -490,6 +490,7 @@ const CSS = `
   .notes-sidebar-header {
     padding: 14px 14px 10px; border-bottom: 1px solid var(--b1);
     display: flex; align-items: center; justify-content: space-between; flex-shrink: 0;
+    flex-wrap: wrap; gap: 4px;
   }
   .notebook-item {
     display: flex; align-items: center; gap: 7px;
@@ -1011,6 +1012,13 @@ const CSS = `
     transition: color .15s, background .15s; display: inline-flex; align-items: center; justify-content: center;
   }
   .panel-collapse-btn:hover { color: var(--t2); background: rgba(255,255,255,0.07); }
+  .nb-search-input {
+    width: 100%; margin-top: 6px; padding: 5px 9px; border-radius: 8px;
+    background: var(--bg2); border: 1px solid var(--b1);
+    color: var(--t1); font-size: 12px; outline: none; font-family: var(--sans);
+  }
+  .nb-search-input::placeholder { color: var(--t3); }
+  .nb-search-input:focus { border-color: var(--blueb); }
   .mobile-back-btn { display: none; }
   .mobile-editor-toolbar { display: none; }
   .notes-list-header-mobile { display: none; }
@@ -1018,9 +1026,36 @@ const CSS = `
   .preview-body.clickable:empty::before { content: 'Click to edit...'; color: var(--t3); font-style: italic; }
   .preview-edit-hint { text-align: center; padding: 8px; font-size: 11px; color: var(--t3); font-style: italic; }
 
+  .mobile-ai-fab {
+    display: none;
+    position: fixed; bottom: 72px; right: 18px; z-index: 200;
+    width: 52px; height: 52px; border-radius: 50%; border: none; cursor: pointer;
+    background: linear-gradient(135deg, var(--blue), var(--purple));
+    box-shadow: 0 4px 18px rgba(59,130,246,0.45);
+    align-items: center; justify-content: center;
+    transition: transform .15s, box-shadow .15s;
+  }
+  .mobile-ai-fab:hover { transform: translateY(-2px); box-shadow: 0 6px 24px rgba(59,130,246,0.55); }
+  .mobile-ai-fab.hide-fab { display: none !important; }
+  .mobile-ai-panel {
+    display: none;
+    position: fixed; bottom: 0; left: 0; right: 0; z-index: 201;
+    background: var(--bg1); border-top: 1px solid var(--b1);
+    border-radius: 20px 20px 0 0; padding: 16px 16px max(16px, env(safe-area-inset-bottom));
+    box-shadow: 0 -8px 32px rgba(0,0,0,0.35);
+    transform: translateY(100%); transition: transform .25s ease;
+  }
+  .mobile-ai-panel.open { transform: translateY(0); }
+  .mobile-ai-panel-handle {
+    width: 36px; height: 4px; border-radius: 2px; background: var(--b2);
+    margin: 0 auto 14px;
+  }
   @media (max-width: 768px) {
     .sidebar { display: none; }
     .bottom-nav { display: block; }
+    .mobile-ai-fab { display: flex; }
+    .mobile-ai-panel { display: block; }
+    .global-ai-bar-wrap { display: none; }
     .page-body { padding: 18px; padding-bottom: 84px; }
     .grid-4 { grid-template-columns: 1fr 1fr; }
     .grid-3 { grid-template-columns: 1fr 1fr; }
@@ -1869,6 +1904,7 @@ function Notes() {
   const setMode = (m) => { setEditorMode(m); localStorage.setItem('sanctum_editor_mode', m); };
   // Collapsible panels
   const [sidebarCollapsed, setSidebarCollapsed] = useState(() => localStorage.getItem('sanctum_sidebar_col') === 'true');
+  const [nbSearch, setNbSearch] = useState('');
   const [listCollapsed, setListCollapsed] = useState(() => localStorage.getItem('sanctum_list_col') === 'true');
   // Mobile single-panel nav
   const [mobilePanel, setMobilePanel] = useState('notebooks');
@@ -2132,7 +2168,7 @@ function Notes() {
     }
 
     // Inline formats
-    const map = { bold:`**${selText||'bold'}**`, italic:`_${selText||'italic'}_`, code:`\`${selText||'code'}\``, codeblock:`\`\`\`\n${selText||'code'}\n\`\`\``, link:`[${selText||'text'}](url)` };
+    const map = { bold:`**${selText||'bold'}**`, italic:`_${selText||'italic'}_`, code:`\`${selText||'code'}\``, codeblock:`\`\`\`\n${selText||'code'}\n\`\`\``, link:`[${selText||'text'}](url)`, underline:`<u>${selText||'text'}</u>`, table:`| Column 1 | Column 2 | Column 3 |\n|----------|----------|----------|\n| Cell     | Cell     | Cell     |` };
     const insert = map[fmt]; if (!insert) return;
     const newText = text.slice(0, start) + insert + text.slice(end);
     onBodyChange(newText);
@@ -2237,9 +2273,17 @@ function Notes() {
   const currentNB      = notebooks.find(n => n.id === activeNB);
   const currentSection = currentNB?.sections.find(s => s.id === activeSection);
   const _nbLower       = activeNB?.toLowerCase().trim() || '';
-  const displayedNotes = activeSection
+  const _rawNotes = activeSection
     ? getOrderedNotes(activeSection)
     : allNotes.filter(n => (n.notebook?.toLowerCase().trim() || '') === _nbLower);
+  const displayedNotes = nbSearch.trim()
+    ? allNotes.filter(n => {
+        const q = nbSearch.toLowerCase();
+        return (n.title||'').toLowerCase().includes(q)
+          || (n.body||'').toLowerCase().includes(q)
+          || (Array.isArray(n.tags) ? n.tags.join(' ') : (n.tags||'')).toLowerCase().includes(q);
+      })
+    : _rawNotes;
 
   return (
     <div className="notes-shell" data-mobile-panel={mobilePanel} onClick={() => { setNbMenu(null); setNoteMenu(null); }}>
@@ -2252,6 +2296,16 @@ function Notes() {
           <button className="panel-collapse-btn" title={sidebarCollapsed?'Expand sidebar':'Collapse sidebar'}
             onClick={()=>{const v=!sidebarCollapsed;setSidebarCollapsed(v);localStorage.setItem('sanctum_sidebar_col',String(v));}}
           >{sidebarCollapsed?'›':'‹'}</button>
+          {!sidebarCollapsed && (
+            <input
+              className="nb-search-input"
+              type="text"
+              placeholder="Search notes…"
+              value={nbSearch}
+              onChange={e => setNbSearch(e.target.value)}
+              onClick={e => e.stopPropagation()}
+            />
+          )}
         </div>
 
         {notebooks.map(nb => {
@@ -2428,6 +2482,9 @@ function Notes() {
               <button className="note-tool-btn" title="Bullet list"  onMouseDown={e=>{e.preventDefault();applyFormat('ul');}}>•—</button>
               <button className="note-tool-btn" title="Checkbox"     onMouseDown={e=>{e.preventDefault();applyFormat('check');}}>☐</button>
               <button className="note-tool-btn" title="Divider"      onMouseDown={e=>{e.preventDefault();applyFormat('hr');}}>—</button>
+              <div className="note-toolbar-sep"/>
+              <button className="note-tool-btn" title="Underline"    onMouseDown={e=>{e.preventDefault();applyFormat('underline');}} style={{textDecoration:'underline'}}>U</button>
+              <button className="note-tool-btn" title="Insert table" onMouseDown={e=>{e.preventDefault();applyFormat('table');}}>⊞</button>
               <div className="note-toolbar-sep"/>
               <span style={{fontSize:10,color:'var(--t3)',fontFamily:'var(--mono)',padding:'0 3px',flexShrink:0}}>
                 {editBody.split(/\s+/).filter(Boolean).length}w
@@ -4754,6 +4811,11 @@ export default function App() {
   const [user, setUser] = useState(null);
   const [checking, setChecking] = useState(true);
   const [calDate, setCalDate] = useState(null);
+  const [globalAIInput, setGlobalAIInput] = useState('');
+  const [globalAILoading, setGlobalAILoading] = useState(false);
+  const [globalAIResponse, setGlobalAIResponse] = useState(null);
+  const globalAIRef = useRef(null);
+  const [mobileAIOpen, setMobileAIOpen] = useState(false);
 
   const [theme, setTheme] = useState(() => localStorage.getItem("sanctum_theme") || "dark");
 
@@ -4761,6 +4823,40 @@ export default function App() {
     localStorage.setItem("sanctum_theme", t);
     document.documentElement.setAttribute("data-theme", t);
     setTheme(t);
+  };
+
+  const sendGlobalAI = async () => {
+    if (!globalAIInput.trim() || globalAILoading) return;
+    const userMsg = globalAIInput.trim();
+    setGlobalAIInput('');
+    setGlobalAILoading(true);
+    setGlobalAIResponse({ text: 'Thinking...', type: 'loading' });
+    try {
+      const todayISO = new Date().toISOString().slice(0, 10);
+      const sys = `You are Sanctum AI, a personal assistant embedded in a private life organiser app.
+Today is ${todayISO}. User: Michael, Dublin, Ireland.
+RESPONSE RULES — choose one format only:
+- Navigate → reply ONLY with valid JSON, no markdown: {"action":"navigate","page":"home|notes|calendar|trackers|career|study|finance|travel|pet|settings"}
+- All other queries → plain conversational text, warm but concise, max 2 sentences. No JSON.`;
+      const res = await fetch('/api/chat', { method: 'POST', headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ system: sys, messages: [{ role: 'user', content: userMsg }] }) });
+      const data = await res.json();
+      const reply = (data.content?.[0]?.text || '').trim();
+      try {
+        const action = JSON.parse(reply.replace(/```(?:json)?|```/g, '').trim());
+        if (action.action === 'navigate') {
+          setGlobalAIResponse({ text: `Opening ${action.page}...`, type: 'success' });
+          setTimeout(() => navigate(action.page), 400);
+        } else {
+          setGlobalAIResponse({ text: reply, type: 'text' });
+        }
+      } catch {
+        setGlobalAIResponse({ text: reply || 'Got it.', type: 'text' });
+      }
+    } catch {
+      setGlobalAIResponse({ text: 'Connection error. Check your network.', type: 'error' });
+    }
+    setGlobalAILoading(false);
   };
 
   // Page & tracker state — map legacy page names on restore
@@ -4968,12 +5064,75 @@ export default function App() {
               <div className="user-avatar" title={email}>{initials}</div>
             </div>
           </div>
+          {page !== 'home' && (
+            <div className="global-ai-bar-wrap" style={{padding:'12px 24px 0'}}>
+              <div className="ai-bar">
+                <div className="ai-avatar"><Icon name="ai" size={15} color="#fff"/></div>
+                <input
+                  ref={globalAIRef}
+                  className="ai-bar-input"
+                  value={globalAIInput}
+                  onChange={e => setGlobalAIInput(e.target.value)}
+                  onKeyDown={e => e.key === 'Enter' && !e.shiftKey && sendGlobalAI()}
+                  placeholder={`Ask anything on ${pageTitle}…`}
+                  disabled={globalAILoading}
+                />
+                <button className="ai-bar-btn" onClick={sendGlobalAI} disabled={globalAILoading || !globalAIInput.trim()} title="Send (Enter)">
+                  {globalAILoading
+                    ? <><span className="ai-dot"/><span className="ai-dot"/><span className="ai-dot"/></>
+                    : <Icon name="chevR" size={16} color="#fff"/>}
+                </button>
+              </div>
+              {globalAIResponse && (
+                <div className={`ai-response${globalAIResponse.type==='error'?' ai-response-err':globalAIResponse.type==='success'?' ai-response-ok':''}`}>
+                  <div className="ai-response-body">
+                    <div className="ai-response-icon">
+                      {globalAIResponse.type==='success' && <Icon name="check" size={14} color="var(--grn)"/>}
+                      {globalAIResponse.type==='error'   && <Icon name="x"     size={14} color="var(--red)"/>}
+                      {globalAIResponse.type==='loading' && <span style={{display:'flex',gap:3}}><span className="ai-dot"/><span className="ai-dot"/><span className="ai-dot"/></span>}
+                      {globalAIResponse.type==='text'    && <Icon name="ai"    size={14} color="var(--blue)"/>}
+                    </div>
+                    <span>{globalAIResponse.text}</span>
+                  </div>
+                  {globalAIResponse.type !== 'loading' && (
+                    <button style={{background:'none',border:'none',color:'var(--t3)',cursor:'pointer',fontSize:16,lineHeight:1,padding:'0 2px',flexShrink:0}} onClick={() => setGlobalAIResponse(null)}>×</button>
+                  )}
+                </div>
+              )}
+            </div>
+          )}
           {renderPage()}
         </div>
 
       </div>
 
       {/* ── Bottom nav (mobile) ── */}
+      {/* ── Mobile AI FAB ── */}
+      <button className={`mobile-ai-fab${page==='home'?' hide-fab':''}`} onClick={() => setMobileAIOpen(v => !v)} title="AI Assistant">
+        <Icon name="ai" size={20} color="#fff"/>
+      </button>
+      <div className={`mobile-ai-panel${mobileAIOpen?' open':''}`} onClick={e => e.stopPropagation()}>
+        <div className="mobile-ai-panel-handle"/>
+        <div className="ai-bar">
+          <div className="ai-avatar"><Icon name="ai" size={15} color="#fff"/></div>
+          <input
+            className="ai-bar-input"
+            value={globalAIInput}
+            onChange={e => setGlobalAIInput(e.target.value)}
+            onKeyDown={e => { if (e.key==='Enter' && !e.shiftKey) { sendGlobalAI(); setMobileAIOpen(false); } }}
+            placeholder="Ask anything…"
+            disabled={globalAILoading}
+            autoFocus={mobileAIOpen}
+          />
+          <button className="ai-bar-btn" onClick={() => { sendGlobalAI(); setMobileAIOpen(false); }} disabled={globalAILoading || !globalAIInput.trim()}>
+            {globalAILoading
+              ? <><span className="ai-dot"/><span className="ai-dot"/><span className="ai-dot"/></>
+              : <Icon name="chevR" size={16} color="#fff"/>}
+          </button>
+        </div>
+      </div>
+      {mobileAIOpen && <div style={{position:'fixed',inset:0,zIndex:199}} onClick={() => setMobileAIOpen(false)}/>}
+
       <nav className="bottom-nav">
         <div className="bottom-nav-inner">
           {BOTTOM_NAV.map(n => (
