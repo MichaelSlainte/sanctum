@@ -494,7 +494,7 @@ RESPONSE RULES — choose one format only:
             </div>
             <div className="topbar-right">
               <span className="topbar-sub">{today}</span>
-              <div className="user-avatar" title={email}>{initials}</div>
+              <div className="user-avatar" title={email} onClick={() => navigate('settings')}>{initials}</div>
             </div>
           </div>
           {['calendar','trackers','settings'].includes(page) && (
