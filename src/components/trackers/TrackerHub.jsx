@@ -84,6 +84,12 @@ const getWeekStart = () => {
 
 const todayISO = () => new Date().toISOString().slice(0, 10);
 
+const yesterdayISO = () => {
+  const d = new Date();
+  d.setDate(d.getDate() - 1);
+  return d.toISOString().slice(0, 10);
+};
+
 const loadCustomEntries = () => {
   try { return JSON.parse(localStorage.getItem('sanctum_tracker_entries') || '[]'); }
   catch { return []; }
@@ -253,6 +259,16 @@ function CustomTrackerDetail({ tracker, onClose, user }) {
           <div style={{ display:'flex', flexDirection:'column', gap:14, marginTop:16 }}>
             <div className="form-row">
               <label className="form-label">Date</label>
+              <div style={{ display:'flex', gap:6, marginBottom:8 }}>
+                {[['Today', todayISO()], ['Yesterday', yesterdayISO()]].map(([label, val]) => (
+                  <button key={label} onClick={() => setLogEntry(n => ({...n, date: val}))}
+                    style={{ padding:'5px 14px', borderRadius:8, border:'1px solid var(--b2)', cursor:'pointer', fontSize:12, fontWeight:500,
+                      background: logEntry.date === val ? tracker.color : 'var(--bg2)',
+                      color: logEntry.date === val ? '#fff' : 'var(--t2)' }}>
+                    {label}
+                  </button>
+                ))}
+              </div>
               <div style={{ display:'flex', gap:8, alignItems:'center' }}>
                 <select className="inp" style={{ width:70 }}
                   value={new Date(logEntry.date + "T12:00:00").getDate()}
@@ -279,37 +295,38 @@ function CustomTrackerDetail({ tracker, onClose, user }) {
                 <option>Gym — Upper body</option>
                 <option>Gym — Lower body</option>
                 <option>Gym — Full body</option>
-                <option>Run</option>
-                <option>Cycle</option>
-                <option>Swim</option>
-                <option>Yoga</option>
-                <option>Walk</option>
+                <option>Cardio — Run</option>
+                <option>Cardio — Cycle</option>
+                <option>Cardio — Swim</option>
+                <option>Yoga / Stretch</option>
+                <option>Walk with Ozzy</option>
                 <option>Other</option>
               </select>
             </div>
             <div className="form-row">
               <label className="form-label">Duration</label>
-              <div style={{ display:'flex', gap:12, alignItems:'center' }}>
+              <div style={{ display:'flex', gap:12, alignItems:'center', padding:'4px 0' }}>
                 <input type="range" min="10" max="120" step="5"
                   value={logEntry.duration}
                   onChange={e => setLogEntry(n => ({...n, duration: parseInt(e.target.value)}))}
-                  style={{ flex:1 }}/>
-                <span style={{ fontSize:14, fontWeight:600, color:'var(--t1)', minWidth:50 }}>{logEntry.duration} min</span>
+                  style={{ flex:1, accentColor: tracker.color }}/>
+                <span style={{ fontSize:18, fontWeight:700, color:'var(--t1)', minWidth:60, textAlign:'right' }}>
+                  {logEntry.duration}<span style={{ fontSize:12, color:'var(--t3)', fontWeight:400 }}> min</span>
+                </span>
               </div>
             </div>
             <div className="form-row">
               <label className="form-label">Intensity</label>
-              <div style={{ display:'flex', gap:8, alignItems:'center' }}>
-                {[1,2,3,4,5].map(i => (
-                  <button key={i} onClick={() => setLogEntry(n => ({...n, intensity: i}))}
-                    style={{ width:32, height:32, borderRadius:8, border:'1px solid var(--b2)',
-                      background: logEntry.intensity >= i ? tracker.color : 'var(--bg2)',
-                      color: logEntry.intensity >= i ? '#fff' : 'var(--t3)',
-                      cursor:'pointer', fontSize:12, fontWeight:600 }}>{i}</button>
+              <div style={{ display:'flex', gap:6 }}>
+                {['Easy','Light','Medium','Hard','Max'].map((lvl, i) => (
+                  <button key={i} onClick={() => setLogEntry(n => ({...n, intensity: i+1}))}
+                    style={{ flex:1, padding:'6px 0', borderRadius:8, border:'1px solid var(--b2)',
+                      background: logEntry.intensity === i+1 ? tracker.color : 'var(--bg2)',
+                      color: logEntry.intensity === i+1 ? '#fff' : 'var(--t3)',
+                      fontSize:11, cursor:'pointer', fontWeight: logEntry.intensity === i+1 ? 600 : 400 }}>
+                    {lvl}
+                  </button>
                 ))}
-                <span style={{ fontSize:11, color:'var(--t3)', marginLeft:4 }}>
-                  {['','Easy','Light','Moderate','Hard','Max'][logEntry.intensity]}
-                </span>
               </div>
             </div>
             <div className="form-row">
@@ -317,11 +334,16 @@ function CustomTrackerDetail({ tracker, onClose, user }) {
               <input className="inp" type="text" placeholder="Optional notes"
                 value={logEntry.notes} onChange={e => setLogEntry(n => ({...n, notes: e.target.value}))} />
             </div>
-            <button className="btn primary" style={{ marginTop:4, display:'flex', alignItems:'center', justifyContent:'center', gap:8 }}
-              onClick={saveEntry} disabled={saving}>
+            <button
+              style={{ width:'100%', padding:'14px', fontSize:15, fontWeight:600,
+                background: savedOk ? 'var(--grn)' : tracker.color,
+                border:'none', borderRadius:12, marginTop:8, color:'#fff', cursor:'pointer',
+                display:'flex', alignItems:'center', justifyContent:'center', gap:8,
+                opacity: saving ? 0.7 : 1 }}
+              onClick={saveEntry} disabled={saving || savedOk}>
               {savedOk
-                ? <><Icon name="check" size={14} color="#fff"/> Logged!</>
-                : saving ? 'Saving…' : 'Log Entry'}
+                ? <><Icon name="check" size={14} color="#fff"/> Session logged!</>
+                : saving ? 'Saving…' : 'Log Session'}
             </button>
           </div>
         )}
@@ -614,18 +636,28 @@ export default function TrackerHub({ archivedTrackers = [], onArchive, onUnarchi
     return (
       <div key={tracker.id} className="tracker-card" onClick={() => setDetailTracker(tracker)}>
         <button
-          style={{ position:'absolute', top:10, right:10, background:'none', border:'none', color:'var(--t3)', cursor:'pointer', fontSize:16, padding:'2px 4px', zIndex:2 }}
+          className="tracker-archive-btn"
           title="Delete tracker"
           onClick={e => { e.stopPropagation(); if (confirm(`Delete "${tracker.label}" tracker?`)) deleteCustomTracker(tracker.id); }}
-        >×</button>
+        >
+          <svg width="14" height="14" viewBox="0 0 24 24" fill="none"
+            stroke="currentColor" strokeWidth="2.5" strokeLinecap="round">
+            <line x1="18" y1="6" x2="6" y2="18"/>
+            <line x1="6" y1="6" x2="18" y2="18"/>
+          </svg>
+        </button>
+
         <div className="tc-ring"><MiniRing percent={percent} color={tracker.color} /></div>
         <div className="tc-icon">
-          <div style={{ width:24, height:24, borderRadius:'50%', background: tracker.color + '33', display:'flex', alignItems:'center', justifyContent:'center' }}>
-            <div style={{ width:10, height:10, borderRadius:'50%', background: tracker.color }}/>
+          <div style={{ width:36, height:36, borderRadius:10, background: tracker.color + '22', display:'flex', alignItems:'center', justifyContent:'center' }}>
+            <Icon name={tracker.icon || 'trackers'} size={18} color={tracker.color} />
           </div>
         </div>
         <div className="tc-name">{tracker.label}</div>
-        <div className="tc-sub">{thisWeekCount}/{tracker.weekly_goal} {tracker.unit} this week{tracker.description ? ` · ${tracker.description}` : ''}</div>
+        {tracker.description && <div className="tc-sub">{tracker.description}</div>}
+        <div className="tc-sub" style={{ marginTop: tracker.description ? 2 : 0 }}>
+          {thisWeekCount} of {tracker.weekly_goal} {tracker.unit || 'sessions'} this week
+        </div>
       </div>
     );
   };
