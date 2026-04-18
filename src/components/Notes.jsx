@@ -57,7 +57,7 @@ const htmlToMd = (el) => {
     if (tag === 'HR') { md += '---\n'; return; }
     if (tag === 'PRE') { const code = node.querySelector('code'); md += '```\n' + (code?code.textContent:node.textContent) + '\n```\n'; return; }
     if (tag === 'SPAN') {
-      if (cls.includes('we-bullet') || cls.includes('we-checkbox')) return;
+      if (cls.includes('we-bullet') || cls.includes('we-checkbox') || cls.includes('we-collapse-btn')) return;
       kids(); return;
     }
     if (tag === 'DIV' || tag === 'P') {
@@ -127,6 +127,7 @@ export default function Notes() {
   const dirtyRef    = useRef(false);
   const pendingSave = useRef({ id: null, title: '', body: '', tags: '' });
   const editorRef      = useRef(null);
+  const activeNoteRef  = useRef(null);
   const titleInputRef  = useRef(null);
   // Collapsible panels
   const [sidebarCollapsed, setSidebarCollapsed] = useState(() => localStorage.getItem('sanctum_sidebar_col') === 'true');
@@ -257,28 +258,54 @@ export default function Notes() {
     try { await sb.from("notes").update({ title, body, tags, updated_at: updated }, { id }); } catch {}
     dirtyRef.current = false;
     setSaveStatus('saved');
-    setTimeout(() => setSaveStatus(s => s === 'saved' ? 'idle' : s), 2000);
+    setTimeout(() => setSaveStatus(s => s === 'saved' ? 'idle' : s), 1500);
   }, []);
 
-  const autoSave = useCallback((id, title, body, tags) => {
+  // body is read from editorRef at call time so new notes always save current HTML
+  const autoSave = useCallback((id, title, tags) => {
     dirtyRef.current = true;
+    const body = editorRef.current?.innerHTML || '';
     pendingSave.current = { id, title, body, tags };
     if (saveTimer.current) clearTimeout(saveTimer.current);
     saveTimer.current = setTimeout(async () => {
       setSaveStatus('saving');
       const updated = new Date().toISOString();
-      setAllNotes(prev => prev.map(n => n.id === id ? { ...n, title, body, tags, updated_at: updated } : n));
-      try { await sb.from("notes").update({ title, body, tags, updated_at: updated }, { id }); } catch {}
+      const { id: sid, title: stitle, body: sbody, tags: stags } = pendingSave.current;
+      setAllNotes(prev => prev.map(n => n.id === sid ? { ...n, title: stitle, body: sbody, tags: stags, updated_at: updated } : n));
+      try { await sb.from("notes").update({ title: stitle, body: sbody, tags: stags, updated_at: updated }, { id: sid }); } catch {}
       dirtyRef.current = false;
       setSaveStatus('saved');
-      setTimeout(() => setSaveStatus(s => s === 'saved' ? 'idle' : s), 2000);
+      setTimeout(() => setSaveStatus(s => s === 'saved' ? 'idle' : s), 1500);
     }, 700);
   }, []);
 
+  const addCollapseButtons = () => {
+    const ed = editorRef.current; if (!ed) return;
+    ed.querySelectorAll('.we-h1, .we-h2').forEach(el => {
+      if (!el.querySelector('.we-collapse-btn')) {
+        const btn = document.createElement('span');
+        btn.className = 'we-collapse-btn';
+        btn.contentEditable = 'false';
+        btn.textContent = '▼';
+        el.insertBefore(btn, el.firstChild);
+      }
+    });
+  };
+
   const openNote = async (n, navigate = true) => {
     if (dirtyRef.current) await flushSave();
-    setActiveNote(n.id); setEditTitle(n.title || ''); setEditBody(n.body || ''); setEditTags(n.tags || '');
-    setTimeout(() => { if (editorRef.current) editorRef.current.innerHTML = mdToHtmlWysiwyg(n.body || ''); }, 0);
+    activeNoteRef.current = n.id;
+    setActiveNote(n.id); setEditTitle(n.title || ''); setEditTags(n.tags || '');
+    setTimeout(() => {
+      if (editorRef.current) {
+        const body = n.body || '';
+        // HTML bodies (new format) set directly; markdown bodies (legacy) convert first
+        editorRef.current.innerHTML = body.trimStart().startsWith('<') ? body : mdToHtmlWysiwyg(body);
+        addCollapseButtons();
+        const md = htmlToMd(editorRef.current);
+        setEditBody(md);
+      }
+    }, 0);
     if (navigate && window.innerWidth < 769) setMobilePanel('editor');
   };
   const selectSection = (sid, nbid) => {
@@ -300,8 +327,8 @@ export default function Notes() {
     if (first) openNote(first); else { setActiveNote(null); setEditTitle(''); setEditBody(''); setEditTags(''); }
   };
 
-  const onTitleChange = (v) => { setEditTitle(v); if (activeNote) autoSave(activeNote, v, editBody, editTags); };
-  const onTagsChange  = (v) => { setEditTags(v);  if (activeNote) autoSave(activeNote, editTitle, editBody, v); };
+  const onTitleChange = (v) => { setEditTitle(v); if (activeNoteRef.current) autoSave(activeNoteRef.current, v, editTags); };
+  const onTagsChange  = (v) => { setEditTags(v);  if (activeNoteRef.current) autoSave(activeNoteRef.current, editTitle, v); };
 
   // ── CRUD ──────────────────────────────────────────────────────────────
   const newNote = async () => {
@@ -382,8 +409,8 @@ export default function Notes() {
     const ed = editorRef.current; if (!ed) return;
     const md = htmlToMd(ed);
     setEditBody(md);
-    if (activeNote) autoSave(activeNote, editTitle, md, editTags);
-  }, [activeNote, editTitle, editTags, autoSave]);
+    if (activeNoteRef.current) autoSave(activeNoteRef.current, editTitle, editTags);
+  }, [editTitle, editTags, autoSave]);
 
   const applyFormat = (fmt) => {
     const ed = editorRef.current; if (!ed) return;
@@ -404,7 +431,7 @@ export default function Notes() {
         const r = document.createRange(); r.setStart(next, 0); r.collapse(true); sel.removeAllRanges(); sel.addRange(r);
       } else {
         const copy = block ? block.cloneNode(true) : null;
-        copy?.querySelectorAll('.we-bullet,.we-checkbox').forEach(s => s.remove());
+        copy?.querySelectorAll('.we-bullet,.we-checkbox,.we-collapse-btn').forEach(s => s.remove());
         const inner = copy ? (copy.innerHTML.replace(/^<br>$/i,'') || '') : '';
         const newEl = document.createElement('div');
         if (fmt === 'ul') {
@@ -427,8 +454,9 @@ export default function Notes() {
         sel.removeAllRanges(); sel.addRange(r);
       }
       const md = htmlToMd(ed); setEditBody(md);
-      if (activeNote) autoSave(activeNote, editTitle, md, editTags);
+      if (activeNoteRef.current) autoSave(activeNoteRef.current, editTitle, editTags);
       setFormatDrop(false);
+      if (['h1','h2'].includes(fmt)) setTimeout(addCollapseButtons, 0);
       setTimeout(() => setLineFormat(detectLineFormat()), 0);
       return;
     }
@@ -450,7 +478,7 @@ export default function Notes() {
       document.execCommand('insertHTML', false, `<table style="border-collapse:collapse;width:100%;margin:8px 0"><thead><tr><th style="border:1px solid var(--b2);padding:6px 10px;font-weight:600">Column 1</th><th style="border:1px solid var(--b2);padding:6px 10px;font-weight:600">Column 2</th><th style="border:1px solid var(--b2);padding:6px 10px;font-weight:600">Column 3</th></tr></thead><tbody><tr><td style="border:1px solid var(--b2);padding:6px 10px">Cell</td><td style="border:1px solid var(--b2);padding:6px 10px">Cell</td><td style="border:1px solid var(--b2);padding:6px 10px">Cell</td></tr></tbody></table>`);
     }
     const md = htmlToMd(ed); setEditBody(md);
-    if (activeNote) autoSave(activeNote, editTitle, md, editTags);
+    if (activeNoteRef.current) autoSave(activeNoteRef.current, editTitle, editTags);
   };
 
   // ── Markdown renderer with collapsible headings ───────────────────────
@@ -756,9 +784,9 @@ export default function Notes() {
                 onChange={e => { applyFormat(e.target.value); updateLineFormat(); }}
               >
                 <option value="body">Body</option>
-                <option value="h1">Title</option>
-                <option value="h2">Heading</option>
-                <option value="h3">Subheading</option>
+                <option value="h1">Heading 1</option>
+                <option value="h2">Heading 2</option>
+                <option value="h3">Heading 3</option>
                 <option value="ul">Bullet</option>
                 <option value="ol">Numbered</option>
                 <option value="check">Checklist</option>
@@ -813,6 +841,19 @@ export default function Notes() {
               onInput={syncBody}
               onKeyUp={updateLineFormat}
               onClick={(e) => {
+                if (e.target.classList.contains('we-collapse-btn')) {
+                  const heading = e.target.parentElement;
+                  const isCollapsed = heading.classList.toggle('we-collapsed');
+                  e.target.textContent = isCollapsed ? '▶' : '▼';
+                  const level = heading.classList.contains('we-h1') ? 1 : 2;
+                  let sib = heading.nextElementSibling;
+                  while (sib) {
+                    if (sib.classList.contains('we-h1') || (level === 2 && sib.classList.contains('we-h2'))) break;
+                    sib.style.display = isCollapsed ? 'none' : '';
+                    sib = sib.nextElementSibling;
+                  }
+                  return;
+                }
                 if (e.target.classList.contains('we-checkbox')) {
                   e.target.classList.toggle('checked');
                   e.target.textContent = e.target.classList.contains('checked') ? '☑' : '☐';

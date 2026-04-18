@@ -560,11 +560,11 @@
     display: inline-flex; align-items: center; gap: 4px; padding: 3px 9px; border-radius: 20px;
     background: rgba(16,185,129,.10); color: var(--grn); font-size: 10px; font-weight: 600;
   }
-  @keyframes saveAppear { from { opacity:0; transform:translateY(2px); } to { opacity:1; transform:translateY(0); } }
-  @keyframes saveFade { 0%{opacity:1;} 60%{opacity:1;} 100%{opacity:0;} }
-  .save-ind { font-size: 10px; font-family: var(--mono); padding: 2px 8px; border-radius: 6px; animation: saveAppear .15s ease; }
-  .save-ind.saving { color: var(--amber); background: rgba(245,158,11,0.1); }
-  .save-ind.saved  { color: var(--grn); background: rgba(16,185,129,0.1); animation: saveFade 2.2s ease forwards; }
+  @keyframes saveAppear { from { opacity:0; } to { opacity:1; } }
+  @keyframes saveFade { 0%{opacity:1;} 40%{opacity:1;} 100%{opacity:0;} }
+  .save-ind { font-size: 11px; color: var(--t3); font-family: var(--mono); animation: saveAppear .2s ease; }
+  .save-ind.saving { /* inherits var(--t3) */ }
+  .save-ind.saved  { animation: saveFade 1.8s ease forwards; }
   /* ── WYSIWYG editor ── */
   .note-body-wysiwyg {
     flex: 1; padding: 22px 32px; min-height: 0; overflow-y: auto;
@@ -573,9 +573,16 @@
   }
   .note-body-wysiwyg:empty::before { content: attr(data-placeholder); color: var(--t3); opacity: .5; pointer-events: none; display: block; }
   .note-body-wysiwyg > div { min-height: 1.4em; }
-  .note-body-wysiwyg .we-h1 { font-size: 22px; font-weight: 700; color: var(--t1); margin: 4px 0 2px; letter-spacing: -.3px; border-bottom: 1px solid var(--b1); padding-bottom: 6px; }
-  .note-body-wysiwyg .we-h2 { font-size: 17px; font-weight: 700; color: var(--t1); margin: 14px 0 2px; }
-  .note-body-wysiwyg .we-h3 { font-size: 14px; font-weight: 600; color: var(--t2); margin: 10px 0 2px; }
+  .note-body-wysiwyg .we-h1 { font-size: 26px; font-weight: 700; color: var(--t1); margin: 4px 0 2px; letter-spacing: -.3px; border-bottom: 1px solid var(--b1); padding-bottom: 6px; position: relative; line-height: 1.3; }
+  .note-body-wysiwyg .we-h2 { font-size: 20px; font-weight: 600; color: var(--t1); margin: 14px 0 2px; position: relative; }
+  .note-body-wysiwyg .we-h3 { font-size: 16px; font-weight: 600; color: var(--t2); margin: 10px 0 2px; }
+  .note-body-wysiwyg .we-collapse-btn {
+    position: absolute; left: -18px; top: 50%; transform: translateY(-50%);
+    font-size: 8px; color: var(--t3); cursor: pointer; user-select: none;
+    opacity: 0; transition: opacity .15s; padding: 3px; line-height: 1;
+  }
+  .note-body-wysiwyg .we-h1:hover .we-collapse-btn,
+  .note-body-wysiwyg .we-h2:hover .we-collapse-btn { opacity: 1; }
   .note-body-wysiwyg .we-ul { display: flex; align-items: baseline; gap: 8px; }
   .note-body-wysiwyg .we-bullet { color: var(--blue); font-size: 10px; flex-shrink: 0; user-select: none; }
   .note-body-wysiwyg .we-check { display: flex; align-items: baseline; gap: 8px; }
