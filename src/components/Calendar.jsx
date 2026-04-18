@@ -200,16 +200,9 @@ export default function Calendar({ initialDate, refreshKey }) {
   const loadEvents = async () => {
     try {
       const data = await sb.from("events").select("*");
-      if (Array.isArray(data) && data.length) setEvents(data);
-      else throw new Error();
+      setEvents(Array.isArray(data) ? data : []);
     } catch {
-      setEvents([
-        { id: "e1", title: "PMP Application due", date: "2026-04-15", category: "study",    color: "#8b5cf6", repeat: "none", shared: false },
-        { id: "e2", title: "Italy trip begins",    date: "2026-06-12", category: "travel",   color: "#10b981", repeat: "none", shared: false },
-        { id: "e3", title: "Scotland trip",        date: "2026-09-07", category: "travel",   color: "#10b981", repeat: "none", shared: false },
-        { id: "e4", title: "MSc starts — SETU",   date: "2026-09-14", category: "study",    color: "#8b5cf6", repeat: "none", shared: false },
-        { id: "e5", title: "Metallica Dublin",     date: "2026-06-20", category: "personal", color: "#3b82f6", repeat: "none", shared: false },
-      ]);
+      setEvents([]);
     }
   };
 
@@ -249,24 +242,19 @@ export default function Calendar({ initialDate, refreshKey }) {
     if (!formData.title.trim() || !formData.date) return;
     const cat = catOf({ category: formData.category });
     const payload = {
-      title:               formData.title.trim(),
-      date:                formData.date,
-      category:            formData.category,
-      color:               cat.color,
-      start_time:          formData.start_time          || null,
-      end_time:            formData.end_time            || null,
-      timezone:            formData.timezone,
-      location:            formData.location            || null,
-      notes:               formData.notes               || null,
-      repeat:              formData.repeat,
-      reminder:            formData.reminder,
-      repeatEnd:           formData.repeat !== "none" ? formData.repeatEnd           : "forever",
-      repeatEndDate:       formData.repeat !== "none" ? formData.repeatEndDate       : null,
-      repeatEndCount:      formData.repeat !== "none" ? formData.repeatEndCount      : null,
-      repeatCustomInterval: formData.repeat === "custom" ? formData.repeatCustomInterval : null,
-      repeatCustomUnit:    formData.repeat === "custom" ? formData.repeatCustomUnit    : null,
-      shared:              formData.shared,
-      shared_with:         formData.shared ? ["Tamara"] : [],
+      title:     formData.title.trim(),
+      date:      formData.date,
+      category:  formData.category,
+      color:     cat.color,
+      start_time: formData.start_time || null,
+      end_time:  formData.end_time   || null,
+      timezone:  formData.timezone   || "Europe/Dublin",
+      location:  formData.location   || null,
+      notes:     formData.notes      || null,
+      repeat:    formData.repeat     || "none",
+      reminder:  formData.reminder   || "none",
+      shared:    formData.shared     || false,
+      all_day:   false,
     };
     if (editingEvent) {
       try { await sb.from("events").update(payload, { id: editingEvent.id }); } catch {}
@@ -279,6 +267,7 @@ export default function Calendar({ initialDate, refreshKey }) {
       } catch {
         setEvents(prev => [...prev, { ...payload, id: Date.now().toString() }]);
       }
+      await loadEvents();
     }
     closeModal();
   };
