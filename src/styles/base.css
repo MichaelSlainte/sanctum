@@ -1071,6 +1071,33 @@
   .tracker-card.is-dragging { opacity: .3; transform: scale(0.97) !important; transition: opacity .15s, transform .15s; }
   .tracker-card.drag-over { border-color: var(--blueb) !important; box-shadow: 0 0 0 3px rgba(59,130,246,0.08), 0 8px 32px rgba(0,0,0,0.3) !important; transform: translateY(-2px) !important; }
 
+  /* Tracker card "..." menu */
+  .tc-menu-wrap { position: absolute; top: 10px; right: 10px; }
+  .tc-menu-btn {
+    background: none; border: none; cursor: pointer; color: var(--t3);
+    font-size: 16px; font-weight: 700; letter-spacing: 1px;
+    padding: 2px 6px; border-radius: 6px; line-height: 1;
+    opacity: 0; transition: opacity .15s, background .15s;
+  }
+  .tracker-card:hover .tc-menu-btn { opacity: 1; }
+  .tc-menu-btn:hover { background: rgba(255,255,255,0.08); color: var(--t1); }
+  .tc-menu {
+    position: absolute; right: 0; top: 100%; margin-top: 4px;
+    background: var(--bg1); border: 1px solid var(--glass-border);
+    border-radius: 10px; padding: 4px; min-width: 120px;
+    box-shadow: 0 8px 24px rgba(0,0,0,0.3); z-index: 100;
+  }
+  .tc-menu-item {
+    display: block; width: 100%; text-align: left;
+    background: none; border: none; cursor: pointer;
+    padding: 7px 10px; border-radius: 6px;
+    font-size: 13px; color: var(--t2); font-family: var(--sans);
+    transition: background .12s, color .12s;
+  }
+  .tc-menu-item:hover { background: rgba(255,255,255,0.06); color: var(--t1); }
+  .tc-menu-item.danger { color: var(--red, #ef4444); }
+  .tc-menu-item.danger:hover { background: rgba(239,68,68,0.1); }
+
   /* Sidebar nav drag states */
   .nav-item[draggable="true"] { cursor: default; }
   .nav-item.is-dragging { opacity: .35; }

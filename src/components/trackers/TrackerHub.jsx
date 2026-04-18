@@ -37,6 +37,8 @@ export function TrackerBackBar({ name, onBack }) {
   );
 }
 
+const DEFAULT_IDS = ["study", "career", "finance", "travel", "pet"];
+
 const TRACKERS = [
   { id: "study",   icon: "study",   name: "Study",   sub: "PMP tracker — PMBOK knowledge areas, hours logged, progress toward July 7 exam" },
   { id: "career",  icon: "career",  name: "Career",  sub: "Job applications — track every opportunity, status, interviews, and notes" },
@@ -45,8 +47,25 @@ const TRACKERS = [
   { id: "pet",     icon: "pet",     name: "Ozzy",    sub: "Golden Retriever — vet visits, weight, diet, documents" },
 ];
 
+function getRingProps(id, ringData) {
+  switch (id) {
+    case "study":   return { percent: ringData.studyHours / ringData.studyTarget, color: "var(--purple)" };
+    case "career":  return { percent: ringData.activeApps / 10, color: "var(--amber)" };
+    case "finance": return { percent: ringData.financeRatio, color: "var(--grn)" };
+    case "travel":  return { percent: ringData.travelRatio, color: "var(--blue)" };
+    case "pet":     return { percent: ringData.ozzyRing, color: ringData.ozzyColor };
+    default:        return { percent: 0, color: "var(--blue)" };
+  }
+}
+
 export default function TrackerHub({ onNavigate }) {
-  const [ringData, setRingData] = useState({ studyHours: 0, studyTarget: 150, activeApps: 0, financeRatio: 0, ozzyRing: 0 });
+  const [ringData, setRingData] = useState({
+    studyHours: 0, studyTarget: 150,
+    activeApps: 0,
+    financeRatio: 0,
+    travelRatio: 0,
+    ozzyRing: 0, ozzyColor: "var(--grn)",
+  });
 
   useEffect(() => {
     const load = async () => {
@@ -56,22 +75,44 @@ export default function TrackerHub({ onNavigate }) {
           sb.from("applications").select("*"),
           sb.from("finance").select("*"),
         ]);
+
         const studyHours = Array.isArray(sessions)
-          ? sessions.filter(s => s.type === "pmp").reduce((sum, s) => sum + (s.hours || 0), 0) : 0;
+          ? sessions.reduce((sum, s) => sum + (s.hours || 0), 0) : 0;
+
         const activeApps = Array.isArray(apps)
           ? apps.filter(a => !["rejected","withdrawn","closed"].includes((a.status || "").toLowerCase())).length : 0;
+
         const now = new Date();
         const month = now.toLocaleDateString("en-IE", { month: "long", year: "numeric" });
         const mf = Array.isArray(finance) ? finance.filter(f => f.month === month) : [];
         const income   = mf.filter(f => f.category === "income").reduce((s, f) => s + Number(f.amount || 0), 0);
         const expenses = mf.filter(f => f.category !== "income").reduce((s, f) => s + Number(f.amount || 0), 0);
-        const vets = JSON.parse(localStorage.getItem("sanctum_ozzy_vets") || "[]");
-        const nextDue = vets.map(v => v.next_due).filter(Boolean).sort()[0];
-        const ozzyDays = nextDue ? Math.ceil((new Date(nextDue) - now) / 86400000) : null;
+        const financeRatio = income > 0 ? Math.min(expenses / income, 1) : 0;
+
+        // Travel: completed / total trips
+        let travelRatio = 0;
+        try {
+          const trips = JSON.parse(localStorage.getItem("sanctum_trips") || "[]");
+          const total = trips.length;
+          const completed = trips.filter(t => t.status === "completed").length;
+          travelRatio = total > 0 ? Math.min(completed / total, 1) : 0;
+        } catch {}
+
+        // Ozzy: days since last vet visit
+        let ozzyRing = 0, ozzyColor = "var(--grn)";
+        try {
+          const vets = JSON.parse(localStorage.getItem("sanctum_ozzy_vets") || "[]");
+          const dates = vets.map(v => v.date).filter(Boolean).sort().reverse();
+          if (dates.length > 0) {
+            const daysSince = Math.floor((now - new Date(dates[0])) / 86400000);
+            ozzyRing = Math.max(0, 1 - daysSince / 180);
+            ozzyColor = daysSince < 90 ? "var(--grn)" : daysSince < 180 ? "var(--amber)" : "var(--red, #ef4444)";
+          }
+        } catch {}
+
         setRingData({
           studyHours, studyTarget: parseFloat(localStorage.getItem("sanctum_pmp_target")) || 150,
-          activeApps, financeRatio: income > 0 ? Math.min(expenses / income, 1) : 0,
-          ozzyRing: ozzyDays !== null ? Math.max(0, 1 - ozzyDays / 180) : 0,
+          activeApps, financeRatio, travelRatio, ozzyRing, ozzyColor,
         });
       } catch {}
     };
@@ -90,6 +131,47 @@ export default function TrackerHub({ onNavigate }) {
     } catch {}
     return known;
   });
+
+  const [archived, setArchived] = useState(() => {
+    try { return JSON.parse(localStorage.getItem("sanctum_archived_trackers") || "[]"); }
+    catch { return []; }
+  });
+  const [archivedOpen, setArchivedOpen] = useState(false);
+  const [menuOpen, setMenuOpen] = useState(null);
+  const menuRef = useRef(null);
+
+  useEffect(() => {
+    const handler = (e) => {
+      if (menuRef.current && !menuRef.current.contains(e.target)) setMenuOpen(null);
+    };
+    document.addEventListener("mousedown", handler);
+    return () => document.removeEventListener("mousedown", handler);
+  }, []);
+
+  const toggleArchive = (id) => {
+    setArchived(prev => {
+      const next = prev.includes(id) ? prev.filter(x => x !== id) : [...prev, id];
+      localStorage.setItem("sanctum_archived_trackers", JSON.stringify(next));
+      return next;
+    });
+    setMenuOpen(null);
+  };
+
+  const deleteTracker = (id, name) => {
+    if (DEFAULT_IDS.includes(id)) return;
+    if (!window.confirm(`Delete "${name}" tracker permanently?`)) return;
+    setOrder(prev => {
+      const next = prev.filter(x => x !== id);
+      localStorage.setItem("sanctum_tracker_order", JSON.stringify(next));
+      return next;
+    });
+    setArchived(prev => {
+      const next = prev.filter(x => x !== id);
+      localStorage.setItem("sanctum_archived_trackers", JSON.stringify(next));
+      return next;
+    });
+    setMenuOpen(null);
+  };
 
   const [dragOver, setDragOver]   = useState(null);
   const [dragging, setDragging]   = useState(null);
@@ -120,50 +202,119 @@ export default function TrackerHub({ onNavigate }) {
   };
   const onDragEnd = () => { setDragOver(null); setDragging(null); dragId.current = null; };
 
+  const activeOrder = order.filter(id => !archived.includes(id));
+  const archivedList = order.filter(id => archived.includes(id));
+
+  const renderCard = (id, isArchived = false) => {
+    const t = TRACKERS.find(x => x.id === id);
+    if (!t) return null;
+    const ring = getRingProps(t.id, ringData);
+    const isDefault = DEFAULT_IDS.includes(t.id);
+    const isMenuOpen = menuOpen === t.id;
+
+    if (isArchived) {
+      return (
+        <div key={t.id} className="tracker-card tracker-archived" style={{ opacity: 0.5, cursor: "default" }}>
+          <div className="tc-ring"><MiniRing percent={ring.percent} color={ring.color} /></div>
+          <div className="tc-icon"><Icon name={t.icon} size={22} color="var(--t2)" /></div>
+          <div className="tc-name">{t.name}</div>
+          <div className="tc-sub">{t.sub}</div>
+          <button
+            className="btn sm ghost"
+            style={{ marginTop: 12, fontSize: 11 }}
+            onClick={() => toggleArchive(t.id)}
+          >
+            Restore
+          </button>
+        </div>
+      );
+    }
+
+    const cls = [
+      "tracker-card",
+      dragging === id ? "is-dragging" : "",
+      dragOver === id ? "drag-over" : "",
+    ].filter(Boolean).join(" ");
+
+    return (
+      <div
+        key={t.id}
+        className={cls}
+        draggable
+        onDragStart={e => onDragStart(e, t.id)}
+        onDragOver={e  => onDragOver(e, t.id)}
+        onDragLeave={e => onDragLeave(e, t.id)}
+        onDrop={e      => onDrop(e, t.id)}
+        onDragEnd={onDragEnd}
+        onClick={() => onNavigate(t.id)}
+      >
+        <div className="drag-handle" style={{ position:"absolute", top:12, left:14 }}>
+          <Icon name="grab" size={12} />
+        </div>
+
+        {/* "..." menu button */}
+        <div
+          className="tc-menu-wrap"
+          ref={isMenuOpen ? menuRef : null}
+          onClick={e => e.stopPropagation()}
+        >
+          <button
+            className="tc-menu-btn"
+            onClick={e => { e.stopPropagation(); setMenuOpen(isMenuOpen ? null : t.id); }}
+            title="Options"
+          >
+            ···
+          </button>
+          {isMenuOpen && (
+            <div className="tc-menu">
+              <button className="tc-menu-item" onClick={() => toggleArchive(t.id)}>
+                Archive
+              </button>
+              {!isDefault && (
+                <button className="tc-menu-item danger" onClick={() => deleteTracker(t.id, t.name)}>
+                  Delete
+                </button>
+              )}
+            </div>
+          )}
+        </div>
+
+        <div className="tc-ring"><MiniRing percent={ring.percent} color={ring.color} /></div>
+        <div className="tc-icon"><Icon name={t.icon} size={22} color="var(--t2)" /></div>
+        <div className="tc-name">{t.name}</div>
+        <div className="tc-sub">{t.sub}</div>
+      </div>
+    );
+  };
+
   return (
     <div className="page-body page-enter">
       <div style={{ marginBottom: 32 }}>
         <div style={{ fontSize: 22, fontWeight: 700, color: "var(--t1)", marginBottom: 6, letterSpacing: "-.4px" }}>Your Trackers</div>
         <div style={{ fontSize: 13, color: "var(--t3)" }}>Select a tracker to view · drag to reorder</div>
       </div>
+
       <div className="tracker-hub">
-        {order.map(id => {
-          const t = TRACKERS.find(x => x.id === id);
-          if (!t) return null;
-          const cls = [
-            "tracker-card",
-            dragging === id ? "is-dragging" : "",
-            dragOver === id ? "drag-over"   : "",
-          ].filter(Boolean).join(" ");
-          return (
-            <div
-              key={t.id}
-              className={cls}
-              draggable
-              onDragStart={e => onDragStart(e, t.id)}
-              onDragOver={e  => onDragOver(e, t.id)}
-              onDragLeave={e => onDragLeave(e, t.id)}
-              onDrop={e      => onDrop(e, t.id)}
-              onDragEnd={onDragEnd}
-              onClick={() => onNavigate(t.id)}
-            >
-              <div className="drag-handle" style={{ position:"absolute", top:12, left:14 }}>
-                <Icon name="grab" size={12} />
-              </div>
-              <div className="tc-ring">
-                {t.id === "study"   && <MiniRing percent={ringData.studyHours / ringData.studyTarget} color="var(--purple)" />}
-                {t.id === "career"  && <MiniRing percent={ringData.activeApps / 10} color="var(--amber)" />}
-                {t.id === "finance" && <MiniRing percent={ringData.financeRatio} color="var(--grn)" />}
-                {t.id === "pet"     && <MiniRing percent={ringData.ozzyRing} color="var(--pink)" />}
-                {t.id === "travel"  && <MiniRing percent={0.4} color="var(--blue)" />}
-              </div>
-              <div className="tc-icon"><Icon name={t.icon} size={22} color="var(--t2)" /></div>
-              <div className="tc-name">{t.name}</div>
-              <div className="tc-sub">{t.sub}</div>
-            </div>
-          );
-        })}
+        {activeOrder.map(id => renderCard(id))}
       </div>
+
+      {archivedList.length > 0 && (
+        <div style={{ marginTop: 40 }}>
+          <button
+            className="btn ghost"
+            style={{ fontSize: 13, color: "var(--t3)", padding: "6px 0", gap: 6, display: "flex", alignItems: "center" }}
+            onClick={() => setArchivedOpen(o => !o)}
+          >
+            <Icon name={archivedOpen ? "chevL" : "chevR"} size={12} />
+            {archivedOpen ? "Hide archived" : `Show archived (${archivedList.length})`}
+          </button>
+          {archivedOpen && (
+            <div className="tracker-hub" style={{ marginTop: 16 }}>
+              {archivedList.map(id => renderCard(id, true))}
+            </div>
+          )}
+        </div>
+      )}
     </div>
   );
 }
