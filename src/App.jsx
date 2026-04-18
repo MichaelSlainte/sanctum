@@ -5010,18 +5010,30 @@ export default function App() {
 Today is ${todayISO}. User: Michael, Dublin, Ireland.
 RESPONSE RULES — choose one format only:
 - Navigate → reply ONLY with valid JSON, no markdown: {"action":"navigate","page":"home|notes|calendar|trackers|career|study|finance|travel|pet|settings"}
+- Log study session → reply ONLY with valid JSON, no markdown: {"action":"log_study","hours":2,"topic":"Integration Management","notes":"optional"}
 - All other queries → plain conversational text, warm but concise, max 2 sentences. No JSON.`;
       const res = await fetch('/api/chat', { method: 'POST', headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({ system: sys, messages: [{ role: 'user', content: userMsg }] }) });
       const data = await res.json();
       const reply = (data.content?.[0]?.text || '').trim();
       try {
-        const action = JSON.parse(reply.replace(/```(?:json)?|```/g, '').trim());
+        const cleaned = reply.replace(/```(?:json)?|```/g, '').trim();
+        const action = JSON.parse(cleaned);
         if (action.action === 'navigate') {
           setGlobalAIResponse({ text: `Opening ${action.page}...`, type: 'success' });
           setTimeout(() => navigate(action.page), 400);
+        } else if (action.action === 'log_study') {
+          const { error } = await sb.from('study_sessions').insert({
+            hours: parseFloat(action.hours),
+            topic: action.topic,
+            notes: action.notes || '',
+            date: todayISO,
+            type: 'pmp',
+          });
+          if (error) throw error;
+          setGlobalAIResponse({ text: `Logged ${action.hours}h — ${action.topic} ✓`, type: 'success' });
         } else {
-          setGlobalAIResponse({ text: reply, type: 'text' });
+          setGlobalAIResponse({ text: cleaned, type: 'text' });
         }
       } catch {
         setGlobalAIResponse({ text: reply || 'Got it.', type: 'text' });
