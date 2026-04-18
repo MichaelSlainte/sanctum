@@ -1,6 +1,14 @@
 import { useState } from "react";
 import { Icon } from "./shared";
 
+const TIMEZONES = [
+  { id: "Europe/Dublin",     label: "Dublin (IST/GMT)"   },
+  { id: "Europe/London",     label: "London (BST/GMT)"   },
+  { id: "Europe/Lisbon",     label: "Lisbon (WEST/WET)"  },
+  { id: "America/New_York",  label: "New York (EST/EDT)"  },
+  { id: "America/Sao_Paulo", label: "São Paulo (BRT)"     },
+];
+
 export default function Settings({ user, onLogout, theme, onThemeChange, font, onFontChange }) {
   const userKey = user?.id ? `sanctum_display_name_${user.id}` : "sanctum_display_name";
   const emailUsername = (user?.email || "").split("@")[0];
@@ -9,11 +17,15 @@ export default function Settings({ user, onLogout, theme, onThemeChange, font, o
     localStorage.getItem("sanctum_display_name") ||
     emailUsername
   );
+  const [timezone, setTimezone] = useState(() =>
+    localStorage.getItem("sanctum_timezone") || "Europe/Dublin"
+  );
   const [saved, setSaved] = useState(false);
 
   const save = () => {
     localStorage.setItem(userKey, displayName);
-    localStorage.setItem("sanctum_display_name", displayName); // legacy compat
+    localStorage.setItem("sanctum_display_name", displayName);
+    localStorage.setItem("sanctum_timezone", timezone);
     setSaved(true);
     setTimeout(() => setSaved(false), 2000);
   };
@@ -97,6 +109,12 @@ export default function Settings({ user, onLogout, theme, onThemeChange, font, o
           <div className="form-row">
             <label className="form-label">Display name</label>
             <input className="inp" value={displayName} onChange={e => setDisplayName(e.target.value)} placeholder={emailUsername || "Your name"} />
+          </div>
+          <div className="form-row">
+            <label className="form-label">Timezone</label>
+            <select className="inp" value={timezone} onChange={e => setTimezone(e.target.value)}>
+              {TIMEZONES.map(tz => <option key={tz.id} value={tz.id}>{tz.label}</option>)}
+            </select>
           </div>
           <button className="btn primary" onClick={save} style={{ marginTop: 8 }}>{saved ? "✓ Saved" : "Save changes"}</button>
         </div>
