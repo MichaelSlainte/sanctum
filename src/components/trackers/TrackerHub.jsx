@@ -137,40 +137,21 @@ export default function TrackerHub({ onNavigate }) {
     catch { return []; }
   });
   const [archivedOpen, setArchivedOpen] = useState(false);
-  const [menuOpen, setMenuOpen] = useState(null);
-  const menuRef = useRef(null);
 
-  useEffect(() => {
-    const handler = (e) => {
-      if (menuRef.current && !menuRef.current.contains(e.target)) setMenuOpen(null);
-    };
-    document.addEventListener("mousedown", handler);
-    return () => document.removeEventListener("mousedown", handler);
-  }, []);
-
-  const toggleArchive = (id) => {
+  const archiveTracker = (id) => {
     setArchived(prev => {
-      const next = prev.includes(id) ? prev.filter(x => x !== id) : [...prev, id];
+      const next = [...prev, id];
       localStorage.setItem("sanctum_archived_trackers", JSON.stringify(next));
       return next;
     });
-    setMenuOpen(null);
   };
 
-  const deleteTracker = (id, name) => {
-    if (DEFAULT_IDS.includes(id)) return;
-    if (!window.confirm(`Delete "${name}" tracker permanently?`)) return;
-    setOrder(prev => {
-      const next = prev.filter(x => x !== id);
-      localStorage.setItem("sanctum_tracker_order", JSON.stringify(next));
-      return next;
-    });
+  const unarchiveTracker = (id) => {
     setArchived(prev => {
       const next = prev.filter(x => x !== id);
       localStorage.setItem("sanctum_archived_trackers", JSON.stringify(next));
       return next;
     });
-    setMenuOpen(null);
   };
 
   const [dragOver, setDragOver]   = useState(null);
@@ -205,30 +186,10 @@ export default function TrackerHub({ onNavigate }) {
   const activeOrder = order.filter(id => !archived.includes(id));
   const archivedList = order.filter(id => archived.includes(id));
 
-  const renderCard = (id, isArchived = false) => {
+  const renderCard = (id) => {
     const t = TRACKERS.find(x => x.id === id);
     if (!t) return null;
     const ring = getRingProps(t.id, ringData);
-    const isDefault = DEFAULT_IDS.includes(t.id);
-    const isMenuOpen = menuOpen === t.id;
-
-    if (isArchived) {
-      return (
-        <div key={t.id} className="tracker-card tracker-archived" style={{ opacity: 0.5, cursor: "default" }}>
-          <div className="tc-ring"><MiniRing percent={ring.percent} color={ring.color} /></div>
-          <div className="tc-icon"><Icon name={t.icon} size={22} color="var(--t2)" /></div>
-          <div className="tc-name">{t.name}</div>
-          <div className="tc-sub">{t.sub}</div>
-          <button
-            className="btn sm ghost"
-            style={{ marginTop: 12, fontSize: 11 }}
-            onClick={() => toggleArchive(t.id)}
-          >
-            Restore
-          </button>
-        </div>
-      );
-    }
 
     const cls = [
       "tracker-card",
@@ -248,36 +209,22 @@ export default function TrackerHub({ onNavigate }) {
         onDragEnd={onDragEnd}
         onClick={() => onNavigate(t.id)}
       >
-        <div className="drag-handle" style={{ position:"absolute", top:12, left:14 }}>
+        <div className="drag-handle" style={{ position: "absolute", top: 12, left: 14 }}>
           <Icon name="grab" size={12} />
         </div>
 
-        {/* "..." menu button */}
-        <div
-          className="tc-menu-wrap"
-          ref={isMenuOpen ? menuRef : null}
-          onClick={e => e.stopPropagation()}
+        <button
+          className="tracker-archive-btn"
+          title="Archive tracker"
+          onClick={e => { e.stopPropagation(); archiveTracker(t.id); }}
         >
-          <button
-            className="tc-menu-btn"
-            onClick={e => { e.stopPropagation(); setMenuOpen(isMenuOpen ? null : t.id); }}
-            title="Options"
-          >
-            ···
-          </button>
-          {isMenuOpen && (
-            <div className="tc-menu">
-              <button className="tc-menu-item" onClick={() => toggleArchive(t.id)}>
-                Archive
-              </button>
-              {!isDefault && (
-                <button className="tc-menu-item danger" onClick={() => deleteTracker(t.id, t.name)}>
-                  Delete
-                </button>
-              )}
-            </div>
-          )}
-        </div>
+          <svg width="14" height="14" viewBox="0 0 24 24" fill="none"
+            stroke="currentColor" strokeWidth="2" strokeLinecap="round">
+            <polyline points="21 8 21 21 3 21 3 8"/>
+            <rect x="1" y="3" width="22" height="5"/>
+            <line x1="10" y1="12" x2="14" y2="12"/>
+          </svg>
+        </button>
 
         <div className="tc-ring"><MiniRing percent={ring.percent} color={ring.color} /></div>
         <div className="tc-icon"><Icon name={t.icon} size={22} color="var(--t2)" /></div>
@@ -316,7 +263,7 @@ export default function TrackerHub({ onNavigate }) {
               return (
                 <div key={t.id} className="archived-card">
                   <span>{t.name}</span>
-                  <button className="btn sm ghost" onClick={() => toggleArchive(t.id)}>Restore</button>
+                  <button className="btn sm" onClick={() => unarchiveTracker(t.id)}>Restore</button>
                 </div>
               );
             })}
