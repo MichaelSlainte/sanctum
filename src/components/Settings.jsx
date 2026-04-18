@@ -87,16 +87,16 @@ export default function Settings({ user, onLogout, theme, onThemeChange, font, o
 
     try {
       await Promise.all([
-        sb.from('notes').delete().eq('user_id', user.id),
-        sb.from('tasks').delete().eq('user_id', user.id),
-        sb.from('events').delete().eq('user_id', user.id),
-        sb.from('study_sessions').delete().eq('user_id', user.id),
-        sb.from('applications').delete().eq('user_id', user.id),
-        sb.from('finance').delete().eq('user_id', user.id),
-        sb.from('trips').delete().eq('user_id', user.id),
-        sb.from('custom_trackers').delete().eq('user_id', user.id),
-        sb.from('tracker_entries').delete().eq('user_id', user.id),
-        sb.from('vet_visits').delete().eq('user_id', user.id),
+        sb.from('notes').delete({ user_id: user.id }),
+        sb.from('tasks').delete({ user_id: user.id }),
+        sb.from('events').delete({ user_id: user.id }),
+        sb.from('study_sessions').delete({ user_id: user.id }),
+        sb.from('applications').delete({ user_id: user.id }),
+        sb.from('finance').delete({ user_id: user.id }),
+        sb.from('trips').delete({ user_id: user.id }),
+        sb.from('custom_trackers').delete({ user_id: user.id }),
+        sb.from('tracker_entries').delete({ user_id: user.id }),
+        sb.from('vet_visits').delete({ user_id: user.id }),
       ]);
 
       localStorage.clear();

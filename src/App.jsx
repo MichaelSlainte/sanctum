@@ -25,6 +25,7 @@ function Login({ onLogin }) {
   const lockUntil = useRef(0);
 
   const SUPABASE_URL = "https://hqlgwisfkkosgekotojz.supabase.co";
+  // Supabase publishable/anon key — safe to expose in frontend. Security enforced by RLS policies.
   const SUPABASE_KEY = "sb_publishable_Eky9AvrbiYjejxogwxwJ6Q_x7eoySQ4";
 
   const handle = async () => {
@@ -479,6 +480,10 @@ RESPONSE RULES — choose one format only:
     return () => clearInterval(interval);
   }, []);
 
+  useEffect(() => {
+    if (!checking && !user) localStorage.removeItem("sanctum_page");
+  }, [user, checking]);
+
   const handleLogin = (u) => setUser(u);
   const handleLogout = () => { auth.signOut(); setUser(null); setPage("home"); setTrackerPage(null); localStorage.removeItem("sanctum_page"); };
 
@@ -516,6 +521,7 @@ RESPONSE RULES — choose one format only:
   };
 
   const renderPage = () => {
+    if (!user) return null;
     if (page === "home") return <Home user={user} archivedTrackers={archivedTrackers} onNavigate={navigate} onGoToCalendarDay={goToCalendarDay} refreshKey={trackersRefreshKey} />;
     if (page === "notes") return <Notes user={user} />;
     if (page === "calendar") return <Calendar user={user} initialDate={calDate} refreshKey={calendarRefreshKey} />;
