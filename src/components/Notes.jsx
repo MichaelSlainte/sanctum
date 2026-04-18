@@ -1,4 +1,4 @@
-import { useState, useEffect, useRef, useCallback, useMemo } from "react";
+import { useState, useEffect, useRef, useCallback } from "react";
 import { sb } from "../lib/supabase";
 import { Icon, Modal, DEFAULT_NOTEBOOKS } from "./shared";
 
@@ -9,7 +9,8 @@ const mdToHtmlWysiwyg = (text) => {
     .replace(/\*\*(.+?)\*\*/g, '<strong>$1</strong>')
     .replace(/(?<!\*|_)_([^_]+)_(?!\*|_)/g, '<em>$1</em>')
     .replace(/`([^`]+)`/g, '<code>$1</code>')
-    .replace(/\[(.+?)\]\((.+?)\)/g, '<a href="$2" target="_blank" rel="noopener">$1</a>');
+    .replace(/\[(.+?)\]\((.+?)\)/g, '<a href="$2" target="_blank" rel="noopener">$1</a>')
+    .replace(/<u>(.*?)<\/u>/g, '<u>$1</u>');
   const lines = text.split('\n');
   let html = '', inCode = false, codeBuf = [];
   for (const line of lines) {
@@ -37,61 +38,6 @@ const mdToHtmlWysiwyg = (text) => {
   return html || `<div class="we-line"><br></div>`;
 };
 
-// ─── MARKDOWN → HTML PREVIEW ─────────────────────────────────────────────────
-const mdToHtmlPreview = (text) => {
-  if (!text) return '';
-  const esc = s => s.replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;');
-  const inline = s => s
-    .replace(/\*\*(.+?)\*\*/g, '<strong>$1</strong>')
-    .replace(/(?<!\*)\*([^*\n]+)\*(?!\*)/g, '<em>$1</em>')
-    .replace(/`([^`]+)`/g, '<code>$1</code>')
-    .replace(/\[(.+?)\]\((.+?)\)/g, '<a href="$2" target="_blank" rel="noopener noreferrer">$1</a>')
-    .replace(/<u>(.*?)<\/u>/g, '<span style="text-decoration:underline">$1</span>');
-  const lines = text.split('\n');
-  let html = '', inCode = false, codeBuf = [], tableBuf = [];
-  const flushTable = () => {
-    if (!tableBuf.length) return;
-    const rows = tableBuf.filter(r => !/^\|[\s|:-]+\|$/.test(r.trim()));
-    const parseRow = r => r.replace(/^\||\|$/g, '').split('|').map(c => c.trim());
-    let thtml = '<table style="border-collapse:collapse;width:100%;margin:8px 0"><thead><tr>';
-    parseRow(rows[0]).forEach(c => { thtml += `<th style="border:1px solid var(--b2);padding:6px 10px;font-size:13px;font-weight:600;color:var(--t1)">${inline(c)}</th>`; });
-    thtml += '</tr></thead><tbody>';
-    rows.slice(1).forEach(r => {
-      thtml += '<tr>';
-      parseRow(r).forEach(c => { thtml += `<td style="border:1px solid var(--b2);padding:6px 10px;font-size:13px;color:var(--t2)">${inline(c)}</td>`; });
-      thtml += '</tr>';
-    });
-    thtml += '</tbody></table>';
-    html += thtml;
-    tableBuf = [];
-  };
-  for (const line of lines) {
-    if (line.trim().startsWith('```')) {
-      flushTable();
-      if (inCode) { html += `<pre><code>${esc(codeBuf.join('\n'))}</code></pre>`; codeBuf = []; inCode = false; }
-      else { inCode = true; }
-      continue;
-    }
-    if (inCode) { codeBuf.push(line); continue; }
-    if (/^\|.+\|/.test(line)) { tableBuf.push(line); continue; }
-    flushTable();
-    const hm = line.match(/^(#{1,3}) (.*)/);
-    if (hm) { html += `<h${hm[1].length}>${inline(hm[2]||'')}</h${hm[1].length}>`; continue; }
-    if (line.trim() === '---') { html += '<hr>'; continue; }
-    if (/^[-*] \[[x ]\] /i.test(line)) {
-      const checked = /^[-*] \[x\] /i.test(line);
-      const content = line.replace(/^[-*] \[[x ]\] /i, '');
-      html += `<label style="display:block;padding:2px 0;font-size:inherit;color:var(--t2)"><input type="checkbox" disabled${checked?' checked':''}/> ${inline(content)}</label>`;
-      continue;
-    }
-    if (/^[-*] /.test(line)) { html += `<ul><li>${inline(line.slice(2))}</li></ul>`; continue; }
-    if (line.trim() === '') { html += '<br>'; continue; }
-    html += `<p>${inline(line)}</p>`;
-  }
-  flushTable();
-  if (inCode) html += `<pre><code>${esc(codeBuf.join('\n'))}</code></pre>`;
-  return html;
-};
 
 const htmlToMd = (el) => {
   if (!el) return '';
@@ -106,6 +52,7 @@ const htmlToMd = (el) => {
     if (tag === 'STRONG' || tag === 'B') { md += '**'; kids(); md += '**'; return; }
     if (tag === 'EM' || tag === 'I') { md += '_'; kids(); md += '_'; return; }
     if (tag === 'CODE' && node.parentElement?.tagName !== 'PRE') { md += '`'; kids(); md += '`'; return; }
+    if (tag === 'U') { md += '<u>'; kids(); md += '</u>'; return; }
     if (tag === 'A') { const href = node.getAttribute('href')||''; let t=''; node.childNodes.forEach(c=>{if(c.nodeType===3)t+=c.textContent;}); md += `[${t||node.textContent}](${href})`; return; }
     if (tag === 'HR') { md += '---\n'; return; }
     if (tag === 'PRE') { const code = node.querySelector('code'); md += '```\n' + (code?code.textContent:node.textContent) + '\n```\n'; return; }
@@ -139,104 +86,6 @@ const htmlToMd = (el) => {
   return md.replace(/\n{3,}/g, '\n\n').trim();
 };
 
-const saveCursorOffset = (el) => {
-  try {
-    const sel = window.getSelection();
-    if (!sel?.rangeCount) return null;
-    const range = sel.getRangeAt(0);
-    const pre = range.cloneRange();
-    pre.selectNodeContents(el);
-    pre.setEnd(range.startContainer, range.startOffset);
-    return pre.toString().length;
-  } catch { return null; }
-};
-
-const restoreCursorOffset = (el, offset) => {
-  if (offset === null || offset === undefined || !el) return;
-  try {
-    const walker = document.createTreeWalker(el, NodeFilter.SHOW_TEXT, null);
-    let remaining = offset, lastNode = null;
-    while (walker.nextNode()) {
-      const node = walker.currentNode;
-      lastNode = node;
-      if (remaining <= node.length) {
-        const range = document.createRange();
-        range.setStart(node, remaining);
-        range.collapse(true);
-        const sel = window.getSelection();
-        sel?.removeAllRanges();
-        sel?.addRange(range);
-        return;
-      }
-      remaining -= node.length;
-    }
-    if (lastNode) {
-      const range = document.createRange();
-      range.setStart(lastNode, lastNode.length);
-      range.collapse(true);
-      const sel = window.getSelection();
-      sel?.removeAllRanges();
-      sel?.addRange(range);
-    }
-  } catch {}
-};
-
-function SplitEditor({ value, onChange, placeholder, textareaRef, editorMode, setMode, onCursorMove }) {
-  const innerRef = useRef(null);
-  const ref = textareaRef || innerRef;
-  const preview = useMemo(() => mdToHtmlPreview(value), [value]);
-
-  const handleKeyDown = useCallback((e) => {
-    if ((e.metaKey || e.ctrlKey) && e.key === 'b') {
-      e.preventDefault();
-      const ta = ref.current; if (!ta) return;
-      const s = ta.selectionStart, en = ta.selectionEnd;
-      const sel = value.slice(s, en) || 'bold';
-      const ins = `**${sel}**`;
-      const nv = value.slice(0, s) + ins + value.slice(en);
-      onChange(nv);
-      setTimeout(() => ta.setSelectionRange(s + ins.length, s + ins.length), 0);
-    }
-    if ((e.metaKey || e.ctrlKey) && e.key === 'i') {
-      e.preventDefault();
-      const ta = ref.current; if (!ta) return;
-      const s = ta.selectionStart, en = ta.selectionEnd;
-      const sel = value.slice(s, en) || 'italic';
-      const ins = `_${sel}_`;
-      const nv = value.slice(0, s) + ins + value.slice(en);
-      onChange(nv);
-      setTimeout(() => ta.setSelectionRange(s + ins.length, s + ins.length), 0);
-    }
-  }, [value, onChange, ref]); // eslint-disable-line react-hooks/exhaustive-deps
-
-  return (
-    <div className="split-editor-shell">
-      <div className="split-editor-modebar">
-        <span>View:</span>
-        <button className={`note-tool-btn${editorMode==='write'?' on':''}`} onClick={() => setMode('write')}>Write</button>
-        <button className={`note-tool-btn${editorMode==='split'?' on':''}`} onClick={() => setMode('split')}>Split</button>
-        <button className={`note-tool-btn${editorMode==='preview'?' on':''}`} onClick={() => setMode('preview')}>Preview</button>
-      </div>
-      <div className={`split-editor-body split-mode-${editorMode}`}>
-        <textarea
-          ref={ref}
-          className="note-body-textarea"
-          value={value}
-          onChange={e => onChange(e.target.value)}
-          placeholder={placeholder || 'Start writing in Markdown...\n\n# Heading 1\n## Heading 2\n\n**bold**  _italic_  `code`\n- bullet\n```\ncode block\n```\n--- (divider)'}
-          spellCheck={true}
-          onKeyDown={handleKeyDown}
-          onKeyUp={onCursorMove}
-          onClick={onCursorMove}
-        />
-        <div
-          className="note-body-preview"
-          dangerouslySetInnerHTML={{ __html: preview || '<p style="color:var(--t3);opacity:.4;font-size:13px">Start writing to see preview...</p>' }}
-        />
-      </div>
-    </div>
-  );
-}
 
 // ─── NOTES ───────────────────────────────────────────────────────────────────
 export default function Notes() {
@@ -279,8 +128,6 @@ export default function Notes() {
   const pendingSave = useRef({ id: null, title: '', body: '', tags: '' });
   const editorRef      = useRef(null);
   const titleInputRef  = useRef(null);
-  const [editorMode, setEditorMode] = useState(() => localStorage.getItem('sanctum_editor_mode') || 'write');
-  const setMode = (m) => { setEditorMode(m); localStorage.setItem('sanctum_editor_mode', m); };
   // Collapsible panels
   const [sidebarCollapsed, setSidebarCollapsed] = useState(() => localStorage.getItem('sanctum_sidebar_col') === 'true');
   const [nbSearch, setNbSearch] = useState('');
@@ -431,6 +278,7 @@ export default function Notes() {
   const openNote = async (n, navigate = true) => {
     if (dirtyRef.current) await flushSave();
     setActiveNote(n.id); setEditTitle(n.title || ''); setEditBody(n.body || ''); setEditTags(n.tags || '');
+    setTimeout(() => { if (editorRef.current) editorRef.current.innerHTML = mdToHtmlWysiwyg(n.body || ''); }, 0);
     if (navigate && window.innerWidth < 769) setMobilePanel('editor');
   };
   const selectSection = (sid, nbid) => {
@@ -453,10 +301,6 @@ export default function Notes() {
   };
 
   const onTitleChange = (v) => { setEditTitle(v); if (activeNote) autoSave(activeNote, v, editBody, editTags); };
-  const onBodyChange  = (v) => {
-    setEditBody(v);
-    if (activeNote) autoSave(activeNote, editTitle, v, editTags);
-  };
   const onTagsChange  = (v) => { setEditTags(v);  if (activeNote) autoSave(activeNote, editTitle, editBody, v); };
 
   // ── CRUD ──────────────────────────────────────────────────────────────
@@ -514,77 +358,99 @@ export default function Notes() {
     setMoveModal(null); setNoteMenu(null);
   };
 
-  // ── Formatting (WYSIWYG) ──────────────────────────────────────────────
+  // ── Formatting (WYSIWYG contentEditable) ─────────────────────────────
   const detectLineFormat = useCallback(() => {
-    const ta = editorRef.current; if (!ta) return 'body';
-    const text = ta.value;
-    const start = ta.selectionStart ?? 0;
-    const lineStart = text.lastIndexOf('\n', start - 1) + 1;
-    const lineEnd = (() => { const i = text.indexOf('\n', start); return i === -1 ? text.length : i; })();
-    const line = text.slice(lineStart, lineEnd);
-    if (line.startsWith('### ')) return 'h3';
-    if (line.startsWith('## '))  return 'h2';
-    if (line.startsWith('# '))   return 'h1';
-    if (line.startsWith('- [ ] ') || line.startsWith('- [x] ')) return 'check';
-    if (line.startsWith('- ') || line.startsWith('* ')) return 'ul';
-    if (/^\d+\. /.test(line)) return 'ol';
+    const ed = editorRef.current; if (!ed) return 'body';
+    const sel = window.getSelection();
+    if (!sel?.rangeCount) return 'body';
+    let node = sel.getRangeAt(0).startContainer;
+    while (node && node.parentElement && node.parentElement !== ed) node = node.parentElement;
+    if (!node || node === ed || node.parentElement !== ed) return 'body';
+    const cls = (node.className || '');
+    if (cls.includes('we-h1')) return 'h1';
+    if (cls.includes('we-h2')) return 'h2';
+    if (cls.includes('we-h3')) return 'h3';
+    if (cls.includes('we-ul')) return 'ul';
+    if (cls.includes('we-ol')) return 'ol';
+    if (cls.includes('we-check')) return 'check';
     return 'body';
   }, []);
 
   const updateLineFormat = useCallback(() => setLineFormat(detectLineFormat()), [detectLineFormat]);
 
+  const syncBody = useCallback(() => {
+    const ed = editorRef.current; if (!ed) return;
+    const md = htmlToMd(ed);
+    setEditBody(md);
+    if (activeNote) autoSave(activeNote, editTitle, md, editTags);
+  }, [activeNote, editTitle, editTags, autoSave]);
+
   const applyFormat = (fmt) => {
-    const ta = editorRef.current; if (!ta) return;
-    if (editorMode !== 'write' && editorMode !== 'split') setMode('write');
-    ta.focus();
-    const text = editBody;
-    const start = ta.selectionStart ?? text.length;
-    const end   = ta.selectionEnd   ?? text.length;
-    const selText = text.slice(start, end);
+    const ed = editorRef.current; if (!ed) return;
+    ed.focus();
 
-    if (fmt === 'body') {
-      const lineStart = text.lastIndexOf('\n', start - 1) + 1;
-      const lineEnd   = (() => { const i = text.indexOf('\n', start); return i === -1 ? text.length : i; })();
-      const line = text.slice(lineStart, lineEnd);
-      const stripped = line.replace(/^#{1,3} |^[-*] \[[ x]\] |^[-*] |^\d+\. /, '');
-      const newText = text.slice(0, lineStart) + stripped + text.slice(lineEnd);
-      onBodyChange(newText);
-      const diff = stripped.length - line.length;
-      setTimeout(() => ta.setSelectionRange(Math.max(lineStart, start + diff), Math.max(lineStart, start + diff)), 0);
-      return;
-    }
+    const blockFmts = ['h1','h2','h3','ul','ol','check','body','hr'];
+    if (blockFmts.includes(fmt)) {
+      const sel = window.getSelection();
+      if (!sel?.rangeCount) return;
+      let node = sel.getRangeAt(0).startContainer;
+      while (node && node.parentElement && node.parentElement !== ed) node = node.parentElement;
+      const block = (node && node !== ed && node.parentElement === ed) ? node : ed.lastChild;
 
-    if (['h1','h2','h3','ul','ol','check','hr'].includes(fmt)) {
-      const pm = { h1:'# ', h2:'## ', h3:'### ', ul:'- ', ol:'1. ', check:'- [ ] ', hr:'---' };
-      const px = pm[fmt];
-      const lineStart = text.lastIndexOf('\n', start - 1) + 1;
-      const lineEnd   = (() => { const i = text.indexOf('\n', start); return i === -1 ? text.length : i; })();
-      const line = text.slice(lineStart, lineEnd);
-      let newText, newCursor;
       if (fmt === 'hr') {
-        const ins = '\n---\n';
-        newText = text.slice(0, lineEnd) + ins + text.slice(lineEnd);
-        newCursor = lineEnd + ins.length;
+        const hrDiv = document.createElement('div'); hrDiv.className = 'we-hr'; hrDiv.innerHTML = '<hr>';
+        const next  = document.createElement('div'); next.className  = 'we-line'; next.innerHTML = '<br>';
+        if (block) { block.after(hrDiv); hrDiv.after(next); } else { ed.appendChild(hrDiv); ed.appendChild(next); }
+        const r = document.createRange(); r.setStart(next, 0); r.collapse(true); sel.removeAllRanges(); sel.addRange(r);
       } else {
-        const existing = Object.entries(pm).find(([,p]) => p !== '---' && line.startsWith(p));
-        const stripped = line.replace(/^#{1,3} |^[-*] \[[ x]\] |^[-*] |^\d+\. /,'');
-        const newLine  = (existing && existing[0] === fmt) ? stripped : px + stripped;
-        newText = text.slice(0, lineStart) + newLine + text.slice(lineEnd);
-        const diff = newLine.length - line.length;
-        newCursor = Math.max(lineStart, start + diff);
+        const copy = block ? block.cloneNode(true) : null;
+        copy?.querySelectorAll('.we-bullet,.we-checkbox').forEach(s => s.remove());
+        const inner = copy ? (copy.innerHTML.replace(/^<br>$/i,'') || '') : '';
+        const newEl = document.createElement('div');
+        if (fmt === 'ul') {
+          newEl.className = 'we-ul';
+          newEl.innerHTML = `<span class="we-bullet" contenteditable="false">•</span>${inner || '<br>'}`;
+        } else if (fmt === 'check') {
+          newEl.className = 'we-check';
+          newEl.innerHTML = `<span class="we-checkbox" contenteditable="false">☐</span>${inner || '<br>'}`;
+        } else {
+          const classMap = { body:'we-line', h1:'we-h we-h1', h2:'we-h we-h2', h3:'we-h we-h3', ol:'we-ol' };
+          newEl.className = classMap[fmt] || 'we-line';
+          newEl.innerHTML = inner || '<br>';
+        }
+        if (block) block.replaceWith(newEl); else ed.appendChild(newEl);
+        const tw = document.createTreeWalker(newEl, NodeFilter.SHOW_TEXT, null);
+        let last = null; while (tw.nextNode()) last = tw.currentNode;
+        const r = document.createRange();
+        if (last) { r.setStart(last, last.length); r.collapse(true); }
+        else { r.selectNodeContents(newEl); r.collapse(false); }
+        sel.removeAllRanges(); sel.addRange(r);
       }
-      onBodyChange(newText);
-      setTimeout(() => ta.setSelectionRange(newCursor, newCursor), 0);
+      const md = htmlToMd(ed); setEditBody(md);
+      if (activeNote) autoSave(activeNote, editTitle, md, editTags);
+      setFormatDrop(false);
+      setTimeout(() => setLineFormat(detectLineFormat()), 0);
       return;
     }
 
     // Inline formats
-    const map = { bold:`**${selText||'bold'}**`, italic:`_${selText||'italic'}_`, code:`\`${selText||'code'}\``, codeblock:`\`\`\`\n${selText||'code'}\n\`\`\``, link:`[${selText||'text'}](url)`, underline:`<u>${selText||'text'}</u>`, table:`| Column 1 | Column 2 | Column 3 |\n|----------|----------|----------|\n| Cell     | Cell     | Cell     |` };
-    const insert = map[fmt]; if (!insert) return;
-    const newText = text.slice(0, start) + insert + text.slice(end);
-    onBodyChange(newText);
-    const nc = start + insert.length;
-    setTimeout(() => ta.setSelectionRange(nc, nc), 0);
+    if (fmt === 'bold')      { document.execCommand('bold'); }
+    else if (fmt === 'italic')    { document.execCommand('italic'); }
+    else if (fmt === 'underline') { document.execCommand('underline'); }
+    else if (fmt === 'link') {
+      const url = window.prompt('Enter URL:'); if (!url) return;
+      document.execCommand('createLink', false, url);
+    } else if (fmt === 'code') {
+      const selText = window.getSelection()?.toString() || 'code';
+      document.execCommand('insertHTML', false, `<code>${selText}</code>`);
+    } else if (fmt === 'codeblock') {
+      const selText = window.getSelection()?.toString() || 'code';
+      document.execCommand('insertHTML', false, `<div class="we-codeblock"><pre><code>${selText}</code></pre></div>`);
+    } else if (fmt === 'table') {
+      document.execCommand('insertHTML', false, `<table style="border-collapse:collapse;width:100%;margin:8px 0"><thead><tr><th style="border:1px solid var(--b2);padding:6px 10px;font-weight:600">Column 1</th><th style="border:1px solid var(--b2);padding:6px 10px;font-weight:600">Column 2</th><th style="border:1px solid var(--b2);padding:6px 10px;font-weight:600">Column 3</th></tr></thead><tbody><tr><td style="border:1px solid var(--b2);padding:6px 10px">Cell</td><td style="border:1px solid var(--b2);padding:6px 10px">Cell</td><td style="border:1px solid var(--b2);padding:6px 10px">Cell</td></tr></tbody></table>`);
+    }
+    const md = htmlToMd(ed); setEditBody(md);
+    if (activeNote) autoSave(activeNote, editTitle, md, editTags);
   };
 
   // ── Markdown renderer with collapsible headings ───────────────────────
@@ -936,15 +802,24 @@ export default function Notes() {
               <span className="note-meta-item"><Icon name="folder" size={10} color="var(--t3)"/> {currentNB?.label}{currentSection?.label ? ` / ${currentSection.label}` : ''}</span>
             </div>
 
-            {/* Split editor: textarea + live preview */}
-            <SplitEditor
-              textareaRef={editorRef}
-              value={editBody}
-              onChange={onBodyChange}
-              placeholder="Start writing..."
-              editorMode={editorMode}
-              setMode={setMode}
-              onCursorMove={updateLineFormat}
+            {/* WYSIWYG contentEditable editor */}
+            <div
+              ref={editorRef}
+              className="note-body-wysiwyg"
+              contentEditable
+              suppressContentEditableWarning
+              data-placeholder="Start writing..."
+              spellCheck
+              onInput={syncBody}
+              onKeyUp={updateLineFormat}
+              onClick={(e) => {
+                if (e.target.classList.contains('we-checkbox')) {
+                  e.target.classList.toggle('checked');
+                  e.target.textContent = e.target.classList.contains('checked') ? '☑' : '☐';
+                  syncBody();
+                }
+                updateLineFormat();
+              }}
             />
 
             {/* Mobile bottom formatting toolbar */}
