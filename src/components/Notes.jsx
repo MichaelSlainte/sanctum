@@ -248,7 +248,8 @@ export default function Notes() {
   const saveTimer   = useRef(null);
   const dirtyRef    = useRef(false);
   const pendingSave = useRef({ id: null, title: '', body: '', tags: '' });
-  const editorRef   = useRef(null);
+  const editorRef      = useRef(null);
+  const titleInputRef  = useRef(null);
   const [editorMode, setEditorMode] = useState(() => localStorage.getItem('sanctum_editor_mode') || 'write');
   const setMode = (m) => { setEditorMode(m); localStorage.setItem('sanctum_editor_mode', m); };
   // Collapsible panels
@@ -278,7 +279,7 @@ export default function Notes() {
   // ── UI state ──────────────────────────────────────────────────────────
   const [nbMenu,       setNbMenu]       = useState(null);
   const [noteMenu,     setNoteMenu]     = useState(null);
-  const [dotsMenu,     setDotsMenu]     = useState(false);
+  const [formatDrop,   setFormatDrop]   = useState(false);
   const [dragNBId,     setDragNBId]     = useState(null);
   const [dragSecId,    setDragSecId]    = useState(null);
   const [dragNoteId,   setDragNoteId]   = useState(null);
@@ -294,7 +295,7 @@ export default function Notes() {
     const h = (e) => {
       if (!e.target.closest('.nb-dropdown') && !e.target.closest('.nb-dot-btn')) setNbMenu(null);
       if (!e.target.closest('.note-ctx-menu') && !e.target.closest('.nb-dot-btn')) setNoteMenu(null);
-      if (!e.target.closest('.note-dots-menu') && !e.target.closest('.dots-trigger')) setDotsMenu(false);
+      if (!e.target.closest('.format-dropdown') && !e.target.closest('.format-drop-trigger')) setFormatDrop(false);
     };
     document.addEventListener('mousedown', h);
     return () => document.removeEventListener('mousedown', h);
@@ -360,7 +361,7 @@ export default function Notes() {
           setActiveNB(nbId);   localStorage.setItem('sanctum_active_nb', nbId);
           if (secId) { setActiveSection(secId); localStorage.setItem('sanctum_active_sec', secId); }
           else       { setActiveSection(null);  localStorage.setItem('sanctum_active_sec', ''); }
-          openNote(first);
+          openNote(first, false);
         }
       }
     } catch { setAllNotes([]); }
@@ -397,10 +398,10 @@ export default function Notes() {
     }, 700);
   }, []);
 
-  const openNote = async (n) => {
+  const openNote = async (n, navigate = true) => {
     if (dirtyRef.current) await flushSave();
     setActiveNote(n.id); setEditTitle(n.title || ''); setEditBody(n.body || ''); setEditTags(n.tags || '');
-    if (window.innerWidth < 769) setMobilePanel('editor');
+    if (navigate && window.innerWidth < 769) setMobilePanel('editor');
   };
   const selectSection = (sid, nbid) => {
     setActiveNB(nbid); localStorage.setItem('sanctum_active_nb', nbid);
@@ -434,12 +435,13 @@ export default function Notes() {
     const sectionId = activeSection || nb?.sections[0]?.id || '';
     const sec = nb?.sections.find(s => s.id === sectionId);
     // Save capitalised label so DB is consistent with config (normalization on load handles legacy lowercase ids)
-    const note = { notebook: nb?.label || activeNB, section: sec?.label || sectionId, title: 'Untitled', body: '', tags: '', updated_at: new Date().toISOString().slice(0, 10) };
+    const note = { notebook: nb?.label || activeNB, section: sec?.label || sectionId, title: '', body: '', tags: '', updated_at: new Date().toISOString().slice(0, 10) };
     try {
       const res = await sb.from("notes").insert(note);
       const created = Array.isArray(res) && res[0] ? res[0] : { ...note, id: Date.now().toString() };
       setAllNotes(prev => [created, ...prev]); openNote(created);
-    } catch { const n = { ...note, id: Date.now().toString() }; setAllNotes(prev => [n, ...prev]); openNote(n); }
+      setTimeout(() => titleInputRef.current?.focus(), 80);
+    } catch { const n = { ...note, id: Date.now().toString() }; setAllNotes(prev => [n, ...prev]); openNote(n); setTimeout(() => titleInputRef.current?.focus(), 80); }
   };
 
   const deleteNote = async (id) => {
@@ -491,6 +493,18 @@ export default function Notes() {
     const start = ta.selectionStart ?? text.length;
     const end   = ta.selectionEnd   ?? text.length;
     const selText = text.slice(start, end);
+
+    if (fmt === 'body') {
+      const lineStart = text.lastIndexOf('\n', start - 1) + 1;
+      const lineEnd   = (() => { const i = text.indexOf('\n', start); return i === -1 ? text.length : i; })();
+      const line = text.slice(lineStart, lineEnd);
+      const stripped = line.replace(/^#{1,3} |^[-*] \[[ x]\] |^[-*] |^\d+\. /, '');
+      const newText = text.slice(0, lineStart) + stripped + text.slice(lineEnd);
+      onBodyChange(newText);
+      const diff = stripped.length - line.length;
+      setTimeout(() => ta.setSelectionRange(Math.max(lineStart, start + diff), Math.max(lineStart, start + diff)), 0);
+      return;
+    }
 
     if (['h1','h2','h3','ul','ol','check','hr'].includes(fmt)) {
       const pm = { h1:'# ', h2:'## ', h3:'### ', ul:'- ', ol:'1. ', check:'- [ ] ', hr:'---' };
@@ -667,7 +681,7 @@ export default function Notes() {
                 onDragStart={e=>onNBDragStart(e,nb.id)} onDragOver={e=>onNBDragOver(e,nb.id)}
                 onDragLeave={()=>setDragOverId(null)} onDrop={e=>onNBDrop(e,nb.id)}
                 onDragEnd={()=>{setDragNBId(null);setDragOverId(null);}}
-                onClick={() => { toggleExpand(nb.id); selectNotebook(nb.id); }}
+                onClick={() => { toggleExpand(nb.id); if (!isMobile) selectNotebook(nb.id); }}
               >
                 <span className="nb-chev" style={{transform:isExpanded?'rotate(0)':'rotate(-90deg)',display:'inline-block',transition:'transform .15s'}}>▼</span>
                 <div className="notebook-icon" style={{background:nb.bg}}>{nb.emoji}</div>
@@ -827,6 +841,7 @@ export default function Notes() {
               <div className="note-toolbar-sep"/>
               <button className="note-tool-btn" title="Heading 1"    onMouseDown={e=>{e.preventDefault();applyFormat('h1');}}>H1</button>
               <button className="note-tool-btn" title="Heading 2"    onMouseDown={e=>{e.preventDefault();applyFormat('h2');}}>H2</button>
+              <button className="note-tool-btn" title="Heading 3"    onMouseDown={e=>{e.preventDefault();applyFormat('h3');}}>H3</button>
               <div className="note-toolbar-sep"/>
               <button className="note-tool-btn" title="Bullet list"  onMouseDown={e=>{e.preventDefault();applyFormat('ul');}}>•—</button>
               <button className="note-tool-btn" title="Checkbox"     onMouseDown={e=>{e.preventDefault();applyFormat('check');}}>☐</button>
@@ -834,17 +849,28 @@ export default function Notes() {
               <div className="note-toolbar-sep"/>
               <button className="note-tool-btn" title="Underline"    onMouseDown={e=>{e.preventDefault();applyFormat('underline');}} style={{textDecoration:'underline'}}>U</button>
               <button className="note-tool-btn" title="Insert table" onMouseDown={e=>{e.preventDefault();applyFormat('table');}}>⊞</button>
+              <button className="note-tool-btn" title="Link"          onMouseDown={e=>{e.preventDefault();applyFormat('link');}}>🔗</button>
               <div className="note-toolbar-sep"/>
               <span style={{fontSize:10,color:'var(--t3)',fontFamily:'var(--mono)',padding:'0 3px',flexShrink:0}}>
                 {editBody.split(/\s+/).filter(Boolean).length}w
               </span>
               <div style={{position:'relative'}}>
-                <button className="note-tool-btn dots-trigger" title="More" onClick={e=>{e.stopPropagation();setDotsMenu(v=>!v);}}>···</button>
-                {dotsMenu && (
-                  <div className="note-dots-menu" onClick={e=>e.stopPropagation()}>
-                    <button className="danger" onClick={()=>{deleteNote(activeNote);setDotsMenu(false);}}>
-                      <Icon name="trash" size={12}/> Delete note
-                    </button>
+                <button className="note-tool-btn format-drop-trigger" title="Paragraph style" onMouseDown={e=>{e.preventDefault();setFormatDrop(v=>!v);}}>¶▾</button>
+                {formatDrop && (
+                  <div className="format-dropdown" onClick={e=>e.stopPropagation()}>
+                    {[
+                      {label:'Body',       fmt:'body'},
+                      {label:'Title',      fmt:'h1'},
+                      {label:'Heading',    fmt:'h2'},
+                      {label:'Subheading', fmt:'h3'},
+                      {label:'Bullet',     fmt:'ul'},
+                      {label:'Numbered',   fmt:'ol'},
+                      {label:'Checklist',  fmt:'check'},
+                    ].map(({label, fmt}) => (
+                      <button key={fmt} onMouseDown={e=>{e.preventDefault();applyFormat(fmt);setFormatDrop(false);}}>
+                        {label}
+                      </button>
+                    ))}
                   </div>
                 )}
               </div>
@@ -859,6 +885,7 @@ export default function Notes() {
 
             {/* Title */}
             <input className="note-title-input"
+              ref={titleInputRef}
               value={renameTarget?.type==='note' ? renameTarget.value : editTitle}
               onChange={e=>{
                 if(renameTarget?.type==='note') setRenameTarget(r=>({...r,value:e.target.value}));
@@ -879,6 +906,7 @@ export default function Notes() {
               textareaRef={editorRef}
               value={editBody}
               onChange={onBodyChange}
+              placeholder="Start writing..."
               editorMode={editorMode}
               setMode={setMode}
             />
