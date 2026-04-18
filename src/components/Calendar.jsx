@@ -373,16 +373,62 @@ export default function Calendar({ initialDate, refreshKey }) {
     return d;
   });
 
-  // ── Month events list ──
-  const monthEvents = (() => {
-    const seen = new Set();
-    const result = [];
-    for (let d = 1; d <= daysInMonth; d++) {
-      for (const ev of getEventsForDate(events, fmtDs(d))) {
-        if (!seen.has(ev.id)) { seen.add(ev.id); result.push(ev); }
+  const fmtEvDate = (dateStr) =>
+    new Date(dateStr + "T00:00:00").toLocaleDateString("en-IE", { weekday: "short", day: "numeric", month: "short" });
+
+  const fmtTime12h = (timeStr) => {
+    if (!timeStr) return "";
+    const [h, m] = timeStr.split(":").map(Number);
+    const suffix = h < 12 ? "AM" : "PM";
+    const h12 = h === 0 ? 12 : h > 12 ? h - 12 : h;
+    return `${h12}:${String(m).padStart(2, "0")} ${suffix}`;
+  };
+
+  // ── Visible events for current view ──
+  const visibleEvents = (() => {
+    if (calView === "month") {
+      const seen = new Set(); const result = [];
+      for (let d = 1; d <= daysInMonth; d++) {
+        for (const ev of getEventsForDate(events, fmtDs(d))) {
+          if (!seen.has(ev.id)) { seen.add(ev.id); result.push(ev); }
+        }
       }
+      return result.sort((a, b) => a.date.localeCompare(b.date));
     }
-    return result.sort((a, b) => a.date.localeCompare(b.date));
+    if (calView === "week") {
+      const seen = new Set(); const result = [];
+      weekDays.forEach(d => {
+        for (const ev of getEventsForDate(events, fmtDateStr(d))) {
+          if (!seen.has(ev.id)) { seen.add(ev.id); result.push(ev); }
+        }
+      });
+      return result.sort((a, b) => a.date.localeCompare(b.date));
+    }
+    if (calView === "3day") {
+      const seen = new Set(); const result = [];
+      threeDays.forEach(d => {
+        for (const ev of getEventsForDate(events, fmtDateStr(d))) {
+          if (!seen.has(ev.id)) { seen.add(ev.id); result.push(ev); }
+        }
+      });
+      return result.sort((a, b) => a.date.localeCompare(b.date));
+    }
+    if (calView === "year") {
+      return events
+        .filter(ev => ev.date && ev.date.startsWith(`${year}-`))
+        .sort((a, b) => a.date.localeCompare(b.date));
+    }
+    return [];
+  })();
+
+  const eventListTitle = (() => {
+    const n = visibleEvents.length;
+    const s = n !== 1 ? "s" : "";
+    if (calView === "month") return { heading: `Events — ${MONTHS[month]} ${year}`, sub: `${n} event${s}` };
+    if (calView === "week")  return { heading: "This week", sub: `${n} event${s}` };
+    if (calView === "3day")  return { heading: "Next 3 days", sub: `${n} event${s}` };
+    if (calView === "year")  return { heading: `Events — ${year}`, sub: `${n} event${s}` };
+    return { heading: "", sub: "" };
   })();
 
   const repeatOpts    = getRepeatOptions(formData.date);
@@ -1023,51 +1069,48 @@ export default function Calendar({ initialDate, refreshKey }) {
         </div>
       )}
 
-      {/* Month events list */}
-      {calView === "month" && (
-        <div className="card">
-          <div className="card-header">
-            <div>
-              <div className="card-title">Events — {MONTHS[month]} {year}</div>
-              <div className="card-sub">{monthEvents.length} event{monthEvents.length !== 1 ? "s" : ""} this month</div>
-            </div>
-            <button className="btn sm primary"
-              onClick={() => openAdd(fmtDs(now.getMonth()===month && now.getFullYear()===year ? now.getDate() : 1))}>
-              <Icon name="plus" size={12} /> Add
-            </button>
+      {/* Events list — updates to match current view */}
+      <div className="card">
+        <div className="card-header">
+          <div>
+            <div className="card-title">{eventListTitle.heading}</div>
+            <div className="card-sub">{eventListTitle.sub}</div>
           </div>
-          {monthEvents.length === 0 ? (
-            <div style={{ padding: "24px 0", textAlign: "center", color: "var(--t3)", fontSize: 13 }}>
-              No events this month — click any day to add one
-            </div>
-          ) : (
-            monthEvents.map(ev => {
-              const c      = catOf(ev);
-              const startT = ev.start_time || ev.time || "";
-              return (
-                <div key={ev.id} className="fin-row"
-                  style={{ cursor: "pointer", borderLeft: `3px solid ${c.color}`, paddingLeft: 14, marginLeft: -1 }}
-                  onClick={() => setActiveEvent(ev)}>
-                  <div style={{ display: "flex", alignItems: "center", gap: 12, flex: 1 }}>
-                    <div>
-                      <div style={{ fontSize: 13, fontWeight: 600, color: "var(--t1)" }}>{ev.title}</div>
-                      <div style={{ fontSize: 11, color: "var(--t3)", fontFamily: "var(--mono)", marginTop: 2 }}>
-                        {ev.date}{startT ? ` · ${startT}` : ""}
-                        {ev.location ? ` · 📍 ${ev.location}` : ""}
-                      </div>
+          <button className="btn sm primary" onClick={() => openAdd(fmtDateStr(new Date()))}>
+            <Icon name="plus" size={12} /> Add
+          </button>
+        </div>
+        {visibleEvents.length === 0 ? (
+          <div style={{ padding: "24px 0", textAlign: "center", color: "var(--t3)", fontSize: 13 }}>
+            No events — click any day to add one
+          </div>
+        ) : (
+          visibleEvents.map(ev => {
+            const c      = catOf(ev);
+            const startT = ev.start_time || ev.time || "";
+            return (
+              <div key={ev.id} className="fin-row"
+                style={{ cursor: "pointer", borderLeft: `3px solid ${c.color}`, paddingLeft: 14, marginLeft: -1 }}
+                onClick={() => setActiveEvent(ev)}>
+                <div style={{ display: "flex", alignItems: "center", gap: 12, flex: 1 }}>
+                  <div>
+                    <div style={{ fontSize: 13, fontWeight: 600, color: "var(--t1)" }}>{ev.title}</div>
+                    <div style={{ fontSize: 11, color: "var(--t3)", fontFamily: "var(--mono)", marginTop: 2 }}>
+                      {fmtEvDate(ev.date)}{startT ? ` · ${fmtTime12h(startT)}` : ""}
+                      {ev.location ? ` · 📍 ${ev.location}` : ""}
                     </div>
                   </div>
-                  <div style={{ display: "flex", gap: 6, alignItems: "center", flexShrink: 0 }}>
-                    {ev.repeat && ev.repeat !== "none" && <span style={{ fontSize: 12, color: "var(--t3)" }}>↻</span>}
-                    {ev.shared && <span className="event-badge-s">S</span>}
-                    <span className={`badge ${badgeCls(ev.category)}`}>{ev.category}</span>
-                  </div>
                 </div>
-              );
-            })
-          )}
-        </div>
-      )}
+                <div style={{ display: "flex", gap: 6, alignItems: "center", flexShrink: 0 }}>
+                  {ev.repeat && ev.repeat !== "none" && <span style={{ fontSize: 12, color: "var(--t3)" }}>↻</span>}
+                  {ev.shared && <span className="event-badge-s">S</span>}
+                  <span className={`badge ${badgeCls(ev.category)}`}>{ev.category}</span>
+                </div>
+              </div>
+            );
+          })
+        )}
+      </div>
 
       <style>{`
         @media (max-width: 768px) {

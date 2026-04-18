@@ -28,6 +28,10 @@ export default function Study() {
   const [showAddPmp, setShowAddPmp] = useState(false);
   const [newPmp, setNewPmp] = useState({ topic: "", hours: "", notes: "", date: today.toISOString().slice(0, 10) });
 
+  const [barPeriod, setBarPeriod] = useState("week");
+  const [barFilter, setBarFilter] = useState("pmp");
+  const [barWeeks, setBarWeeks] = useState(6);
+
   const DEFAULT_TOPICS = [
     { id: "integration",    label: "Integration Management",    icon: "link" },
     { id: "scope",          label: "Scope Management",          icon: "target" },
@@ -270,6 +274,108 @@ export default function Study() {
                   </text>
                 </svg>
                 <div className="weekly-ring-label">This week's progress</div>
+              </div>
+            );
+          })()}
+
+          {(() => {
+            const MO = ["Jan","Feb","Mar","Apr","May","Jun","Jul","Aug","Sep","Oct","Nov","Dec"];
+            const allSessions = [...pmpSessions, ...thmSessions];
+            const filtered = barFilter === "all" ? allSessions : barFilter === "pmp" ? pmpSessions : thmSessions;
+            const barData = (() => {
+              if (barPeriod === "day") {
+                return Array.from({ length: 14 }, (_, i) => {
+                  const d = new Date(today); d.setDate(today.getDate() - 13 + i);
+                  const dateStr = d.toISOString().slice(0, 10);
+                  const hours = filtered.filter(s => s.date === dateStr).reduce((s, x) => s + (x.hours || 0), 0);
+                  return { label: `${d.getDate()}/${d.getMonth()+1}`, hours };
+                });
+              }
+              if (barPeriod === "week") {
+                return Array.from({ length: barWeeks }, (_, i) => {
+                  const wS = new Date(weekStart); wS.setDate(weekStart.getDate() - (barWeeks - 1 - i) * 7);
+                  const wE = new Date(wS); wE.setDate(wS.getDate() + 6);
+                  const hours = filtered.filter(s => {
+                    const d = new Date(s.date + "T00:00:00"); return d >= wS && d <= wE;
+                  }).reduce((s, x) => s + (x.hours || 0), 0);
+                  return { label: `${wS.getDate()}/${wS.getMonth()+1}`, hours, metGoal: hours >= weeklyGoal && hours > 0 };
+                });
+              }
+              if (barPeriod === "month") {
+                return Array.from({ length: 12 }, (_, i) => {
+                  const d = new Date(today.getFullYear(), today.getMonth() - 11 + i, 1);
+                  const y = d.getFullYear(), m = d.getMonth();
+                  const hours = filtered.filter(s => {
+                    const sd = new Date(s.date + "T00:00:00"); return sd.getFullYear() === y && sd.getMonth() === m;
+                  }).reduce((s, x) => s + (x.hours || 0), 0);
+                  return { label: MO[m], hours };
+                });
+              }
+              if (barPeriod === "year") {
+                return Array.from({ length: 3 }, (_, i) => {
+                  const y = today.getFullYear() - 2 + i;
+                  const hours = filtered.filter(s => new Date(s.date + "T00:00:00").getFullYear() === y)
+                    .reduce((s, x) => s + (x.hours || 0), 0);
+                  return { label: String(y), hours };
+                });
+              }
+              return [];
+            })();
+            const barMax = Math.max(...barData.map(b => b.hours), weeklyGoal, 1);
+            return (
+              <div className="card mb18">
+                <div style={{ display: "flex", gap: 8, flexWrap: "wrap", alignItems: "center", marginBottom: 14 }}>
+                  <div style={{ display: "flex", background: "var(--bg2)", borderRadius: 8, padding: 2, gap: 1 }}>
+                    {["day","week","month","year"].map(p => (
+                      <button key={p} onClick={() => setBarPeriod(p)}
+                        style={{ padding: "4px 10px", borderRadius: 6, border: "none", fontSize: 11, cursor: "pointer",
+                                 background: barPeriod === p ? "var(--bg1)" : "transparent",
+                                 color: barPeriod === p ? "var(--t1)" : "var(--t3)",
+                                 fontWeight: barPeriod === p ? 600 : 400 }}>
+                        {p.charAt(0).toUpperCase() + p.slice(1)}
+                      </button>
+                    ))}
+                  </div>
+                  <div style={{ display: "flex", gap: 4 }}>
+                    {[{id:"pmp",label:"PMP"},{id:"thm",label:"TryHackMe"},{id:"all",label:"All"}].map(f => (
+                      <button key={f.id} className={`btn xs${barFilter === f.id ? " primary" : ""}`}
+                        onClick={() => setBarFilter(f.id)}>{f.label}</button>
+                    ))}
+                  </div>
+                  {barPeriod === "week" && (
+                    <select className="inp" style={{ width: 90, padding: "4px 8px", fontSize: 12 }}
+                      value={barWeeks} onChange={e => setBarWeeks(parseInt(e.target.value))}>
+                      {[4,6,8,12].map(n => <option key={n} value={n}>{n} weeks</option>)}
+                    </select>
+                  )}
+                  <div style={{ display: "flex", alignItems: "center", gap: 4, marginLeft: "auto" }}>
+                    <span style={{ fontSize: 11, color: "var(--t3)" }}>Goal</span>
+                    <input type="number" className="inp" style={{ width: 56, padding: "4px 8px", fontSize: 12, textAlign: "center" }}
+                      min="1" max="40" value={pmpGoals.weeklyGoal}
+                      onChange={e => savePmpGoal("weeklyGoal", e.target.value)} />
+                    <span style={{ fontSize: 11, color: "var(--t3)" }}>h/wk</span>
+                  </div>
+                </div>
+                <div style={{ display: "flex", alignItems: "flex-end", gap: barData.length > 8 ? 2 : 4, height: 100 }}>
+                  {barData.map((bar, i) => {
+                    const heightPx = Math.round((bar.hours / barMax) * 96);
+                    const barColor = (bar.metGoal && barPeriod === "week") ? "var(--grn)" : "var(--blue)";
+                    return (
+                      <div key={i} title={`${bar.label}: ${bar.hours.toFixed(1)}h`}
+                        style={{ flex: 1, height: bar.hours > 0 ? Math.max(heightPx, 3) : 0,
+                                 background: barColor, borderRadius: "3px 3px 0 0",
+                                 opacity: 0.85, transition: "height .3s", minWidth: 0 }} />
+                    );
+                  })}
+                </div>
+                <div style={{ display: "flex", gap: barData.length > 8 ? 2 : 4, marginTop: 4 }}>
+                  {barData.map((bar, i) => (
+                    <div key={i} style={{ flex: 1, fontSize: 7, color: "var(--t3)", textAlign: "center",
+                                         fontFamily: "var(--mono)", overflow: "hidden", minWidth: 0 }}>
+                      {bar.label}
+                    </div>
+                  ))}
+                </div>
               </div>
             );
           })()}

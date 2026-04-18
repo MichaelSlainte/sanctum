@@ -257,33 +257,56 @@ export default function Ozzy() {
       {/* Profile card */}
       <div className="card mb18" style={{ background: "linear-gradient(135deg, rgba(245,158,11,0.1), rgba(16,185,129,0.08))", borderColor: "rgba(245,158,11,0.2)" }}>
         <div style={{ display: "flex", alignItems: "center", gap: 20 }}>
-          <div
-            onClick={() => photoInputRef.current?.click()}
-            style={{ width: 80, height: 80, borderRadius: 16, background: "var(--bg2)", border: "2px dashed var(--b2)", display: "flex", alignItems: "center", justifyContent: "center", cursor: "pointer", overflow: "hidden", flexShrink: 0 }}
-            title="Upload Ozzy's photo"
-          >
-            {ozzyPhoto
-              ? <img src={ozzyPhoto} style={{ width: "100%", height: "100%", objectFit: "cover" }} alt="Ozzy" />
-              : <Icon name="plus" size={24} color="var(--t3)" />
-            }
+          <div style={{ position: "relative", width: 72, height: 72, flexShrink: 0 }}>
+            <div
+              onClick={() => photoInputRef.current?.click()}
+              style={{
+                width: 72, height: 72, borderRadius: "50%",
+                background: "var(--bg2)",
+                border: ozzyPhoto ? "2px solid var(--blue)" : "2px dashed var(--b2)",
+                display: "flex", alignItems: "center", justifyContent: "center",
+                cursor: "pointer", overflow: "hidden",
+              }}>
+              {ozzyPhoto
+                ? <img src={ozzyPhoto} style={{ width: "100%", height: "100%", objectFit: "cover" }} alt="Ozzy" />
+                : <svg width="28" height="28" viewBox="0 0 24 24" fill="none" stroke="var(--t3)" strokeWidth="1.5">
+                    <path d="M20 21v-2a4 4 0 0 0-4-4H8a4 4 0 0 0-4 4v2" />
+                    <circle cx="12" cy="7" r="4" />
+                  </svg>
+              }
+            </div>
+            <div
+              onClick={() => photoInputRef.current?.click()}
+              style={{
+                position: "absolute", bottom: 0, right: 0,
+                width: 22, height: 22, borderRadius: "50%",
+                background: "var(--blue)", border: "2px solid var(--bg1)",
+                display: "flex", alignItems: "center", justifyContent: "center",
+                cursor: "pointer",
+              }}>
+              <svg width="10" height="10" viewBox="0 0 24 24" fill="none" stroke="white" strokeWidth="2.5">
+                <path d="M11 4H4a2 2 0 0 0-2 2v14a2 2 0 0 0 2 2h14a2 2 0 0 0 2-2v-7" />
+                <path d="M18.5 2.5a2.121 2.121 0 0 1 3 3L12 15l-4 1 1-4 9.5-9.5z" />
+              </svg>
+            </div>
+            <input
+              ref={photoInputRef}
+              type="file"
+              accept="image/*"
+              style={{ display: "none" }}
+              onChange={e => {
+                const file = e.target.files[0];
+                if (!file) return;
+                const reader = new FileReader();
+                reader.onload = () => {
+                  const b64 = reader.result;
+                  setOzzyPhoto(b64);
+                  localStorage.setItem("sanctum_ozzy_photo", b64);
+                };
+                reader.readAsDataURL(file);
+              }}
+            />
           </div>
-          <input
-            ref={photoInputRef}
-            type="file"
-            accept="image/*"
-            style={{ display: "none" }}
-            onChange={e => {
-              const file = e.target.files[0];
-              if (!file) return;
-              const reader = new FileReader();
-              reader.onload = () => {
-                const b64 = reader.result;
-                setOzzyPhoto(b64);
-                localStorage.setItem("sanctum_ozzy_photo", b64);
-              };
-              reader.readAsDataURL(file);
-            }}
-          />
           <div style={{ flex: 1 }}>
             <div style={{ fontSize: 22, fontWeight: 700, color: "var(--t1)", marginBottom: 4 }}>Ozzy</div>
             <div style={{ fontSize: 13, color: "var(--t2)", marginBottom: 12 }}>Golden Retriever · Born November 2025 · Dublin, Ireland</div>
