@@ -129,6 +129,7 @@ export default function Notes() {
   const editorRef      = useRef(null);
   const activeNoteRef  = useRef(null);
   const titleInputRef  = useRef(null);
+  const savedRangeRef  = useRef(null);
   // Collapsible panels
   const [sidebarCollapsed, setSidebarCollapsed] = useState(() => localStorage.getItem('sanctum_sidebar_col') === 'true');
   const [nbSearch, setNbSearch] = useState('');
@@ -195,6 +196,17 @@ export default function Notes() {
     return () => window.removeEventListener('resize', h);
   }, []);
 
+  // ── Load note body into editor when active note changes ──────────────
+  useEffect(() => {
+    if (!activeNote || !editorRef.current) return;
+    const note = allNotes.find(n => n.id === activeNote);
+    if (!note) return;
+    const body = note.body || '';
+    editorRef.current.innerHTML = body.trimStart().startsWith('<') ? body : mdToHtmlWysiwyg(body);
+    addCollapseButtons();
+    setEditBody(htmlToMd(editorRef.current));
+  }, [activeNote]); // eslint-disable-line react-hooks/exhaustive-deps
+
   // ── Load ──────────────────────────────────────────────────────────────
   useEffect(() => { loadNotes(); }, []);
   const loadNotes = async () => {
@@ -255,7 +267,7 @@ export default function Notes() {
     setSaveStatus('saving');
     const updated = new Date().toISOString();
     setAllNotes(prev => prev.map(n => n.id === id ? { ...n, title, body, tags, updated_at: updated } : n));
-    try { await sb.from("notes").update({ title, body, tags, updated_at: updated }, { id }); } catch {}
+    try { await sb.from("notes").update({ title, body, tags, updated_at: updated }, { id }); } catch(e) { console.error('flushSave error:', e); }
     dirtyRef.current = false;
     setSaveStatus('saved');
     setTimeout(() => setSaveStatus(s => s === 'saved' ? 'idle' : s), 1500);
@@ -272,7 +284,7 @@ export default function Notes() {
       const updated = new Date().toISOString();
       const { id: sid, title: stitle, body: sbody, tags: stags } = pendingSave.current;
       setAllNotes(prev => prev.map(n => n.id === sid ? { ...n, title: stitle, body: sbody, tags: stags, updated_at: updated } : n));
-      try { await sb.from("notes").update({ title: stitle, body: sbody, tags: stags, updated_at: updated }, { id: sid }); } catch {}
+      try { await sb.from("notes").update({ title: stitle, body: sbody, tags: stags, updated_at: updated }, { id: sid }); } catch(e) { console.error('autoSave error:', e); }
       dirtyRef.current = false;
       setSaveStatus('saved');
       setTimeout(() => setSaveStatus(s => s === 'saved' ? 'idle' : s), 1500);
@@ -296,16 +308,6 @@ export default function Notes() {
     if (dirtyRef.current) await flushSave();
     activeNoteRef.current = n.id;
     setActiveNote(n.id); setEditTitle(n.title || ''); setEditTags(n.tags || '');
-    setTimeout(() => {
-      if (editorRef.current) {
-        const body = n.body || '';
-        // HTML bodies (new format) set directly; markdown bodies (legacy) convert first
-        editorRef.current.innerHTML = body.trimStart().startsWith('<') ? body : mdToHtmlWysiwyg(body);
-        addCollapseButtons();
-        const md = htmlToMd(editorRef.current);
-        setEditBody(md);
-      }
-    }, 0);
     if (navigate && window.innerWidth < 769) setMobilePanel('editor');
   };
   const selectSection = (sid, nbid) => {
@@ -415,6 +417,11 @@ export default function Notes() {
   const applyFormat = (fmt) => {
     const ed = editorRef.current; if (!ed) return;
     ed.focus();
+    // Restore saved selection if focus was lost (e.g. after using the format dropdown)
+    const selCheck = window.getSelection();
+    if (!selCheck?.rangeCount && savedRangeRef.current) {
+      try { selCheck.removeAllRanges(); selCheck.addRange(savedRangeRef.current); } catch {}
+    }
 
     const blockFmts = ['h1','h2','h3','ul','ol','check','body','hr'];
     if (blockFmts.includes(fmt)) {
@@ -840,6 +847,7 @@ export default function Notes() {
               spellCheck
               onInput={syncBody}
               onKeyUp={updateLineFormat}
+              onBlur={() => { const s = window.getSelection(); if (s?.rangeCount) savedRangeRef.current = s.getRangeAt(0).cloneRange(); }}
               onClick={(e) => {
                 if (e.target.classList.contains('we-collapse-btn')) {
                   const heading = e.target.parentElement;

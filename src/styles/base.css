@@ -573,7 +573,8 @@
   }
   .note-body-wysiwyg:empty::before { content: attr(data-placeholder); color: var(--t3); opacity: .5; pointer-events: none; display: block; }
   .note-body-wysiwyg > div { min-height: 1.4em; }
-  .note-body-wysiwyg .we-h1 { font-size: 26px; font-weight: 700; color: var(--t1); margin: 4px 0 2px; letter-spacing: -.3px; border-bottom: 1px solid var(--b1); padding-bottom: 6px; position: relative; line-height: 1.3; }
+  .note-body-wysiwyg .we-h1 { font-size: 28px; font-weight: 700; color: var(--t1); margin: 4px 0 2px; letter-spacing: -.3px; border-bottom: 1px solid var(--b1); padding-bottom: 6px; position: relative; line-height: 1.2; }
+  [contenteditable] h1 { font-size: 28px !important; font-weight: 700 !important; color: var(--t1) !important; display: block; margin: 8px 0 4px; line-height: 1.2; }
   .note-body-wysiwyg .we-h2 { font-size: 20px; font-weight: 600; color: var(--t1); margin: 14px 0 2px; position: relative; }
   .note-body-wysiwyg .we-h3 { font-size: 16px; font-weight: 600; color: var(--t2); margin: 10px 0 2px; }
   .note-body-wysiwyg .we-collapse-btn {
