@@ -500,7 +500,7 @@ RESPONSE RULES — choose one format only:
           {['calendar','trackers','settings'].includes(page) && (
             <div className="global-ai-bar-wrap" style={{padding:'12px 24px 0'}}>
               <div className="ai-bar">
-                <div className="ai-avatar"><Icon name="ai" size={15} color="#fff"/></div>
+                <div className="ai-avatar" style={{background:'#080808',border:'1px solid #333',borderRadius:'50%',width:30,height:30,display:'flex',alignItems:'center',justifyContent:'center',overflow:'hidden',flexShrink:0}}><SanctumLogo size={28}/></div>
                 <input
                   ref={globalAIRef}
                   className="ai-bar-input"

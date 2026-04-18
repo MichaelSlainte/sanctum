@@ -779,13 +779,14 @@
 
   /* ── User avatar ── */
   .user-avatar {
-    width: 32px; height: 32px; border-radius: 50%;
-    background: linear-gradient(135deg, var(--blue), var(--purple));
+    width: 34px; height: 34px; border-radius: 50%;
+    background: #080808; border: 1px solid #333;
+    color: #e0e0e0; font-family: Georgia, serif;
+    font-size: 14px; font-weight: 700;
     display: flex; align-items: center; justify-content: center;
-    font-size: 12px; color: #fff; font-weight: 700;
-    font-family: var(--mono); cursor: pointer;
-    box-shadow: 0 2px 8px rgba(59,130,246,0.3);
+    cursor: pointer; transition: border-color .2s;
   }
+  .user-avatar:hover { border-color: #555; }
 
   /* ── Tracker hub ── */
   .tracker-hub { display: grid; grid-template-columns: repeat(auto-fill, minmax(240px, 1fr)); gap: 18px; }
