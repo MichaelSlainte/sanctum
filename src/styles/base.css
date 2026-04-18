@@ -1011,10 +1011,21 @@
     .week-col-num { font-size: 13px; }
     .week-event { font-size: 9px; padding: 3px 5px; }
     .cal-event { font-size: 9px; }
-    .modal { margin: 16px; max-width: calc(100vw - 32px); }
+    .modal { position: fixed !important; top: 0 !important; left: 0 !important; width: 100% !important; max-width: 100% !important; height: 100vh !important; border-radius: 0 !important; margin: 0 !important; overflow-y: auto; }
+    .modal-actions .btn { min-height: 44px; }
+    .inp { min-height: 44px; font-size: 16px !important; }
+    textarea.inp { min-height: 80px; }
+    .btn { min-height: 40px; }
+    .theme-cards { flex-direction: column; }
+    .theme-card { min-width: unset; }
+    .grid-4.study-stats { grid-template-columns: 1fr 1fr !important; }
+    .ai-suggestions { flex-wrap: wrap; }
     .notes-list-header-mobile { display: flex; align-items: center; gap: 8px; padding: 8px 12px; border-bottom: 1px solid var(--b1); flex-shrink: 0; background: var(--bg1); }
     .notebook-item { min-height: 44px; font-size: 15px; padding: 10px 12px; }
     .section-item { min-height: 44px; font-size: 14px; padding: 10px 12px; }
+    .pmbok-topic-row { min-height: 44px; }
+    .cal-grid { padding-bottom: 80px; }
+    .cal-event { overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
   }
   @media (min-width: 769px) {
     .mobile-back-btn { display: none; }
