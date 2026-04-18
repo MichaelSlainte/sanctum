@@ -1880,7 +1880,8 @@ function Notes() {
   });
   const saveNoteOrder = (order) => { setNoteOrder(order); localStorage.setItem('sanctum_note_order', JSON.stringify(order)); };
   const getOrderedNotes = useCallback((sectionId, src) => {
-    const notes = (src || allNotes).filter(n => n.section === sectionId);
+    const sid = sectionId?.toLowerCase().trim() || '';
+    const notes = (src || allNotes).filter(n => (n.section?.toLowerCase().trim() || '') === sid);
     const order = noteOrder[sectionId];
     if (!order) return notes;
     return [...notes].sort((a, b) => {
@@ -1937,15 +1938,32 @@ function Notes() {
     try {
       const data = await sb.from("notes").select("*");
       if (Array.isArray(data)) {
-        setAllNotes(data);
+        // Normalize notebook/section values (trim whitespace)
+        const normalized = data.map(n => ({
+          ...n,
+          notebook: n.notebook?.trim() || '',
+          section:  n.section?.trim()  || '',
+        }));
+        console.log('[Notes] loaded', normalized.length, 'notes');
+        normalized.forEach(n => console.log(`  id=${n.id} notebook="${n.notebook}" section="${n.section}" title="${n.title}"`));
+        setAllNotes(normalized);
         // Restore last viewed state: try active section first, then active notebook, then first note
-        const storedNB  = localStorage.getItem('sanctum_active_nb')  || DEFAULT_NOTEBOOKS[0]?.id || '';
-        const storedSec = localStorage.getItem('sanctum_active_sec') || '';
+        // Use case-insensitive comparison to handle legacy data stored with labels instead of IDs
+        const storedNB  = (localStorage.getItem('sanctum_active_nb')  || DEFAULT_NOTEBOOKS[0]?.id || '').toLowerCase().trim();
+        const storedSec = (localStorage.getItem('sanctum_active_sec') || '').toLowerCase().trim();
         let first;
-        if (storedSec) first = data.find(n => n.section === storedSec);
-        if (!first && storedNB) first = data.find(n => n.notebook === storedNB);
-        if (!first && data.length > 0) first = data[0];
-        if (first) openNote(first);
+        if (storedSec) first = normalized.find(n => n.section.toLowerCase() === storedSec);
+        if (!first && storedNB) first = normalized.find(n => n.notebook.toLowerCase() === storedNB);
+        if (!first && normalized.length > 0) first = normalized[0];
+        if (first) {
+          // Navigate sidebar to where this note lives so the list panel shows it correctly
+          const nbId  = first.notebook || DEFAULT_NOTEBOOKS[0]?.id || '';
+          const secId = first.section  || '';
+          setActiveNB(nbId);   localStorage.setItem('sanctum_active_nb', nbId);
+          if (secId) { setActiveSection(secId); localStorage.setItem('sanctum_active_sec', secId); }
+          else       { setActiveSection(null);  localStorage.setItem('sanctum_active_sec', ''); }
+          openNote(first);
+        }
       }
     } catch { setAllNotes([]); }
     setLoading(false);
@@ -1991,7 +2009,8 @@ function Notes() {
     setActiveSection(sid); localStorage.setItem('sanctum_active_sec', sid || '');
     setNbMenu(null);
     if (window.innerWidth < 769) { setMobilePanel('list'); return; }
-    const first = allNotes.find(n => n.section === sid);
+    const sidL = sid?.toLowerCase().trim() || '';
+    const first = allNotes.find(n => (n.section?.toLowerCase().trim() || '') === sidL);
     if (first) openNote(first); else { setActiveNote(null); setEditTitle(''); setEditBody(''); setEditTags(''); }
   };
   const selectNotebook = (nbid) => {
@@ -1999,7 +2018,8 @@ function Notes() {
     setActiveSection(null); localStorage.setItem('sanctum_active_sec', '');
     setNbMenu(null);
     if (window.innerWidth < 769) { setMobilePanel('list'); return; }
-    const first = allNotes.find(n => n.notebook === nbid);
+    const nbidL = nbid?.toLowerCase().trim() || '';
+    const first = allNotes.find(n => (n.notebook?.toLowerCase().trim() || '') === nbidL);
     if (first) openNote(first); else { setActiveNote(null); setEditTitle(''); setEditBody(''); setEditTags(''); }
   };
 
@@ -2026,9 +2046,11 @@ function Notes() {
     const nid = id || activeNote; if (!nid) return;
     const remaining = allNotes.filter(n => n.id !== nid); setAllNotes(remaining);
     if (nid === activeNote) {
+      const _secL = activeSection?.toLowerCase().trim() || '';
+      const _nbL  = activeNB?.toLowerCase().trim() || '';
       const next = activeSection
-        ? remaining.find(n => n.section === activeSection)
-        : remaining.find(n => n.notebook === activeNB);
+        ? remaining.find(n => (n.section?.toLowerCase().trim() || '') === _secL)
+        : remaining.find(n => (n.notebook?.toLowerCase().trim() || '') === _nbL);
       if (next) openNote(next); else { setActiveNote(null); setEditTitle(''); setEditBody(''); setEditTags(''); }
     }
     try { await sb.from("notes").delete({ id: nid }); } catch {}
@@ -2145,8 +2167,11 @@ function Notes() {
   };
 
   // ── Note counts ───────────────────────────────────────────────────────
-  const noteCountFor = (sid, nbId) => allNotes.filter(n => n.section===sid && (!nbId || n.notebook===nbId)).length;
-  const nbNoteCount  = (nb)  => allNotes.filter(n => n.notebook === nb.id).length;
+  const noteCountFor = (sid, nbId) => allNotes.filter(n =>
+    (n.section?.toLowerCase().trim() || '') === (sid?.toLowerCase().trim() || '') &&
+    (!nbId || (n.notebook?.toLowerCase().trim() || '') === (nbId?.toLowerCase().trim() || ''))
+  ).length;
+  const nbNoteCount  = (nb) => allNotes.filter(n => (n.notebook?.toLowerCase().trim() || '') === (nb.id?.toLowerCase().trim() || '')).length;
 
   // ── Notebook drag ─────────────────────────────────────────────────────
   const onNBDragStart = (e,id) => { setDragNBId(id); e.dataTransfer.effectAllowed='move'; };
@@ -2189,9 +2214,10 @@ function Notes() {
   const currentNote    = allNotes.find(n => n.id === activeNote);
   const currentNB      = notebooks.find(n => n.id === activeNB);
   const currentSection = currentNB?.sections.find(s => s.id === activeSection);
+  const _nbLower       = activeNB?.toLowerCase().trim() || '';
   const displayedNotes = activeSection
     ? getOrderedNotes(activeSection)
-    : allNotes.filter(n => n.notebook === activeNB);
+    : allNotes.filter(n => (n.notebook?.toLowerCase().trim() || '') === _nbLower);
 
   return (
     <div className="notes-shell" data-mobile-panel={mobilePanel} onClick={() => { setNbMenu(null); setNoteMenu(null); }}>
