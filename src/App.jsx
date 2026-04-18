@@ -1056,6 +1056,7 @@ const CSS = `
     .mobile-ai-fab { display: flex; }
     .mobile-ai-panel { display: block; }
     .global-ai-bar-wrap { display: none; }
+    .home-ai-bar { display: none; }
     .page-body { padding: 18px; padding-bottom: 84px; }
     .grid-4 { grid-template-columns: 1fr 1fr; }
     .grid-3 { grid-template-columns: 1fr 1fr; }
@@ -4527,7 +4528,7 @@ RESPONSE RULES — choose one format only:
       </div>
 
       {/* AI assistant bar */}
-      <div style={{ marginBottom: 28 }}>
+      <div className="home-ai-bar" style={{ marginBottom: 28 }}>
         <div className="ai-bar">
           <div className="ai-avatar">
             <Icon name="ai" size={15} color="#fff" />
@@ -5108,7 +5109,7 @@ RESPONSE RULES — choose one format only:
 
       {/* ── Bottom nav (mobile) ── */}
       {/* ── Mobile AI FAB ── */}
-      <button className={`mobile-ai-fab${!['calendar','trackers','settings'].includes(page)?' hide-fab':''}`} onClick={() => setMobileAIOpen(v => !v)} title="AI Assistant">
+      <button className={`mobile-ai-fab${!['home','calendar','trackers','settings'].includes(page)?' hide-fab':''}`} onClick={() => setMobileAIOpen(v => !v)} title="AI Assistant">
         <Icon name="ai" size={20} color="#fff"/>
       </button>
       <div className={`mobile-ai-panel${mobileAIOpen?' open':''}`} onClick={e => e.stopPropagation()}>
