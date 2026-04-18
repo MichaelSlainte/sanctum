@@ -1,23 +1,147 @@
-import { useState } from "react";
+import { useState, useEffect, useRef } from "react";
+import { sb } from "../../lib/supabase";
 import { Icon, Modal } from "../shared";
 
+const DEFAULT_PROFILE = {
+  Breed: "Golden Retriever",
+  Born: "November 2025",
+  "Chip number": "Check vet records",
+  Vet: "Local Dublin vet",
+  Insurance: "€25/month",
+  "Daily calories": "600 kcal max",
+  Diet: "Dry kibble",
+};
+
+const DEFAULT_DOCS = [
+  "Vaccination certificate",
+  "Microchip registration",
+  "Pet insurance",
+  "Vet registration",
+  "Passport (if travelling)",
+];
+
+const DEFAULT_DIET = [
+  { id: "morning", meal: "Morning", food: "Dry kibble", amount: "200g", time: "7:00am" },
+  { id: "evening", meal: "Evening", food: "Dry kibble", amount: "200g", time: "6:00pm" },
+  { id: "treats", meal: "Treats", food: "Low calorie treats", amount: "Max 50g", time: "During training" },
+];
+
+const AVOID_FOODS = ["Chocolate", "Grapes & raisins", "Onions & garlic", "Macadamia nuts", "Xylitol (sugar-free products)", "Alcohol", "Cooked bones", "Avocado"];
+const VET_TYPES = ["Annual checkup", "Vaccination", "Grooming", "Dental", "Emergency", "Medication", "Other"];
+
 export default function Ozzy() {
-  const [showAdd, setShowAdd] = useState(false);
   const [activeTab, setActiveTab] = useState("overview");
-  const [vets, setVets] = useState(() => JSON.parse(localStorage.getItem("sanctum_ozzy_vets") || "[]"));
+
+  const [ozzyPhoto, setOzzyPhoto] = useState(() => localStorage.getItem("sanctum_ozzy_photo") || null);
+  const photoInputRef = useRef(null);
+
+  const [profile, setProfile] = useState(() => {
+    try { return { ...DEFAULT_PROFILE, ...JSON.parse(localStorage.getItem("sanctum_ozzy_profile") || "{}") }; }
+    catch { return { ...DEFAULT_PROFILE }; }
+  });
+  const [customFields, setCustomFields] = useState(() => {
+    try { return JSON.parse(localStorage.getItem("sanctum_ozzy_custom_fields") || "[]"); }
+    catch { return []; }
+  });
+  const [editingField, setEditingField] = useState(null);
+  const [editValue, setEditValue] = useState("");
+  const [editCustomKey, setEditCustomKey] = useState("");
+
+  const [docs, setDocs] = useState(() => {
+    try { return JSON.parse(localStorage.getItem("sanctum_ozzy_docs_meta") || "{}"); }
+    catch { return {}; }
+  });
+  const [customDocs, setCustomDocs] = useState(() => {
+    try { return JSON.parse(localStorage.getItem("sanctum_ozzy_custom_docs") || "[]"); }
+    catch { return []; }
+  });
+  const [addingDoc, setAddingDoc] = useState(false);
+  const [newDocName, setNewDocName] = useState("");
+  const docInputRefs = useRef({});
+
+  const [vets, setVets] = useState(() => {
+    try { return JSON.parse(localStorage.getItem("sanctum_ozzy_vets") || "[]"); }
+    catch { return []; }
+  });
   const [newVet, setNewVet] = useState({ date: "", type: "", notes: "", next_due: "" });
-  const [weight, setWeight] = useState(() => JSON.parse(localStorage.getItem("sanctum_ozzy_weight") || "[]"));
+  const [showAdd, setShowAdd] = useState(false);
+  const [editingVet, setEditingVet] = useState(null);
+
+  const [weight, setWeight] = useState(() => {
+    try { return JSON.parse(localStorage.getItem("sanctum_ozzy_weight") || "[]"); }
+    catch { return []; }
+  });
   const [newWeight, setNewWeight] = useState({ date: new Date().toISOString().slice(0, 10), kg: "" });
   const [showAddWeight, setShowAddWeight] = useState(false);
 
+  const [diet, setDiet] = useState(() => {
+    try { return JSON.parse(localStorage.getItem("sanctum_ozzy_diet") || JSON.stringify(DEFAULT_DIET)); }
+    catch { return [...DEFAULT_DIET]; }
+  });
+  const [editingDiet, setEditingDiet] = useState(null);
+
+  useEffect(() => {
+    sb.from("vet_visits").select("*").then(data => {
+      if (Array.isArray(data) && data.length > 0) {
+        setVets(data);
+        localStorage.setItem("sanctum_ozzy_vets", JSON.stringify(data));
+      }
+    }).catch(() => {});
+
+    sb.from("ozzy_profile").select("*").then(data => {
+      if (!Array.isArray(data) || data.length === 0) return;
+      const merged = { ...DEFAULT_PROFILE };
+      const custom = [];
+      data.forEach(row => {
+        if (row.key in DEFAULT_PROFILE) merged[row.key] = row.value;
+        else custom.push({ key: row.key, value: row.value, id: row.id });
+      });
+      setProfile(merged);
+      if (custom.length > 0) setCustomFields(custom);
+    }).catch(() => {});
+
+    sb.from("ozzy_docs").select("*").then(data => {
+      if (!Array.isArray(data) || data.length === 0) return;
+      setDocs(prev => {
+        const meta = { ...prev };
+        data.forEach(row => { meta[row.name] = { filename: row.filename, uploaded_at: row.uploaded_at }; });
+        return meta;
+      });
+    }).catch(() => {});
+  }, []);
+
+  const saveProfileField = async (key, value) => {
+    const updated = { ...profile, [key]: value };
+    setProfile(updated);
+    localStorage.setItem("sanctum_ozzy_profile", JSON.stringify(updated));
+    try { await sb.from("ozzy_profile").upsert({ key, value }, "key"); } catch {}
+  };
+
+  const saveCustomFields = (fields) => {
+    setCustomFields(fields);
+    localStorage.setItem("sanctum_ozzy_custom_fields", JSON.stringify(fields));
+  };
+
   const saveVets = (v) => { setVets(v); localStorage.setItem("sanctum_ozzy_vets", JSON.stringify(v)); };
   const saveWeight = (w) => { setWeight(w); localStorage.setItem("sanctum_ozzy_weight", JSON.stringify(w)); };
+  const saveDiet = (d) => { setDiet(d); localStorage.setItem("sanctum_ozzy_diet", JSON.stringify(d)); };
 
-  const addVet = () => {
+  const addVet = async () => {
     if (!newVet.date || !newVet.type) return;
-    saveVets([{ ...newVet, id: Date.now().toString() }, ...vets]);
+    try {
+      const res = await sb.from("vet_visits").insert(newVet);
+      const created = Array.isArray(res) && res[0] ? res[0] : { ...newVet, id: Date.now().toString() };
+      saveVets([created, ...vets]);
+    } catch {
+      saveVets([{ ...newVet, id: Date.now().toString() }, ...vets]);
+    }
     setNewVet({ date: "", type: "", notes: "", next_due: "" });
     setShowAdd(false);
+  };
+
+  const deleteVet = async (id) => {
+    try { await sb.from("vet_visits").delete({ id }); } catch {}
+    saveVets(vets.filter(x => x.id !== id));
   };
 
   const addWeight = () => {
@@ -27,8 +151,67 @@ export default function Ozzy() {
     setShowAddWeight(false);
   };
 
-  const VET_TYPES = ["Annual checkup", "Vaccination", "Grooming", "Dental", "Emergency", "Medication", "Other"];
+  const handleDocUpload = (docName, file) => {
+    if (!file) return;
+    const reader = new FileReader();
+    reader.onload = async () => {
+      const b64 = reader.result;
+      localStorage.setItem(`sanctum_ozzy_doc_${docName}`, b64);
+      const meta = { filename: file.name, uploaded_at: new Date().toISOString() };
+      setDocs(prev => {
+        const updated = { ...prev, [docName]: meta };
+        localStorage.setItem("sanctum_ozzy_docs_meta", JSON.stringify(updated));
+        return updated;
+      });
+      try { await sb.from("ozzy_docs").insert({ name: docName, filename: file.name, uploaded_at: meta.uploaded_at }); } catch {}
+    };
+    reader.readAsDataURL(file);
+  };
 
+  const downloadDoc = (docName) => {
+    const b64 = localStorage.getItem(`sanctum_ozzy_doc_${docName}`);
+    if (!b64) return;
+    const link = document.createElement("a");
+    link.href = b64;
+    link.download = docs[docName]?.filename || docName;
+    link.click();
+  };
+
+  const startEditField = (key, value) => { setEditingField(key); setEditValue(value); };
+
+  const commitField = (key) => {
+    saveProfileField(key, editValue);
+    setEditingField(null);
+  };
+
+  const commitCustomField = (idx) => {
+    const updated = [...customFields];
+    updated[idx] = { ...updated[idx], key: editCustomKey || updated[idx].key, value: editValue };
+    saveCustomFields(updated);
+    setEditingField(null);
+    try { sb.from("ozzy_profile").upsert({ key: updated[idx].key, value: updated[idx].value }, "key"); } catch {}
+  };
+
+  const addCustomField = () => {
+    const newField = { key: "New field", value: "", id: Date.now().toString() };
+    const updated = [...customFields, newField];
+    saveCustomFields(updated);
+    const idx = updated.length - 1;
+    setEditingField(`custom_${idx}`);
+    setEditValue("");
+    setEditCustomKey("New field");
+  };
+
+  const addCustomDoc = () => {
+    if (!newDocName.trim()) return;
+    const updated = [...customDocs, { name: newDocName.trim(), id: Date.now().toString() }];
+    setCustomDocs(updated);
+    localStorage.setItem("sanctum_ozzy_custom_docs", JSON.stringify(updated));
+    setNewDocName("");
+    setAddingDoc(false);
+  };
+
+  const allDocs = [...DEFAULT_DOCS, ...customDocs.map(d => d.name)];
   const tabs = [
     { id: "overview", label: "Overview" },
     { id: "health", label: "Health" },
@@ -54,7 +237,6 @@ export default function Ozzy() {
           <div className="modal-actions"><button className="btn" onClick={() => setShowAdd(false)}>Cancel</button><button className="btn primary" onClick={addVet}>Save</button></div>
         </Modal>
       )}
-
       {showAddWeight && (
         <Modal title="Log weight" onClose={() => setShowAddWeight(false)}>
           <div className="form-row"><label className="form-label">Date</label><input className="inp" type="date" value={newWeight.date} onChange={e => setNewWeight(n => ({ ...n, date: e.target.value }))} /></div>
@@ -63,10 +245,36 @@ export default function Ozzy() {
         </Modal>
       )}
 
-      {/* Ozzy profile card */}
+      {/* Profile card */}
       <div className="card mb18" style={{ background: "linear-gradient(135deg, rgba(245,158,11,0.1), rgba(16,185,129,0.08))", borderColor: "rgba(245,158,11,0.2)" }}>
         <div style={{ display: "flex", alignItems: "center", gap: 20 }}>
-          <div style={{ flexShrink: 0, width: 56, height: 56, borderRadius: 16, background: "rgba(245,158,11,0.15)", display: "flex", alignItems: "center", justifyContent: "center" }}><Icon name="pet" size={28} color="var(--amber)" /></div>
+          <div
+            onClick={() => photoInputRef.current?.click()}
+            style={{ width: 80, height: 80, borderRadius: 16, background: "var(--bg2)", border: "2px dashed var(--b2)", display: "flex", alignItems: "center", justifyContent: "center", cursor: "pointer", overflow: "hidden", flexShrink: 0 }}
+            title="Upload Ozzy's photo"
+          >
+            {ozzyPhoto
+              ? <img src={ozzyPhoto} style={{ width: "100%", height: "100%", objectFit: "cover" }} alt="Ozzy" />
+              : <Icon name="plus" size={24} color="var(--t3)" />
+            }
+          </div>
+          <input
+            ref={photoInputRef}
+            type="file"
+            accept="image/*"
+            style={{ display: "none" }}
+            onChange={e => {
+              const file = e.target.files[0];
+              if (!file) return;
+              const reader = new FileReader();
+              reader.onload = () => {
+                const b64 = reader.result;
+                setOzzyPhoto(b64);
+                localStorage.setItem("sanctum_ozzy_photo", b64);
+              };
+              reader.readAsDataURL(file);
+            }}
+          />
           <div style={{ flex: 1 }}>
             <div style={{ fontSize: 22, fontWeight: 700, color: "var(--t1)", marginBottom: 4 }}>Ozzy</div>
             <div style={{ fontSize: 13, color: "var(--t2)", marginBottom: 12 }}>Golden Retriever · Born November 2025 · Dublin, Ireland</div>
@@ -90,33 +298,81 @@ export default function Ozzy() {
       {/* Tabs */}
       <div style={{ display: "flex", gap: 6, marginBottom: 18 }}>
         {tabs.map(t => (
-          <button key={t.id} className={`btn${activeTab === t.id ? " primary" : ""}`}
-            onClick={() => setActiveTab(t.id)}>
+          <button key={t.id} className={`btn${activeTab === t.id ? " primary" : ""}`} onClick={() => setActiveTab(t.id)}>
             {t.label}
           </button>
         ))}
       </div>
 
+      {/* OVERVIEW */}
       {activeTab === "overview" && (
         <div className="grid-2">
           <div className="card">
             <div className="card-header">
               <div><div className="card-title">Key info</div></div>
             </div>
-            {[
-              { label: "Breed", value: "Golden Retriever" },
-              { label: "Born", value: "November 2025" },
-              { label: "Chip number", value: "Check vet records" },
-              { label: "Vet", value: "Local Dublin vet" },
-              { label: "Insurance", value: "€25/month" },
-              { label: "Daily calories", value: "600 kcal max" },
-              { label: "Diet", value: "Dry kibble" },
-            ].map(item => (
-              <div key={item.label} className="fin-row">
-                <span style={{ fontSize: 12, color: "var(--t3)", fontWeight: 600 }}>{item.label}</span>
-                <span style={{ fontSize: 13, color: "var(--t1)", fontWeight: 500 }}>{item.value}</span>
+            {Object.entries(profile).map(([key, value]) => (
+              <div key={key} className="fin-row" style={{ alignItems: "center" }}>
+                <span style={{ fontSize: 12, color: "var(--t3)", fontWeight: 600 }}>{key}</span>
+                {editingField === key ? (
+                  <input
+                    className="inp"
+                    style={{ fontSize: 13, padding: "2px 8px", textAlign: "right", maxWidth: 180 }}
+                    value={editValue}
+                    autoFocus
+                    onChange={e => setEditValue(e.target.value)}
+                    onBlur={() => commitField(key)}
+                    onKeyDown={e => { if (e.key === "Enter") commitField(key); if (e.key === "Escape") setEditingField(null); }}
+                  />
+                ) : (
+                  <span
+                    style={{ fontSize: 13, color: "var(--t1)", fontWeight: 500, cursor: "pointer", padding: "2px 6px", borderRadius: 6 }}
+                    onClick={() => startEditField(key, value)}
+                    title="Click to edit"
+                  >
+                    {value || <span style={{ color: "var(--t3)" }}>—</span>}
+                  </span>
+                )}
               </div>
             ))}
+            {customFields.map((field, idx) => (
+              <div key={field.id} className="fin-row" style={{ alignItems: "center" }}>
+                {editingField === `custom_${idx}` ? (
+                  <input
+                    className="inp"
+                    style={{ fontSize: 12, padding: "2px 6px", width: 100 }}
+                    value={editCustomKey}
+                    onChange={e => setEditCustomKey(e.target.value)}
+                  />
+                ) : (
+                  <span style={{ fontSize: 12, color: "var(--t3)", fontWeight: 600 }}>{field.key}</span>
+                )}
+                {editingField === `custom_${idx}` ? (
+                  <div style={{ display: "flex", gap: 4, alignItems: "center" }}>
+                    <input
+                      className="inp"
+                      style={{ fontSize: 13, padding: "2px 8px", textAlign: "right", maxWidth: 140 }}
+                      value={editValue}
+                      autoFocus
+                      onChange={e => setEditValue(e.target.value)}
+                      onKeyDown={e => { if (e.key === "Enter") commitCustomField(idx); if (e.key === "Escape") setEditingField(null); }}
+                    />
+                    <button className="btn xs primary" onClick={() => commitCustomField(idx)}><Icon name="check" size={11} /></button>
+                  </div>
+                ) : (
+                  <span
+                    style={{ fontSize: 13, color: "var(--t1)", fontWeight: 500, cursor: "pointer", padding: "2px 6px", borderRadius: 6 }}
+                    onClick={() => { setEditingField(`custom_${idx}`); setEditValue(field.value); setEditCustomKey(field.key); }}
+                    title="Click to edit"
+                  >
+                    {field.value || <span style={{ color: "var(--t3)" }}>—</span>}
+                  </span>
+                )}
+              </div>
+            ))}
+            <button className="btn sm" style={{ marginTop: 10, width: "100%" }} onClick={addCustomField}>
+              <Icon name="plus" size={13} /> Add field
+            </button>
           </div>
 
           <div className="card">
@@ -130,13 +386,17 @@ export default function Ozzy() {
             {weight.slice(0, 8).map(w => (
               <div key={w.id} className="fin-row">
                 <span style={{ fontSize: 12, color: "var(--t3)", fontFamily: "var(--mono)" }}>{w.date}</span>
-                <span style={{ fontSize: 14, fontWeight: 700, fontFamily: "var(--mono)", color: "var(--amber)" }}>{w.kg} kg</span>
+                <div style={{ display: "flex", alignItems: "center", gap: 8 }}>
+                  <span style={{ fontSize: 14, fontWeight: 700, fontFamily: "var(--mono)", color: "var(--amber)" }}>{w.kg} kg</span>
+                  <button className="btn xs danger" onClick={() => saveWeight(weight.filter(x => x.id !== w.id))}><Icon name="trash" size={11} /></button>
+                </div>
               </div>
             ))}
           </div>
         </div>
       )}
 
+      {/* HEALTH */}
       {activeTab === "health" && (
         <div className="card">
           <div className="card-header">
@@ -151,37 +411,75 @@ export default function Ozzy() {
           )}
           {vets.map(v => (
             <div key={v.id} style={{ padding: "14px 0", borderBottom: "1px solid var(--b1)" }}>
-              <div style={{ display: "flex", justifyContent: "space-between", alignItems: "flex-start" }}>
-                <div>
-                  <div style={{ fontSize: 13, fontWeight: 600, color: "var(--t1)", marginBottom: 4 }}>{v.type}</div>
-                  {v.notes && <div style={{ fontSize: 12, color: "var(--t2)", marginBottom: 4 }}>{v.notes}</div>}
-                  {v.next_due && <div style={{ fontSize: 11, color: "var(--amber)", fontFamily: "var(--mono)" }}>Next due: {v.next_due}</div>}
+              {editingVet === v.id ? (
+                <div style={{ display: "flex", flexDirection: "column", gap: 8 }}>
+                  <div className="grid-2" style={{ gap: 8 }}>
+                    <input className="inp" type="date" value={v.date} onChange={e => saveVets(vets.map(x => x.id === v.id ? { ...x, date: e.target.value } : x))} />
+                    <select className="inp" value={v.type} onChange={e => saveVets(vets.map(x => x.id === v.id ? { ...x, type: e.target.value } : x))}>
+                      {VET_TYPES.map(t => <option key={t} value={t}>{t}</option>)}
+                    </select>
+                  </div>
+                  <input className="inp" type="date" value={v.next_due || ""} placeholder="Next due date" onChange={e => saveVets(vets.map(x => x.id === v.id ? { ...x, next_due: e.target.value } : x))} />
+                  <textarea className="inp" value={v.notes || ""} placeholder="Notes..." style={{ minHeight: 60 }} onChange={e => saveVets(vets.map(x => x.id === v.id ? { ...x, notes: e.target.value } : x))} />
+                  <div style={{ display: "flex", gap: 8 }}>
+                    <button className="btn sm primary" onClick={() => setEditingVet(null)}>Done</button>
+                    <button className="btn sm danger" onClick={() => deleteVet(v.id)}>Delete</button>
+                  </div>
                 </div>
-                <div style={{ display: "flex", alignItems: "center", gap: 8, flexShrink: 0 }}>
-                  <span style={{ fontSize: 11, color: "var(--t3)", fontFamily: "var(--mono)" }}>{v.date}</span>
-                  <button className="btn xs danger" onClick={() => saveVets(vets.filter(x => x.id !== v.id))}><Icon name="trash" size={11} /></button>
+              ) : (
+                <div style={{ display: "flex", justifyContent: "space-between", alignItems: "flex-start" }}>
+                  <div>
+                    <div style={{ fontSize: 13, fontWeight: 600, color: "var(--t1)", marginBottom: 4 }}>{v.type}</div>
+                    {v.notes && <div style={{ fontSize: 12, color: "var(--t2)", marginBottom: 4 }}>{v.notes}</div>}
+                    {v.next_due && <div style={{ fontSize: 11, color: "var(--amber)", fontFamily: "var(--mono)" }}>Next due: {v.next_due}</div>}
+                  </div>
+                  <div style={{ display: "flex", alignItems: "center", gap: 8, flexShrink: 0 }}>
+                    <span style={{ fontSize: 11, color: "var(--t3)", fontFamily: "var(--mono)" }}>{v.date}</span>
+                    <button className="btn xs" onClick={() => setEditingVet(v.id)}><Icon name="edit" size={11} /></button>
+                    <button className="btn xs danger" onClick={() => deleteVet(v.id)}><Icon name="trash" size={11} /></button>
+                  </div>
                 </div>
-              </div>
+              )}
             </div>
           ))}
         </div>
       )}
 
+      {/* DIET */}
       {activeTab === "diet" && (
         <div className="grid-2">
           <div className="card">
             <div className="card-header"><div className="card-title">Daily diet plan</div></div>
-            {[
-              { meal: "Morning", food: "Dry kibble", amount: "200g", time: "7:00am" },
-              { meal: "Evening", food: "Dry kibble", amount: "200g", time: "6:00pm" },
-              { meal: "Treats", food: "Low calorie treats", amount: "Max 50g", time: "During training" },
-            ].map(m => (
-              <div key={m.meal} className="fin-row">
-                <div>
-                  <div style={{ fontSize: 13, fontWeight: 600, color: "var(--t1)" }}>{m.meal}</div>
-                  <div style={{ fontSize: 11, color: "var(--t3)" }}>{m.food} · {m.time}</div>
+            {diet.map((m, idx) => (
+              <div key={m.id} className="fin-row" style={{ alignItems: "flex-start" }}>
+                <div style={{ flex: 1 }}>
+                  {editingDiet === m.id ? (
+                    <div style={{ display: "flex", flexDirection: "column", gap: 4 }}>
+                      <input className="inp" style={{ fontSize: 13, padding: "2px 8px" }} value={m.meal}
+                        onChange={e => saveDiet(diet.map((d, i) => i === idx ? { ...d, meal: e.target.value } : d))} placeholder="Meal name" />
+                      <div style={{ display: "flex", gap: 4 }}>
+                        <input className="inp" style={{ fontSize: 11, padding: "2px 6px", flex: 1 }} value={m.food}
+                          onChange={e => saveDiet(diet.map((d, i) => i === idx ? { ...d, food: e.target.value } : d))} placeholder="Food" />
+                        <input className="inp" style={{ fontSize: 11, padding: "2px 6px", width: 70 }} value={m.time}
+                          onChange={e => saveDiet(diet.map((d, i) => i === idx ? { ...d, time: e.target.value } : d))} placeholder="Time" />
+                      </div>
+                    </div>
+                  ) : (
+                    <div onClick={() => setEditingDiet(m.id)} style={{ cursor: "pointer" }}>
+                      <div style={{ fontSize: 13, fontWeight: 600, color: "var(--t1)" }}>{m.meal}</div>
+                      <div style={{ fontSize: 11, color: "var(--t3)" }}>{m.food} · {m.time}</div>
+                    </div>
+                  )}
                 </div>
-                <span style={{ fontSize: 13, fontWeight: 600, color: "var(--amber)", fontFamily: "var(--mono)" }}>{m.amount}</span>
+                {editingDiet === m.id ? (
+                  <div style={{ display: "flex", alignItems: "center", gap: 4, flexShrink: 0 }}>
+                    <input className="inp" style={{ fontSize: 13, padding: "2px 8px", width: 70, textAlign: "right" }} value={m.amount}
+                      onChange={e => saveDiet(diet.map((d, i) => i === idx ? { ...d, amount: e.target.value } : d))} placeholder="Amount" />
+                    <button className="btn xs primary" onClick={() => setEditingDiet(null)}><Icon name="check" size={11} /></button>
+                  </div>
+                ) : (
+                  <span onClick={() => setEditingDiet(m.id)} style={{ fontSize: 13, fontWeight: 600, color: "var(--amber)", fontFamily: "var(--mono)", cursor: "pointer", flexShrink: 0 }}>{m.amount}</span>
+                )}
               </div>
             ))}
             <div style={{ marginTop: 14, padding: 12, background: "rgba(245,158,11,0.08)", borderRadius: 10, border: "1px solid rgba(245,158,11,0.2)" }}>
@@ -191,7 +489,7 @@ export default function Ozzy() {
           </div>
           <div className="card">
             <div className="card-header"><div className="card-title">Foods to avoid</div></div>
-            {["Chocolate", "Grapes & raisins", "Onions & garlic", "Macadamia nuts", "Xylitol (sugar-free products)", "Alcohol", "Cooked bones", "Avocado"].map(food => (
+            {AVOID_FOODS.map(food => (
               <div key={food} style={{ display: "flex", alignItems: "center", gap: 10, padding: "8px 0", borderBottom: "1px solid var(--b1)" }}>
                 <span style={{ color: "var(--red)" }}>✕</span>
                 <span style={{ fontSize: 13, color: "var(--t2)" }}>{food}</span>
@@ -201,21 +499,62 @@ export default function Ozzy() {
         </div>
       )}
 
+      {/* DOCUMENTS */}
       {activeTab === "documents" && (
         <div className="card">
           <div className="card-header"><div className="card-title">Documents & records</div></div>
-          {[
-            { label: "Vaccination certificate", status: "Up to date", color: "var(--grn)" },
-            { label: "Microchip registration", status: "Registered", color: "var(--grn)" },
-            { label: "Pet insurance", status: "Active — €25/mo", color: "var(--grn)" },
-            { label: "Vet registration", status: "Registered", color: "var(--grn)" },
-            { label: "Passport (if travelling)", status: "Check requirements", color: "var(--amber)" },
-          ].map(doc => (
-            <div key={doc.label} className="fin-row">
-              <span style={{ display: "flex", alignItems: "center", gap: 6, fontSize: 13, color: "var(--t1)", fontWeight: 500 }}><Icon name="doc" size={13} color="var(--t3)" /> {doc.label}</span>
-              <span style={{ fontSize: 12, color: doc.color, fontWeight: 600 }}>{doc.status}</span>
+          {allDocs.map(docName => {
+            const uploaded = docs[docName];
+            return (
+              <div key={docName} className="fin-row">
+                <span style={{ display: "flex", alignItems: "center", gap: 6, fontSize: 13, color: "var(--t1)", fontWeight: 500 }}>
+                  <Icon name="doc" size={13} color="var(--t3)" /> {docName}
+                </span>
+                <div style={{ display: "flex", alignItems: "center", gap: 8 }}>
+                  {uploaded ? (
+                    <button
+                      className="btn xs"
+                      style={{ color: "var(--grn)", borderColor: "rgba(16,185,129,0.4)", fontSize: 11 }}
+                      onClick={() => downloadDoc(docName)}
+                      title={`Download ${uploaded.filename}`}
+                    >
+                      <Icon name="check" size={11} color="var(--grn)" /> Uploaded
+                    </button>
+                  ) : (
+                    <button className="btn xs" onClick={() => docInputRefs.current[docName]?.click()}>
+                      <Icon name="plus" size={11} /> Upload
+                    </button>
+                  )}
+                  <input
+                    type="file"
+                    accept="*/*"
+                    style={{ display: "none" }}
+                    ref={el => { docInputRefs.current[docName] = el; }}
+                    onChange={e => handleDocUpload(docName, e.target.files[0])}
+                  />
+                </div>
+              </div>
+            );
+          })}
+          {addingDoc ? (
+            <div style={{ display: "flex", gap: 8, marginTop: 12, alignItems: "center" }}>
+              <input
+                className="inp"
+                style={{ flex: 1 }}
+                value={newDocName}
+                autoFocus
+                onChange={e => setNewDocName(e.target.value)}
+                onKeyDown={e => { if (e.key === "Enter") addCustomDoc(); if (e.key === "Escape") { setAddingDoc(false); setNewDocName(""); } }}
+                placeholder="Document name..."
+              />
+              <button className="btn sm primary" onClick={addCustomDoc}>Add</button>
+              <button className="btn sm" onClick={() => { setAddingDoc(false); setNewDocName(""); }}>Cancel</button>
             </div>
-          ))}
+          ) : (
+            <button className="btn sm" style={{ marginTop: 10, width: "100%" }} onClick={() => setAddingDoc(true)}>
+              <Icon name="plus" size={13} /> Add document
+            </button>
+          )}
         </div>
       )}
     </div>

@@ -94,6 +94,13 @@ export const sb = {
       const params = Object.entries(match).map(([k, v]) => `${k}=eq.${v}`).join("&");
       const res = await fetch(`${SUPABASE_URL}/rest/v1/${table}?${params}`, { method: "DELETE", headers });
       return res.ok;
+    },
+    upsert: async (data, conflictCol = "key") => {
+      const session = auth.getSession();
+      const headers = { apikey: SUPABASE_KEY, "Content-Type": "application/json", Prefer: "resolution=merge-duplicates,return=representation" };
+      if (session) headers.Authorization = `Bearer ${session.token}`;
+      const res = await fetch(`${SUPABASE_URL}/rest/v1/${table}?on_conflict=${conflictCol}`, { method: "POST", headers, body: JSON.stringify(data) });
+      return res.json();
     }
   })
 };
