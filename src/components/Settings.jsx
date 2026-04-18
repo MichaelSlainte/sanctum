@@ -9,7 +9,7 @@ const TIMEZONES = [
   { id: "America/Sao_Paulo", label: "São Paulo (BRT)"     },
 ];
 
-export default function Settings({ user, onLogout, theme, onThemeChange, font, onFontChange }) {
+export default function Settings({ user, onLogout, theme, onThemeChange, font, onFontChange, sb }) {
   const userKey = user?.id ? `sanctum_display_name_${user.id}` : "sanctum_display_name";
   const emailUsername = (user?.email || "").split("@")[0];
   const [displayName, setDisplayName] = useState(() =>
@@ -20,12 +20,91 @@ export default function Settings({ user, onLogout, theme, onThemeChange, font, o
     localStorage.getItem("sanctum_timezone") || "Europe/Dublin"
   );
   const [saved, setSaved] = useState(false);
+  const [showDeleteConfirm, setShowDeleteConfirm] = useState(false);
+  const [deleteConfirmText, setDeleteConfirmText] = useState('');
 
   const save = () => {
     localStorage.setItem(userKey, displayName);
     localStorage.setItem("sanctum_timezone", timezone);
     setSaved(true);
     setTimeout(() => setSaved(false), 2000);
+  };
+
+  const exportAllData = async () => {
+    try {
+      const [
+        notes, tasks, events, sessions,
+        applications, finance, trips, notebooks
+      ] = await Promise.all([
+        sb.from('notes').select('*'),
+        sb.from('tasks').select('*'),
+        sb.from('events').select('*'),
+        sb.from('study_sessions').select('*'),
+        sb.from('applications').select('*'),
+        sb.from('finance').select('*'),
+        sb.from('trips').select('*'),
+        sb.from('notebooks').select('*'),
+      ]);
+
+      const exportData = {
+        exported_at: new Date().toISOString(),
+        user: user?.email,
+        data: {
+          notes: notes.data,
+          tasks: tasks.data,
+          events: events.data,
+          study_sessions: sessions.data,
+          applications: applications.data,
+          finance: finance.data,
+          trips: trips.data,
+          notebooks: notebooks.data,
+          ozzy_profile: JSON.parse(localStorage.getItem('sanctum_ozzy_profile') || '{}'),
+          custom_trackers: JSON.parse(localStorage.getItem('sanctum_custom_trackers') || '[]'),
+          settings: {
+            theme: localStorage.getItem('sanctum_theme'),
+            accent: localStorage.getItem('sanctum_accent'),
+            font: localStorage.getItem('sanctum_font'),
+            display_name: localStorage.getItem(`sanctum_display_name_${user?.id}`),
+          }
+        }
+      };
+
+      const blob = new Blob([JSON.stringify(exportData, null, 2)], { type: 'application/json' });
+      const url = URL.createObjectURL(blob);
+      const a = document.createElement('a');
+      a.href = url;
+      a.download = `sanctum-export-${new Date().toISOString().slice(0, 10)}.json`;
+      a.click();
+      URL.revokeObjectURL(url);
+    } catch (err) {
+      console.error('Export failed:', err);
+      alert('Export failed. Please try again.');
+    }
+  };
+
+  const deleteAllData = async () => {
+    if (deleteConfirmText !== 'DELETE') return;
+
+    try {
+      await Promise.all([
+        sb.from('notes').delete().eq('user_id', user.id),
+        sb.from('tasks').delete().eq('user_id', user.id),
+        sb.from('events').delete().eq('user_id', user.id),
+        sb.from('study_sessions').delete().eq('user_id', user.id),
+        sb.from('applications').delete().eq('user_id', user.id),
+        sb.from('finance').delete().eq('user_id', user.id),
+        sb.from('trips').delete().eq('user_id', user.id),
+        sb.from('custom_trackers').delete().eq('user_id', user.id),
+        sb.from('tracker_entries').delete().eq('user_id', user.id),
+        sb.from('vet_visits').delete().eq('user_id', user.id),
+      ]);
+
+      localStorage.clear();
+      await onLogout();
+    } catch (err) {
+      console.error('Delete failed:', err);
+      alert('Delete failed. Please try again.');
+    }
   };
 
   const FONTS = [
@@ -152,7 +231,78 @@ export default function Settings({ user, onLogout, theme, onThemeChange, font, o
             </div>
           ))}
         </div>
+
+        <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', padding: '16px 0', borderTop: '1px solid var(--b1)', marginTop: 16 }}>
+          <div>
+            <div style={{ fontSize: 14, fontWeight: 600, color: 'var(--t1)' }}>Export your data</div>
+            <div style={{ fontSize: 12, color: 'var(--t3)', marginTop: 2 }}>Download everything — notes, tasks, events, study sessions, trips, career data</div>
+          </div>
+          <button className="btn" onClick={exportAllData} style={{ flexShrink: 0 }}>Download JSON</button>
+        </div>
+
+        <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', padding: '16px 0', borderTop: '1px solid var(--b1)' }}>
+          <div>
+            <div style={{ fontSize: 14, fontWeight: 600, color: 'var(--red)' }}>Delete all data</div>
+            <div style={{ fontSize: 12, color: 'var(--t3)', marginTop: 2 }}>Permanently delete all your notes, tasks, events and account data. This cannot be undone.</div>
+          </div>
+          <button
+            className="btn"
+            onClick={() => setShowDeleteConfirm(true)}
+            style={{ flexShrink: 0, color: 'var(--red)', borderColor: 'var(--red)' }}
+          >
+            Delete everything
+          </button>
+        </div>
       </div>
+
+      {showDeleteConfirm && (
+        <div className="modal-overlay">
+          <div className="modal" style={{ maxWidth: 420 }}>
+            <div style={{ textAlign: 'center', marginBottom: 20 }}>
+              <svg width="48" height="48" viewBox="0 0 24 24" fill="none" stroke="var(--red)" strokeWidth="1.5" style={{ margin: '0 auto 12px', display: 'block' }}>
+                <path d="M10.29 3.86L1.82 18a2 2 0 0 0 1.71 3h16.94a2 2 0 0 0 1.71-3L13.71 3.86a2 2 0 0 0-3.42 0z"/>
+                <line x1="12" y1="9" x2="12" y2="13"/>
+                <line x1="12" y1="17" x2="12.01" y2="17"/>
+              </svg>
+              <div style={{ fontSize: 18, fontWeight: 700, color: 'var(--t1)' }}>Delete everything?</div>
+              <div style={{ fontSize: 13, color: 'var(--t3)', marginTop: 8 }}>
+                This will permanently delete all your notes, tasks, events, study sessions, career data, trips, and account. This cannot be undone.
+              </div>
+            </div>
+
+            <div style={{ background: 'var(--bg2)', borderRadius: 10, padding: 16, marginBottom: 16 }}>
+              <div style={{ fontSize: 13, color: 'var(--t2)', marginBottom: 8 }}>
+                Type <strong>DELETE</strong> to confirm:
+              </div>
+              <input
+                className="inp"
+                placeholder="Type DELETE"
+                value={deleteConfirmText}
+                onChange={e => setDeleteConfirmText(e.target.value)}
+                autoFocus
+              />
+            </div>
+
+            <div className="modal-actions">
+              <button className="btn" onClick={() => { setShowDeleteConfirm(false); setDeleteConfirmText(''); }}>
+                Cancel
+              </button>
+              <button
+                className="btn"
+                disabled={deleteConfirmText !== 'DELETE'}
+                onClick={deleteAllData}
+                style={{
+                  background: deleteConfirmText === 'DELETE' ? 'var(--red)' : 'var(--bg2)',
+                  color: deleteConfirmText === 'DELETE' ? '#fff' : 'var(--t3)',
+                  border: 'none'
+                }}
+              >
+                Delete everything permanently
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
     </div>
   );
 }

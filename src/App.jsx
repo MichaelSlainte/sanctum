@@ -528,7 +528,7 @@ RESPONSE RULES — choose one format only:
       if (trackerPage === "pet")     return <><TrackerBackBar name="Ozzy" onBack={() => { setTrackerPage(null); localStorage.setItem("sanctum_page","trackers"); }} /><Ozzy user={user} /></>;
       return <TrackerHub archivedTrackers={archivedTrackers} onArchive={archiveTracker} onUnarchive={unarchiveTracker} onNavigate={navigate} user={user} refreshKey={trackersRefreshKey} />;
     }
-    if (page === "settings") return <Settings user={user} onLogout={handleLogout} theme={theme} onThemeChange={applyTheme} font={font} onFontChange={applyFont} />;
+    if (page === "settings") return <Settings user={user} onLogout={handleLogout} theme={theme} onThemeChange={applyTheme} font={font} onFontChange={applyFont} sb={sb} />;
   };
 
   const today = new Date().toLocaleDateString("en-IE", { weekday: "short", day: "numeric", month: "short", year: "numeric" });
