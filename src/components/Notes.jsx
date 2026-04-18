@@ -181,7 +181,7 @@ const restoreCursorOffset = (el, offset) => {
   } catch {}
 };
 
-function SplitEditor({ value, onChange, placeholder, textareaRef, editorMode, setMode }) {
+function SplitEditor({ value, onChange, placeholder, textareaRef, editorMode, setMode, onCursorMove }) {
   const innerRef = useRef(null);
   const ref = textareaRef || innerRef;
   const preview = useMemo(() => mdToHtmlPreview(value), [value]);
@@ -226,6 +226,8 @@ function SplitEditor({ value, onChange, placeholder, textareaRef, editorMode, se
           placeholder={placeholder || 'Start writing in Markdown...\n\n# Heading 1\n## Heading 2\n\n**bold**  _italic_  `code`\n- bullet\n```\ncode block\n```\n--- (divider)'}
           spellCheck={true}
           onKeyDown={handleKeyDown}
+          onKeyUp={onCursorMove}
+          onClick={onCursorMove}
         />
         <div
           className="note-body-preview"
@@ -307,6 +309,7 @@ export default function Notes() {
   const [nbMenu,       setNbMenu]       = useState(null);
   const [noteMenu,     setNoteMenu]     = useState(null);
   const [formatDrop,   setFormatDrop]   = useState(false);
+  const [lineFormat,   setLineFormat]   = useState('body');
   const [dragNBId,     setDragNBId]     = useState(null);
   const [dragSecId,    setDragSecId]    = useState(null);
   const [dragNoteId,   setDragNoteId]   = useState(null);
@@ -512,6 +515,24 @@ export default function Notes() {
   };
 
   // ── Formatting (WYSIWYG) ──────────────────────────────────────────────
+  const detectLineFormat = useCallback(() => {
+    const ta = editorRef.current; if (!ta) return 'body';
+    const text = ta.value;
+    const start = ta.selectionStart ?? 0;
+    const lineStart = text.lastIndexOf('\n', start - 1) + 1;
+    const lineEnd = (() => { const i = text.indexOf('\n', start); return i === -1 ? text.length : i; })();
+    const line = text.slice(lineStart, lineEnd);
+    if (line.startsWith('### ')) return 'h3';
+    if (line.startsWith('## '))  return 'h2';
+    if (line.startsWith('# '))   return 'h1';
+    if (line.startsWith('- [ ] ') || line.startsWith('- [x] ')) return 'check';
+    if (line.startsWith('- ') || line.startsWith('* ')) return 'ul';
+    if (/^\d+\. /.test(line)) return 'ol';
+    return 'body';
+  }, []);
+
+  const updateLineFormat = useCallback(() => setLineFormat(detectLineFormat()), [detectLineFormat]);
+
   const applyFormat = (fmt) => {
     const ta = editorRef.current; if (!ta) return;
     if (editorMode !== 'write' && editorMode !== 'split') setMode('write');
@@ -863,44 +884,31 @@ export default function Notes() {
               {saveStatus==='saving' && <span key="saving" className="save-ind saving">saving...</span>}
               {saveStatus==='saved'  && <span key="saved"  className="save-ind saved">saved ✓</span>}
               <div style={{flex:1}}/>
+              <select
+                className="note-format-select"
+                value={lineFormat}
+                onChange={e => { applyFormat(e.target.value); updateLineFormat(); }}
+              >
+                <option value="body">Body</option>
+                <option value="h1">Title</option>
+                <option value="h2">Heading</option>
+                <option value="h3">Subheading</option>
+                <option value="ul">Bullet</option>
+                <option value="ol">Numbered</option>
+                <option value="check">Checklist</option>
+              </select>
+              <div className="note-toolbar-sep"/>
               <button className="note-tool-btn" title="Bold ⌘B"      onMouseDown={e=>{e.preventDefault();applyFormat('bold');}}><strong>B</strong></button>
               <button className="note-tool-btn" title="Italic ⌘I"    onMouseDown={e=>{e.preventDefault();applyFormat('italic');}}><em>I</em></button>
-              <div className="note-toolbar-sep"/>
-              <button className="note-tool-btn" title="Heading 1"    onMouseDown={e=>{e.preventDefault();applyFormat('h1');}}>H1</button>
-              <button className="note-tool-btn" title="Heading 2"    onMouseDown={e=>{e.preventDefault();applyFormat('h2');}}>H2</button>
-              <button className="note-tool-btn" title="Heading 3"    onMouseDown={e=>{e.preventDefault();applyFormat('h3');}}>H3</button>
-              <div className="note-toolbar-sep"/>
-              <button className="note-tool-btn" title="Bullet list"  onMouseDown={e=>{e.preventDefault();applyFormat('ul');}}>•—</button>
-              <button className="note-tool-btn" title="Checkbox"     onMouseDown={e=>{e.preventDefault();applyFormat('check');}}>☐</button>
-              <button className="note-tool-btn" title="Divider"      onMouseDown={e=>{e.preventDefault();applyFormat('hr');}}>—</button>
-              <div className="note-toolbar-sep"/>
               <button className="note-tool-btn" title="Underline"    onMouseDown={e=>{e.preventDefault();applyFormat('underline');}} style={{textDecoration:'underline'}}>U</button>
+              <div className="note-toolbar-sep"/>
+              <button className="note-tool-btn" title="Checkbox"     onMouseDown={e=>{e.preventDefault();applyFormat('check');}}>☐</button>
               <button className="note-tool-btn" title="Insert table" onMouseDown={e=>{e.preventDefault();applyFormat('table');}}>⊞</button>
               <button className="note-tool-btn" title="Link"          onMouseDown={e=>{e.preventDefault();applyFormat('link');}}>🔗</button>
               <div className="note-toolbar-sep"/>
               <span style={{fontSize:10,color:'var(--t3)',fontFamily:'var(--mono)',padding:'0 3px',flexShrink:0}}>
                 {editBody.split(/\s+/).filter(Boolean).length}w
               </span>
-              <div style={{position:'relative'}}>
-                <button className="note-tool-btn format-drop-trigger" title="Paragraph style" onMouseDown={e=>{e.preventDefault();setFormatDrop(v=>!v);}}>¶▾</button>
-                {formatDrop && (
-                  <div className="format-dropdown" onClick={e=>e.stopPropagation()}>
-                    {[
-                      {label:'Body',       fmt:'body'},
-                      {label:'Title',      fmt:'h1'},
-                      {label:'Heading',    fmt:'h2'},
-                      {label:'Subheading', fmt:'h3'},
-                      {label:'Bullet',     fmt:'ul'},
-                      {label:'Numbered',   fmt:'ol'},
-                      {label:'Checklist',  fmt:'check'},
-                    ].map(({label, fmt}) => (
-                      <button key={fmt} onMouseDown={e=>{e.preventDefault();applyFormat(fmt);setFormatDrop(false);}}>
-                        {label}
-                      </button>
-                    ))}
-                  </div>
-                )}
-              </div>
             </div>
 
             {/* Fullscreen expand/exit button — top-right corner of editor */}
@@ -936,6 +944,7 @@ export default function Notes() {
               placeholder="Start writing..."
               editorMode={editorMode}
               setMode={setMode}
+              onCursorMove={updateLineFormat}
             />
 
             {/* Mobile bottom formatting toolbar */}

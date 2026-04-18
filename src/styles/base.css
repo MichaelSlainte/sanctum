@@ -501,6 +501,13 @@
   }
   .note-tool-btn:hover { background: rgba(255,255,255,0.06); border-color: rgba(255,255,255,0.1); color: var(--t1); }
   .note-tool-btn.on { background: var(--bluem); border-color: var(--blueb); color: var(--blue); }
+  .note-format-select {
+    height: 26px; width: 130px; padding: 0 6px; border-radius: 6px;
+    background: var(--bg2); border: 1px solid var(--b1); color: var(--t1);
+    font-family: var(--sans); font-size: 11px; cursor: pointer; flex-shrink: 0;
+    appearance: auto;
+  }
+  .note-format-select:hover { border-color: rgba(255,255,255,0.1); }
   .format-dropdown {
     position: absolute; right: 0; top: calc(100% + 4px);
     background: var(--bg2); border: 1px solid var(--b1); border-radius: 8px;
