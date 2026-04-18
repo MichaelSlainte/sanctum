@@ -186,7 +186,7 @@ const getEventsForDate = (events, dateStr) => {
   return results;
 };
 
-export default function Calendar({ initialDate, refreshKey }) {
+export default function Calendar({ user, initialDate, refreshKey }) {
   const now = new Date();
   const [currentDate, setCurrentDate] = useState(initialDate || now);
   const scrollRef = useRef(null);
@@ -314,6 +314,7 @@ export default function Calendar({ initialDate, refreshKey }) {
       reminder:  formData.reminder   || "none",
       shared:    formData.shared     || false,
       all_day:   false,
+      user_id:   user?.id,
     };
     if (editingEvent) {
       try { await sb.from("events").update(payload, { id: editingEvent.id }); } catch {}

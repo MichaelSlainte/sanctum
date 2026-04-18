@@ -2,7 +2,7 @@ import { useState, useEffect } from "react";
 import { sb } from "../../lib/supabase";
 import { Icon, Modal, STATUS_COLORS } from "../shared";
 
-export default function Career() {
+export default function Career({ user }) {
   const [apps, setApps] = useState([]);
   const [loading, setLoading] = useState(true);
   const [showAdd, setShowAdd] = useState(false);
@@ -25,7 +25,7 @@ export default function Career() {
   const addApp = async () => {
     if (!newApp.company || !newApp.role) return;
     try {
-      const res = await sb.from("applications").insert(newApp);
+      const res = await sb.from("applications").insert({ ...newApp, user_id: user?.id });
       const created = Array.isArray(res) && res[0] ? res[0] : { ...newApp, id: Date.now().toString() };
       setApps(prev => [...prev, created]);
     } catch { setApps(prev => [...prev, { ...newApp, id: Date.now().toString() }]); }

@@ -666,7 +666,7 @@ export default function Home({ user, archivedTrackers = [], onNavigate, onGoToCa
     const text = textOverride ?? newTask.text;
     const tag  = tagOverride  ?? newTask.tag;
     if (!text.trim()) return;
-    const task = { text, tag, done: false };
+    const task = { text, tag, done: false, user_id: user?.id };
     try {
       const res = await sb.from("tasks").insert(task);
       const created = Array.isArray(res) && res[0] ? res[0] : { ...task, id: Date.now().toString() };
@@ -739,7 +739,7 @@ For all other queries respond in plain conversational text, warm but concise, ma
             setAiResponse({ text: `No task found matching "${action.text}"`, type: "error" });
           }
         } else if (action.action === "log_study") {
-          await sb.from("study_sessions").insert({ type: "pmp", topic: action.topic, hours: parseFloat(action.hours), notes: action.notes || "", date: todayISO });
+          await sb.from("study_sessions").insert({ type: "pmp", topic: action.topic, hours: parseFloat(action.hours), notes: action.notes || "", date: todayISO, user_id: user?.id });
           await sb.from("events").insert({
             title: `PMP Study — ${action.topic}`,
             date: todayISO,
@@ -748,6 +748,7 @@ For all other queries respond in plain conversational text, warm but concise, ma
             category: "study",
             color: "#8b5cf6",
             notes: `${action.hours}h logged`,
+            user_id: user?.id,
           });
           await loadEvents();
           setAiResponse({ text: `Logged ${action.hours}h — ${action.topic} ✓\nAdded to calendar`, type: "success" });
@@ -760,6 +761,7 @@ For all other queries respond in plain conversational text, warm but concise, ma
             category: action.category || "personal",
             color: "#388bfd",
             notes: action.notes || "",
+            user_id: user?.id,
           });
           await loadEvents();
           setAiResponse({ text: `Added to calendar: "${action.title}" on ${parseDate(action.date)}`, type: "success" });

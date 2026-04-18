@@ -88,7 +88,7 @@ const htmlToMd = (el) => {
 
 
 // ─── NOTES ───────────────────────────────────────────────────────────────────
-export default function Notes() {
+export default function Notes({ user }) {
   // ── Notebooks (Supabase + localStorage backed) ───────────────────────
   const [notebooks, setNotebooks] = useState(() => {
     try { const s = localStorage.getItem('sanctum_notebooks_v2'); if (s) return JSON.parse(s); } catch {}
@@ -356,7 +356,7 @@ export default function Notes() {
     const sectionId = activeSection || nb?.sections[0]?.id || '';
     const sec = nb?.sections.find(s => s.id === sectionId);
     // Save capitalised label so DB is consistent with config (normalization on load handles legacy lowercase ids)
-    const note = { notebook: nb?.label || activeNB, section: sec?.label || sectionId, title: '', body: '', tags: '', updated_at: new Date().toISOString().slice(0, 10) };
+    const note = { notebook: nb?.label || activeNB, section: sec?.label || sectionId, title: '', body: '', tags: '', updated_at: new Date().toISOString().slice(0, 10), user_id: user?.id };
     try {
       const res = await sb.from("notes").insert(note);
       const created = Array.isArray(res) && res[0] ? res[0] : { ...note, id: Date.now().toString() };
@@ -383,7 +383,7 @@ export default function Notes() {
   const duplicateNote = async (id) => {
     const note = allNotes.find(n => n.id === id); if (!note) return;
     const { id: _id, ...rest } = note;
-    const dup = { ...rest, title: (note.title || 'Untitled') + ' copy', updated_at: new Date().toISOString().slice(0, 10) };
+    const dup = { ...rest, title: (note.title || 'Untitled') + ' copy', updated_at: new Date().toISOString().slice(0, 10), user_id: user?.id };
     try {
       const res = await sb.from("notes").insert(dup);
       const created = Array.isArray(res) && res[0] ? res[0] : { ...dup, id: Date.now().toString() };
@@ -525,7 +525,7 @@ export default function Notes() {
     saveNotebooks(notebooks.map(nb => nb.id!==nbId ? nb : {...nb, sections:[...nb.sections,{id,label}]}));
     setNbMenu(null);
     try {
-      const res = await sb.from("notes").insert({ notebook: nbId, section: id, title: label, body: '', tags: '' });
+      const res = await sb.from("notes").insert({ notebook: nbId, section: id, title: label, body: '', tags: '', user_id: user?.id });
       const created = Array.isArray(res) && res[0] ? res[0] : { notebook: nbId, section: id, title: label, body: '', tags: '', id: Date.now().toString() };
       setAllNotes(prev => [...prev, created]);
     } catch {}

@@ -2,7 +2,7 @@ import { useState, useEffect } from "react";
 import { sb } from "../../lib/supabase";
 import { Icon, Modal, CAT_ICONS } from "../shared";
 
-export default function Finance() {
+export default function Finance({ user }) {
   const [entries, setEntries] = useState([]);
   const [loading, setLoading] = useState(true);
   const [showAdd, setShowAdd] = useState(false);
@@ -23,7 +23,7 @@ export default function Finance() {
 
   const addEntry = async () => {
     if (!newEntry.label || !newEntry.amount) return;
-    const entry = { ...newEntry, amount: parseFloat(newEntry.amount) };
+    const entry = { ...newEntry, amount: parseFloat(newEntry.amount), user_id: user?.id };
     try {
       const res = await sb.from("finance").insert(entry);
       const created = Array.isArray(res) && res[0] ? res[0] : { ...entry, id: Date.now().toString() };

@@ -2,7 +2,7 @@ import { useState, useEffect } from "react";
 import { sb } from "../../lib/supabase";
 import { Icon, Modal } from "../shared";
 
-export default function Study() {
+export default function Study({ user }) {
   const today = new Date();
   const [tab, setTab] = useState("pmp");
 
@@ -101,7 +101,7 @@ export default function Study() {
   // ── PMP ops ──
   const addPmpSession = async () => {
     if (!newPmp.topic || !newPmp.hours) return;
-    await sb.from("study_sessions").insert({ type: "pmp", ...newPmp, hours: parseFloat(newPmp.hours) });
+    await sb.from("study_sessions").insert({ type: "pmp", ...newPmp, hours: parseFloat(newPmp.hours), user_id: user?.id });
     await loadAll();
     setNewPmp({ topic: "", hours: "", notes: "", date: today.toISOString().slice(0, 10) });
     setShowAddPmp(false);
@@ -114,7 +114,7 @@ export default function Study() {
   // ── THM ops ──
   const addThmSession = async () => {
     if (!newThm.room_name) return;
-    await sb.from("study_sessions").insert({ type: "thm", ...newThm });
+    await sb.from("study_sessions").insert({ type: "thm", ...newThm, user_id: user?.id });
     await loadAll();
     setNewThm({ room_name: "", category: "", completed: true, date: today.toISOString().slice(0, 10), notes: "" });
     setShowAddThm(false);

@@ -65,7 +65,7 @@ const DEFAULT_TRIPS = [
   },
 ];
 
-export default function Travel() {
+export default function Travel({ user }) {
   const [trips, setTrips] = useState(() => {
     try { return JSON.parse(localStorage.getItem("sanctum_trips") || JSON.stringify(DEFAULT_TRIPS)); }
     catch { return [...DEFAULT_TRIPS]; }
@@ -101,7 +101,7 @@ export default function Travel() {
       checklist: [],
     };
     try {
-      const res = await sb.from("trips").insert(toDb(trip));
+      const res = await sb.from("trips").insert({ ...toDb(trip), user_id: user?.id });
       const created = Array.isArray(res) && res[0] ? fromDb(res[0]) : trip;
       saveLocal([created, ...trips]);
     } catch {

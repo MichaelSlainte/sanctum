@@ -29,7 +29,7 @@ const DEFAULT_DIET = [
 const AVOID_FOODS = ["Chocolate", "Grapes & raisins", "Onions & garlic", "Macadamia nuts", "Xylitol (sugar-free products)", "Alcohol", "Cooked bones", "Avocado"];
 const VET_TYPES = ["Annual checkup", "Vaccination", "Grooming", "Dental", "Emergency", "Medication", "Other"];
 
-export default function Ozzy() {
+export default function Ozzy({ user }) {
   const [activeTab, setActiveTab] = useState("overview");
 
   const [ozzyPhoto, setOzzyPhoto] = useState(() => localStorage.getItem("sanctum_ozzy_photo") || null);
@@ -138,7 +138,7 @@ export default function Ozzy() {
   const addVet = async () => {
     if (!newVet.date || !newVet.type) return;
     try {
-      const res = await sb.from("vet_visits").insert(newVet);
+      const res = await sb.from("vet_visits").insert({ ...newVet, user_id: user?.id });
       const created = Array.isArray(res) && res[0] ? res[0] : { ...newVet, id: Date.now().toString() };
       saveVets([created, ...vets]);
     } catch {
@@ -172,7 +172,7 @@ export default function Ozzy() {
         localStorage.setItem("sanctum_ozzy_docs_meta", JSON.stringify(updated));
         return updated;
       });
-      try { await sb.from("ozzy_docs").insert({ name: docName, filename: file.name, uploaded_at: meta.uploaded_at }); } catch {}
+      try { await sb.from("ozzy_docs").insert({ name: docName, filename: file.name, uploaded_at: meta.uploaded_at, user_id: user?.id }); } catch {}
     };
     reader.readAsDataURL(file);
   };

@@ -265,6 +265,7 @@ RESPONSE RULES — choose one format only:
             notes: action.notes || '',
             date: todayISO,
             type: 'pmp',
+            user_id: user?.id,
           });
           await sb.from('events').insert({
             title: `PMP Study — ${action.topic}`,
@@ -274,6 +275,7 @@ RESPONSE RULES — choose one format only:
             category: 'study',
             color: '#8b5cf6',
             notes: `${action.hours}h logged`,
+            user_id: user?.id,
           });
           setCalendarRefreshKey(k => k + 1);
           setGlobalAIResponse({ text: `Logged ${action.hours}h — ${action.topic} ✓\nAdded to calendar`, type: 'success' });
@@ -286,6 +288,7 @@ RESPONSE RULES — choose one format only:
             category: action.category || 'personal',
             color: '#388bfd',
             notes: action.notes || '',
+            user_id: user?.id,
           });
           setCalendarRefreshKey(k => k + 1);
           setGlobalAIResponse({ text: `Added to calendar: "${action.title}" on ${parseDate(action.date)}`, type: 'success' });
@@ -441,7 +444,7 @@ RESPONSE RULES — choose one format only:
   const username = email.split("@")[0];
 
   const addTaskFromAI = async (text, tag) => {
-    const task = { text, tag, done: false };
+    const task = { text, tag, done: false, user_id: user?.id };
     try {
       const res = await sb.from("tasks").insert(task);
       const created = Array.isArray(res) && res[0] ? res[0] : { ...task, id: Date.now().toString() };
@@ -452,15 +455,15 @@ RESPONSE RULES — choose one format only:
 
   const renderPage = () => {
     if (page === "home") return <Home user={user} archivedTrackers={archivedTrackers} onNavigate={navigate} onGoToCalendarDay={goToCalendarDay} />;
-    if (page === "notes") return <Notes />;
-    if (page === "calendar") return <Calendar initialDate={calDate} refreshKey={calendarRefreshKey} />;
+    if (page === "notes") return <Notes user={user} />;
+    if (page === "calendar") return <Calendar user={user} initialDate={calDate} refreshKey={calendarRefreshKey} />;
     if (page === "trackers") {
       if (trackerPage && archivedTrackers.includes(trackerPage)) { setTrackerPage(null); localStorage.setItem("sanctum_page", "trackers"); }
-      if (trackerPage === "career")  return <><TrackerBackBar name="Career" onBack={() => { setTrackerPage(null); localStorage.setItem("sanctum_page","trackers"); }} /><Career /></>;
-      if (trackerPage === "study")   return <><TrackerBackBar name="Study & PMP" onBack={() => { setTrackerPage(null); localStorage.setItem("sanctum_page","trackers"); }} /><Study /></>;
-      if (trackerPage === "finance") return <><TrackerBackBar name="Finance" onBack={() => { setTrackerPage(null); localStorage.setItem("sanctum_page","trackers"); }} /><Finance /></>;
-      if (trackerPage === "travel")  return <><TrackerBackBar name="Travel" onBack={() => { setTrackerPage(null); localStorage.setItem("sanctum_page","trackers"); }} /><Travel /></>;
-      if (trackerPage === "pet")     return <><TrackerBackBar name="Ozzy" onBack={() => { setTrackerPage(null); localStorage.setItem("sanctum_page","trackers"); }} /><Ozzy /></>;
+      if (trackerPage === "career")  return <><TrackerBackBar name="Career" onBack={() => { setTrackerPage(null); localStorage.setItem("sanctum_page","trackers"); }} /><Career user={user} /></>;
+      if (trackerPage === "study")   return <><TrackerBackBar name="Study & PMP" onBack={() => { setTrackerPage(null); localStorage.setItem("sanctum_page","trackers"); }} /><Study user={user} /></>;
+      if (trackerPage === "finance") return <><TrackerBackBar name="Finance" onBack={() => { setTrackerPage(null); localStorage.setItem("sanctum_page","trackers"); }} /><Finance user={user} /></>;
+      if (trackerPage === "travel")  return <><TrackerBackBar name="Travel" onBack={() => { setTrackerPage(null); localStorage.setItem("sanctum_page","trackers"); }} /><Travel user={user} /></>;
+      if (trackerPage === "pet")     return <><TrackerBackBar name="Ozzy" onBack={() => { setTrackerPage(null); localStorage.setItem("sanctum_page","trackers"); }} /><Ozzy user={user} /></>;
       return <TrackerHub archivedTrackers={archivedTrackers} onArchive={archiveTracker} onUnarchive={unarchiveTracker} onNavigate={navigate} />;
     }
     if (page === "settings") return <Settings user={user} onLogout={handleLogout} theme={theme} onThemeChange={applyTheme} font={font} onFontChange={applyFont} />;
