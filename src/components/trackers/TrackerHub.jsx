@@ -271,12 +271,34 @@ export default function TrackerHub({ archivedTrackers = [], onArchive, onUnarchi
     catch { return []; }
   });
 
+  const [trackerEntries, setTrackerEntries] = useState([]);
+
   const [detailTracker, setDetailTracker] = useState(null);
 
-  // Reload custom trackers when refreshKey changes
+  const loadCustomTrackers = async () => {
+    const data = await sb.from('custom_trackers').select('*');
+    console.log('Loaded custom trackers:', data);
+    if (Array.isArray(data) && data.length > 0) {
+      const active = data.filter(t => !t.archived);
+      setCustomTrackers(active);
+      localStorage.setItem('sanctum_custom_trackers', JSON.stringify(active));
+    } else {
+      try { setCustomTrackers(JSON.parse(localStorage.getItem('sanctum_custom_trackers') || '[]')); }
+      catch { setCustomTrackers([]); }
+    }
+  };
+
   useEffect(() => {
-    try { setCustomTrackers(JSON.parse(localStorage.getItem('sanctum_custom_trackers') || '[]')); }
-    catch {}
+    loadCustomTrackers();
+    const loadEntries = async () => {
+      const data = await sb.from('tracker_entries').select('*');
+      if (Array.isArray(data) && data.length > 0) {
+        setTrackerEntries(data);
+      } else {
+        setTrackerEntries(loadCustomEntries());
+      }
+    };
+    loadEntries();
   }, [refreshKey]);
 
   useEffect(() => {
@@ -431,9 +453,8 @@ export default function TrackerHub({ archivedTrackers = [], onArchive, onUnarchi
   };
 
   const renderCustomCard = (tracker) => {
-    const allEntries = loadCustomEntries();
     const weekStart = getWeekStart();
-    const thisWeekCount = allEntries.filter(e => e.tracker_id === tracker.id && new Date(e.date) >= weekStart).length;
+    const thisWeekCount = trackerEntries.filter(e => e.tracker_id === tracker.id && new Date(e.date) >= weekStart).length;
     const percent = thisWeekCount / (tracker.weekly_goal || 3);
 
     return (

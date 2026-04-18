@@ -305,6 +305,7 @@ RESPONSE RULES — choose one format only:
           setCalendarRefreshKey(k => k + 1);
           setGlobalAIResponse({ text: `Added to calendar: "${action.title}" on ${parseDate(action.date)}`, type: 'success' });
         } else if (action.action === 'create_tracker') {
+          console.log('Creating tracker:', action);
           setGlobalAIHistory([]);
           const tracker = {
             id: 'custom_' + Date.now(),
@@ -312,14 +313,18 @@ RESPONSE RULES — choose one format only:
             description: action.description || '',
             icon: action.icon || 'trackers',
             color: action.color || '#10b981',
-            has_ring: true,
+            fields: JSON.stringify(action.fields || []),
+            has_ring: action.has_ring !== false,
+            ring_target: action.ring_target_field || null,
             weekly_goal: action.weekly_goal || 3,
             unit: action.unit || 'sessions',
+            archived: false,
             created_at: new Date().toISOString(),
           };
           const existing = JSON.parse(localStorage.getItem('sanctum_custom_trackers') || '[]');
           localStorage.setItem('sanctum_custom_trackers', JSON.stringify([...existing, tracker]));
-          try { await sb.from('custom_trackers').insert({ ...tracker, user_id: user?.id }); } catch {}
+          const insertResult = await sb.from('custom_trackers').insert({ ...tracker, user_id: user?.id });
+          console.log('Insert result:', insertResult);
           if (action.add_to_calendar && action.schedule_days?.length) {
             const dayMap = { monday:1, tuesday:2, wednesday:3, thursday:4, friday:5, saturday:6, sunday:0 };
             for (const day of action.schedule_days) {
