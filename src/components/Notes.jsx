@@ -187,6 +187,15 @@ export default function Notes({ user }) {
   const [moveModal,    setMoveModal]    = useState(null);
   const [fullscreen,   setFullscreen]   = useState(() => localStorage.getItem('sanctum_notes_fs') === 'true');
 
+  // ── PIN lock state ────────────────────────────────────────────────────
+  const [pinModal,       setPinModal]       = useState(null); // 'set' | 'remove' | null
+  const [pinInput,       setPinInput]       = useState('');
+  const [pinConfirm,     setPinConfirm]     = useState('');
+  const [unlockPin,      setUnlockPin]      = useState('');
+  const [noteUnlocked,   setNoteUnlocked]   = useState(false);
+  const [pinError,       setPinError]       = useState(false);
+  const [failedAttempts, setFailedAttempts] = useState(0);
+
   // ── Close menus on outside click ──────────────────────────────────────
   useEffect(() => {
     const h = (e) => {
@@ -224,6 +233,14 @@ export default function Notes({ user }) {
     addCollapseButtons();
     setEditBody(htmlToMd(editorRef.current));
   }, [activeNote]); // eslint-disable-line react-hooks/exhaustive-deps
+
+  // ── Reset PIN state on note switch ────────────────────────────────────
+  useEffect(() => {
+    setNoteUnlocked(false);
+    setUnlockPin('');
+    setPinError(false);
+    setFailedAttempts(0);
+  }, [activeNote]);
 
   // ── Load ──────────────────────────────────────────────────────────────
   useEffect(() => { loadNotes(); }, []);
@@ -403,6 +420,56 @@ export default function Notes({ user }) {
     setAllNotes(prev => prev.map(n => n.id === noteId ? { ...n, notebook: nbId, section: secId } : n));
     try { await sb.from("notes").update({ notebook: nbLabel, section: secLabel }, { id: noteId }); } catch {}
     setMoveModal(null); setNoteMenu(null);
+  };
+
+  // ── PIN lock helpers ──────────────────────────────────────────────────
+  const hashPin = async (pin) => {
+    const encoder = new TextEncoder();
+    const data = encoder.encode(pin + 'sanctum_salt_2026');
+    const hashBuffer = await crypto.subtle.digest('SHA-256', data);
+    const hashArray = Array.from(new Uint8Array(hashBuffer));
+    return hashArray.map(b => b.toString(16).padStart(2, '0')).join('');
+  };
+
+  const toggleNoteLock = () => {
+    if (!currentNote) return;
+    if (currentNote.locked) { setPinModal('remove'); setPinInput(''); setPinError(false); }
+    else                    { setPinModal('set');    setPinInput(''); setPinConfirm(''); setPinError(false); }
+  };
+
+  const lockNote = async () => {
+    if (pinInput.length < 4 || pinInput !== pinConfirm) return;
+    const hash = await hashPin(pinInput);
+    await sb.from('notes').update({ locked: true, pin_hash: hash }, { id: activeNote });
+    setAllNotes(prev => prev.map(n => n.id === activeNote ? { ...n, locked: true, pin_hash: hash } : n));
+    setNoteUnlocked(false);
+    setPinModal(null); setPinInput(''); setPinConfirm('');
+  };
+
+  const verifyPin = async () => {
+    if (typeof pinError === 'string') return;
+    const hash = await hashPin(unlockPin);
+    if (hash === currentNote?.pin_hash) {
+      setNoteUnlocked(true); setUnlockPin(''); setPinError(false); setFailedAttempts(0);
+    } else {
+      const next = failedAttempts + 1;
+      setFailedAttempts(next);
+      setUnlockPin('');
+      if (next >= 3) {
+        setPinError('Too many attempts. Wait 30 seconds.');
+        setTimeout(() => { setFailedAttempts(0); setPinError(false); }, 30000);
+      } else {
+        setPinError(true);
+      }
+    }
+  };
+
+  const removeLock = async () => {
+    const hash = await hashPin(pinInput);
+    if (hash !== currentNote?.pin_hash) { setPinError(true); return; }
+    await sb.from('notes').update({ locked: false, pin_hash: null }, { id: activeNote });
+    setAllNotes(prev => prev.map(n => n.id === activeNote ? { ...n, locked: false, pin_hash: null } : n));
+    setNoteUnlocked(false); setPinModal(null); setPinInput(''); setPinError(false);
   };
 
   // ── Formatting (WYSIWYG contentEditable) ─────────────────────────────
@@ -770,10 +837,18 @@ export default function Notes({ user }) {
             onContextMenu={e=>{e.preventDefault();setNoteMenu({id:n.id,x:e.clientX,y:e.clientY});}}
           >
             <div className="nli-row">
-              <div className="nli-title">{n.title||'Untitled'}</div>
+              <div className="nli-title" style={{display:'flex',alignItems:'center',gap:4}}>
+                {n.locked && (
+                  <svg width="11" height="11" viewBox="0 0 24 24" fill="none" stroke="var(--amber)" strokeWidth="2.5" style={{flexShrink:0}}>
+                    <rect x="3" y="11" width="18" height="11" rx="2"/>
+                    <path d="M7 11V7a5 5 0 0 1 10 0v4"/>
+                  </svg>
+                )}
+                {n.title||'Untitled'}
+              </div>
               <button className="nb-dot-btn" onClick={e=>{e.stopPropagation();setNoteMenu(m=>m?.id===n.id?null:{id:n.id,x:e.clientX,y:e.clientY});}}>···</button>
             </div>
-            <div className="nli-preview">{(() => { const d = document.createElement('div'); d.innerHTML = n.body || ''; return (d.textContent || d.innerText || '').replace(/\s+/g,' ').trim().slice(0,60) || 'No content'; })()}</div>
+            <div className="nli-preview" style={n.locked?{color:'var(--t3)',letterSpacing:2}:undefined}>{n.locked ? '••••••' : (() => { const d = document.createElement('div'); d.innerHTML = n.body || ''; return (d.textContent || d.innerText || '').replace(/\s+/g,' ').trim().slice(0,60) || 'No content'; })()}</div>
             {n.tags&&<div className="nli-tags">{n.tags.split(',').filter(Boolean).slice(0,3).map(t=><span key={t} className="nli-tag">{t.trim()}</span>)}</div>}
             <div className="nli-date">{n.updated_at ? new Date(n.updated_at).toLocaleDateString("en-IE", { day: "numeric", month: "short", year: "numeric" }) : ''}</div>
           </div>
@@ -828,6 +903,24 @@ export default function Notes({ user }) {
               <span style={{fontSize:10,color:'var(--t3)',fontFamily:'var(--mono)',padding:'0 3px',flexShrink:0}}>
                 {editBody.split(/\s+/).filter(Boolean).length}w
               </span>
+              <div className="note-toolbar-sep"/>
+              <button
+                className="note-tool-btn"
+                title={currentNote?.locked ? 'Unlock note' : 'Lock note'}
+                onClick={toggleNoteLock}
+                style={{color: currentNote?.locked ? 'var(--amber)' : 'var(--t3)'}}>
+                {currentNote?.locked ? (
+                  <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
+                    <rect x="3" y="11" width="18" height="11" rx="2"/>
+                    <path d="M7 11V7a5 5 0 0 1 10 0v4"/>
+                  </svg>
+                ) : (
+                  <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
+                    <rect x="3" y="11" width="18" height="11" rx="2"/>
+                    <path d="M7 11V7a5 5 0 0 1 9.9-1"/>
+                  </svg>
+                )}
+              </button>
             </div>
 
             {/* Fullscreen expand/exit button — top-right corner of editor */}
@@ -837,75 +930,107 @@ export default function Notes({ user }) {
               <button className="fs-expand-btn" onClick={toggleFullscreen} title="Fullscreen"><Icon name="maximize" size={14} /></button>
             )}
 
-            {/* Title */}
-            <input className="note-title-input"
-              ref={titleInputRef}
-              value={renameTarget?.type==='note' ? renameTarget.value : editTitle}
-              onChange={e=>{
-                if(renameTarget?.type==='note') setRenameTarget(r=>({...r,value:e.target.value}));
-                else onTitleChange(e.target.value);
-              }}
-              onBlur={()=>{if(renameTarget?.type==='note') commitRename();}}
-              onKeyDown={e=>{if(renameTarget?.type==='note'&&e.key==='Enter'){commitRename();e.target.blur();}}}
-              placeholder="Untitled note"/>
+            {currentNote.locked && !noteUnlocked ? (
+              <div style={{display:'flex',flexDirection:'column',alignItems:'center',justifyContent:'center',height:'100%',gap:16,padding:40}}>
+                <svg width="48" height="48" viewBox="0 0 24 24" fill="none" stroke="var(--t3)" strokeWidth="1.5">
+                  <rect x="3" y="11" width="18" height="11" rx="2"/>
+                  <path d="M7 11V7a5 5 0 0 1 10 0v4"/>
+                </svg>
+                <div style={{fontSize:15,fontWeight:600,color:'var(--t1)'}}>This note is locked</div>
+                <div style={{fontSize:13,color:'var(--t3)'}}>Enter your PIN to read it</div>
+                <input
+                  type="password"
+                  inputMode="numeric"
+                  maxLength={6}
+                  placeholder="PIN"
+                  value={unlockPin}
+                  onChange={e => setUnlockPin(e.target.value.replace(/\D/g,''))}
+                  onKeyDown={e => e.key === 'Enter' && verifyPin()}
+                  disabled={typeof pinError === 'string'}
+                  style={{textAlign:'center',fontSize:24,letterSpacing:8,background:'var(--bg2)',border:'1px solid var(--b2)',borderRadius:10,padding:'12px 20px',color:'var(--t1)',width:160,fontFamily:'var(--mono)'}}
+                  autoFocus
+                />
+                {pinError && (
+                  <div style={{fontSize:12,color:'var(--red)'}}>
+                    {typeof pinError === 'string' ? pinError : 'Incorrect PIN'}
+                  </div>
+                )}
+                <button className="btn primary" onClick={verifyPin} disabled={typeof pinError === 'string' || unlockPin.length < 4}>Unlock</button>
+                <div style={{fontSize:11,color:'var(--t3)',marginTop:8}}>Locked notes are private and only visible to you</div>
+              </div>
+            ) : (
+              <>
+                {/* Title */}
+                <input className="note-title-input"
+                  ref={titleInputRef}
+                  value={renameTarget?.type==='note' ? renameTarget.value : editTitle}
+                  onChange={e=>{
+                    if(renameTarget?.type==='note') setRenameTarget(r=>({...r,value:e.target.value}));
+                    else onTitleChange(e.target.value);
+                  }}
+                  onBlur={()=>{if(renameTarget?.type==='note') commitRename();}}
+                  onKeyDown={e=>{if(renameTarget?.type==='note'&&e.key==='Enter'){commitRename();e.target.blur();}}}
+                  placeholder="Untitled note"/>
 
-            {/* Meta */}
-            <div className="note-meta">
-              <span className="note-meta-item"><Icon name="calendar" size={10} color="var(--t3)"/> {currentNote.updated_at ? new Date(currentNote.updated_at).toLocaleDateString("en-IE", { day: "numeric", month: "short", year: "numeric" }) : ''}</span>
-              <span className="note-meta-item"><Icon name="folder" size={10} color="var(--t3)"/> {currentNB?.label}{currentSection?.label ? ` / ${currentSection.label}` : ''}</span>
-            </div>
+                {/* Meta */}
+                <div className="note-meta">
+                  <span className="note-meta-item"><Icon name="calendar" size={10} color="var(--t3)"/> {currentNote.updated_at ? new Date(currentNote.updated_at).toLocaleDateString("en-IE", { day: "numeric", month: "short", year: "numeric" }) : ''}</span>
+                  <span className="note-meta-item"><Icon name="folder" size={10} color="var(--t3)"/> {currentNB?.label}{currentSection?.label ? ` / ${currentSection.label}` : ''}</span>
+                </div>
 
-            {/* WYSIWYG contentEditable editor */}
-            <div
-              ref={editorRef}
-              className="note-body-wysiwyg"
-              contentEditable
-              suppressContentEditableWarning
-              data-placeholder="Start writing..."
-              spellCheck
-              onInput={syncBody}
-              onKeyUp={updateLineFormat}
-              onBlur={() => { const s = window.getSelection(); if (s?.rangeCount) savedRangeRef.current = s.getRangeAt(0).cloneRange(); }}
-              onClick={(e) => {
-                if (e.target.classList.contains('we-collapse-btn')) {
-                  const heading = e.target.parentElement;
-                  const isCollapsed = heading.classList.toggle('we-collapsed');
-                  e.target.textContent = isCollapsed ? '▶' : '▼';
-                  const level = heading.classList.contains('we-h1') ? 1 : 2;
-                  let sib = heading.nextElementSibling;
-                  while (sib) {
-                    if (sib.classList.contains('we-h1') || (level === 2 && sib.classList.contains('we-h2'))) break;
-                    sib.style.display = isCollapsed ? 'none' : '';
-                    sib = sib.nextElementSibling;
-                  }
-                  return;
-                }
-                if (e.target.classList.contains('we-checkbox')) {
-                  e.target.classList.toggle('checked');
-                  e.target.textContent = e.target.classList.contains('checked') ? '☑' : '☐';
-                  syncBody();
-                }
-                updateLineFormat();
-              }}
-            />
+                {/* WYSIWYG contentEditable editor */}
+                <div
+                  ref={editorRef}
+                  className="note-body-wysiwyg"
+                  contentEditable
+                  suppressContentEditableWarning
+                  data-placeholder="Start writing..."
+                  spellCheck
+                  onInput={syncBody}
+                  onKeyUp={updateLineFormat}
+                  onBlur={() => { const s = window.getSelection(); if (s?.rangeCount) savedRangeRef.current = s.getRangeAt(0).cloneRange(); }}
+                  onClick={(e) => {
+                    if (e.target.classList.contains('we-collapse-btn')) {
+                      const heading = e.target.parentElement;
+                      const isCollapsed = heading.classList.toggle('we-collapsed');
+                      e.target.textContent = isCollapsed ? '▶' : '▼';
+                      const level = heading.classList.contains('we-h1') ? 1 : 2;
+                      let sib = heading.nextElementSibling;
+                      while (sib) {
+                        if (sib.classList.contains('we-h1') || (level === 2 && sib.classList.contains('we-h2'))) break;
+                        sib.style.display = isCollapsed ? 'none' : '';
+                        sib = sib.nextElementSibling;
+                      }
+                      return;
+                    }
+                    if (e.target.classList.contains('we-checkbox')) {
+                      e.target.classList.toggle('checked');
+                      e.target.textContent = e.target.classList.contains('checked') ? '☑' : '☐';
+                      syncBody();
+                    }
+                    updateLineFormat();
+                  }}
+                />
 
-            {/* Mobile bottom formatting toolbar */}
-            <div className="mobile-editor-toolbar">
-              <button className="note-tool-btn" onMouseDown={e=>{e.preventDefault();applyFormat('bold');}}><strong>B</strong></button>
-              <button className="note-tool-btn" onMouseDown={e=>{e.preventDefault();applyFormat('italic');}}><em>I</em></button>
-              <button className="note-tool-btn" onMouseDown={e=>{e.preventDefault();applyFormat('h1');}}>H1</button>
-              <button className="note-tool-btn" onMouseDown={e=>{e.preventDefault();applyFormat('h2');}}>H2</button>
-              <button className="note-tool-btn" onMouseDown={e=>{e.preventDefault();applyFormat('ul');}}>•—</button>
-              <button className="note-tool-btn" onMouseDown={e=>{e.preventDefault();applyFormat('check');}}>☐</button>
-              <button className="note-tool-btn" onMouseDown={e=>{e.preventDefault();applyFormat('code');}}><Icon name="code" size={12}/></button>
-            </div>
+                {/* Mobile bottom formatting toolbar */}
+                <div className="mobile-editor-toolbar">
+                  <button className="note-tool-btn" onMouseDown={e=>{e.preventDefault();applyFormat('bold');}}><strong>B</strong></button>
+                  <button className="note-tool-btn" onMouseDown={e=>{e.preventDefault();applyFormat('italic');}}><em>I</em></button>
+                  <button className="note-tool-btn" onMouseDown={e=>{e.preventDefault();applyFormat('h1');}}>H1</button>
+                  <button className="note-tool-btn" onMouseDown={e=>{e.preventDefault();applyFormat('h2');}}>H2</button>
+                  <button className="note-tool-btn" onMouseDown={e=>{e.preventDefault();applyFormat('ul');}}>•—</button>
+                  <button className="note-tool-btn" onMouseDown={e=>{e.preventDefault();applyFormat('check');}}>☐</button>
+                  <button className="note-tool-btn" onMouseDown={e=>{e.preventDefault();applyFormat('code');}}><Icon name="code" size={12}/></button>
+                </div>
 
-            {/* Tags */}
-            <div className="note-tags-bar">
-              <Icon name="tag" size={11} color="var(--t3)"/>
-              {editTags.split(',').filter(t=>t.trim()).map(t=><span key={t} className="nli-tag">{t.trim()}</span>)}
-              <input className="note-tags-input" placeholder="Add tags: work, idea, ..." value={editTags} onChange={e=>onTagsChange(e.target.value)}/>
-            </div>
+                {/* Tags */}
+                <div className="note-tags-bar">
+                  <Icon name="tag" size={11} color="var(--t3)"/>
+                  {editTags.split(',').filter(t=>t.trim()).map(t=><span key={t} className="nli-tag">{t.trim()}</span>)}
+                  <input className="note-tags-input" placeholder="Add tags: work, idea, ..." value={editTags} onChange={e=>onTagsChange(e.target.value)}/>
+                </div>
+              </>
+            )}
           </>
         ) : (
           <div className="note-empty">
@@ -919,6 +1044,66 @@ export default function Notes({ user }) {
           </div>
         )}
       </div>
+
+      {/* ── Set PIN modal ── */}
+      {pinModal === 'set' && (
+        <div className="modal-overlay" onClick={()=>{setPinModal(null);setPinInput('');setPinConfirm('');}}>
+          <div className="modal" onClick={e=>e.stopPropagation()} style={{maxWidth:340}}>
+            <div style={{fontSize:15,fontWeight:600,color:'var(--t1)',marginBottom:8}}>Lock this note</div>
+            <div style={{fontSize:13,color:'var(--t3)',marginBottom:16}}>Set a 4–6 digit PIN. You'll need it to read this note.</div>
+            <input
+              type="password"
+              inputMode="numeric"
+              maxLength={6}
+              placeholder="Enter PIN"
+              value={pinInput}
+              onChange={e => setPinInput(e.target.value.replace(/\D/g,''))}
+              style={{width:'100%',textAlign:'center',fontSize:24,letterSpacing:8,background:'var(--bg2)',border:'1px solid var(--b2)',borderRadius:10,padding:'12px',color:'var(--t1)',marginBottom:8,boxSizing:'border-box',fontFamily:'var(--mono)'}}
+              autoFocus
+            />
+            <input
+              type="password"
+              inputMode="numeric"
+              maxLength={6}
+              placeholder="Confirm PIN"
+              value={pinConfirm}
+              onChange={e => setPinConfirm(e.target.value.replace(/\D/g,''))}
+              onKeyDown={e => e.key === 'Enter' && lockNote()}
+              style={{width:'100%',textAlign:'center',fontSize:24,letterSpacing:8,background:'var(--bg2)',border:'1px solid var(--b2)',borderRadius:10,padding:'12px',color:'var(--t1)',marginBottom:16,boxSizing:'border-box',fontFamily:'var(--mono)'}}
+            />
+            <div className="modal-actions">
+              <button className="btn" onClick={()=>{setPinModal(null);setPinInput('');setPinConfirm('');}}>Cancel</button>
+              <button className="btn primary" onClick={lockNote} disabled={pinInput.length < 4 || pinInput !== pinConfirm}>Lock note</button>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* ── Remove PIN modal ── */}
+      {pinModal === 'remove' && (
+        <div className="modal-overlay" onClick={()=>{setPinModal(null);setPinInput('');setPinError(false);}}>
+          <div className="modal" onClick={e=>e.stopPropagation()} style={{maxWidth:340}}>
+            <div style={{fontSize:15,fontWeight:600,color:'var(--t1)',marginBottom:8}}>Remove lock</div>
+            <div style={{fontSize:13,color:'var(--t3)',marginBottom:16}}>Enter your current PIN to remove the lock from this note.</div>
+            <input
+              type="password"
+              inputMode="numeric"
+              maxLength={6}
+              placeholder="Current PIN"
+              value={pinInput}
+              onChange={e => { setPinInput(e.target.value.replace(/\D/g,'')); setPinError(false); }}
+              onKeyDown={e => e.key === 'Enter' && removeLock()}
+              style={{width:'100%',textAlign:'center',fontSize:24,letterSpacing:8,background:'var(--bg2)',border:`1px solid ${pinError?'var(--red)':'var(--b2)'}`,borderRadius:10,padding:'12px',color:'var(--t1)',marginBottom:8,boxSizing:'border-box',fontFamily:'var(--mono)'}}
+              autoFocus
+            />
+            {pinError && <div style={{fontSize:12,color:'var(--red)',marginBottom:8}}>Incorrect PIN</div>}
+            <div className="modal-actions">
+              <button className="btn" onClick={()=>{setPinModal(null);setPinInput('');setPinError(false);}}>Cancel</button>
+              <button className="btn primary" onClick={removeLock} disabled={pinInput.length < 4}>Remove lock</button>
+            </div>
+          </div>
+        </div>
+      )}
 
       {/* ── Move to section modal ── */}
       {moveModal && (
