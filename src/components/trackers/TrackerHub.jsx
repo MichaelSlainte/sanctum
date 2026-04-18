@@ -58,7 +58,7 @@ function getRingProps(id, ringData) {
   }
 }
 
-export default function TrackerHub({ onNavigate }) {
+export default function TrackerHub({ archivedTrackers = [], onArchive, onUnarchive, onNavigate }) {
   const [ringData, setRingData] = useState({
     studyHours: 0, studyTarget: 150,
     activeApps: 0,
@@ -132,27 +132,7 @@ export default function TrackerHub({ onNavigate }) {
     return known;
   });
 
-  const [archived, setArchived] = useState(() => {
-    try { return JSON.parse(localStorage.getItem("sanctum_archived_trackers") || "[]"); }
-    catch { return []; }
-  });
   const [archivedOpen, setArchivedOpen] = useState(false);
-
-  const archiveTracker = (id) => {
-    setArchived(prev => {
-      const next = [...prev, id];
-      localStorage.setItem("sanctum_archived_trackers", JSON.stringify(next));
-      return next;
-    });
-  };
-
-  const unarchiveTracker = (id) => {
-    setArchived(prev => {
-      const next = prev.filter(x => x !== id);
-      localStorage.setItem("sanctum_archived_trackers", JSON.stringify(next));
-      return next;
-    });
-  };
 
   const [dragOver, setDragOver]   = useState(null);
   const [dragging, setDragging]   = useState(null);
@@ -183,8 +163,8 @@ export default function TrackerHub({ onNavigate }) {
   };
   const onDragEnd = () => { setDragOver(null); setDragging(null); dragId.current = null; };
 
-  const activeOrder = order.filter(id => !archived.includes(id));
-  const archivedList = order.filter(id => archived.includes(id));
+  const activeOrder = order.filter(id => !archivedTrackers.includes(id));
+  const archivedList = order.filter(id => archivedTrackers.includes(id));
 
   const renderCard = (id) => {
     const t = TRACKERS.find(x => x.id === id);
@@ -216,7 +196,7 @@ export default function TrackerHub({ onNavigate }) {
         <button
           className="tracker-archive-btn"
           title="Archive tracker"
-          onClick={e => { e.stopPropagation(); archiveTracker(t.id); }}
+          onClick={e => { e.stopPropagation(); onArchive(t.id); }}
         >
           <svg width="14" height="14" viewBox="0 0 24 24" fill="none"
             stroke="currentColor" strokeWidth="2" strokeLinecap="round">
@@ -263,7 +243,7 @@ export default function TrackerHub({ onNavigate }) {
               return (
                 <div key={t.id} className="archived-card">
                   <span>{t.name}</span>
-                  <button className="btn sm" onClick={() => unarchiveTracker(t.id)}>Restore</button>
+                  <button className="btn sm" onClick={() => onUnarchive(t.id)}>Restore</button>
                 </div>
               );
             })}

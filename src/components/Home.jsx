@@ -405,7 +405,7 @@ For everything else respond naturally in plain text. Be warm, concise, and perso
   );
 }
 
-export default function Home({ user, onNavigate, onGoToCalendarDay }) {
+export default function Home({ user, archivedTrackers = [], onNavigate, onGoToCalendarDay }) {
   const [tasks, setTasks] = useState([]);
   const [tasksLoading, setTasksLoading] = useState(true);
   const [showAddTask, setShowAddTask] = useState(false);
@@ -1165,8 +1165,9 @@ For all other queries respond in plain conversational text, warm but concise, ma
                 { id:"study",   icon:"study",   color:"var(--purple)", label:"Study",   sub:"PMP progress" },
                 { id:"career",  icon:"career",  color:"var(--amber)",  label:"Career",  sub:"Applications" },
                 { id:"finance", icon:"finance", color:"var(--grn)",    label:"Finance", sub:"Monthly budget" },
+                { id:"travel",  icon:"travel",  color:"var(--blue)",   label:"Travel",  sub:"Trips" },
                 { id:"pet",     icon:"pet",     color:"var(--pink)",   label:"Ozzy",    sub:"Golden Retriever" },
-              ].map(item => (
+              ].filter(item => !archivedTrackers.includes(item.id)).map(item => (
                 <div key={item.id} onMouseDown={e=>e.stopPropagation()} onClick={() => onNavigate(item.id)}
                   style={{ background:"rgba(255,255,255,0.03)", border:"1px solid rgba(255,255,255,0.06)", borderRadius:12, padding:"14px 16px", cursor:"pointer", transition:"all .2s" }}
                   onMouseEnter={e=>{ e.currentTarget.style.borderColor="rgba(59,130,246,0.4)"; e.currentTarget.style.background="rgba(59,130,246,0.06)"; }}

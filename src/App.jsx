@@ -314,6 +314,25 @@ RESPONSE RULES — choose one format only:
     return TRACKER_PAGES.includes(saved) ? saved : null;
   });
 
+  const [archivedTrackers, setArchivedTrackers] = useState(() => {
+    try { return JSON.parse(localStorage.getItem("sanctum_archived_trackers") || "[]"); }
+    catch { return []; }
+  });
+  const archiveTracker = (id) => {
+    setArchivedTrackers(prev => {
+      const next = [...prev, id];
+      localStorage.setItem("sanctum_archived_trackers", JSON.stringify(next));
+      return next;
+    });
+  };
+  const unarchiveTracker = (id) => {
+    setArchivedTrackers(prev => {
+      const next = prev.filter(x => x !== id);
+      localStorage.setItem("sanctum_archived_trackers", JSON.stringify(next));
+      return next;
+    });
+  };
+
   // Sidebar nav ordering
   const NAV_IDS = NAV.map(n => n.id);
   const [navOrder, setNavOrder] = useState(() => {
@@ -432,16 +451,17 @@ RESPONSE RULES — choose one format only:
   };
 
   const renderPage = () => {
-    if (page === "home") return <Home user={user} onNavigate={navigate} onGoToCalendarDay={goToCalendarDay} />;
+    if (page === "home") return <Home user={user} archivedTrackers={archivedTrackers} onNavigate={navigate} onGoToCalendarDay={goToCalendarDay} />;
     if (page === "notes") return <Notes />;
     if (page === "calendar") return <Calendar initialDate={calDate} refreshKey={calendarRefreshKey} />;
     if (page === "trackers") {
+      if (trackerPage && archivedTrackers.includes(trackerPage)) { setTrackerPage(null); localStorage.setItem("sanctum_page", "trackers"); }
       if (trackerPage === "career")  return <><TrackerBackBar name="Career" onBack={() => { setTrackerPage(null); localStorage.setItem("sanctum_page","trackers"); }} /><Career /></>;
       if (trackerPage === "study")   return <><TrackerBackBar name="Study & PMP" onBack={() => { setTrackerPage(null); localStorage.setItem("sanctum_page","trackers"); }} /><Study /></>;
       if (trackerPage === "finance") return <><TrackerBackBar name="Finance" onBack={() => { setTrackerPage(null); localStorage.setItem("sanctum_page","trackers"); }} /><Finance /></>;
       if (trackerPage === "travel")  return <><TrackerBackBar name="Travel" onBack={() => { setTrackerPage(null); localStorage.setItem("sanctum_page","trackers"); }} /><Travel /></>;
       if (trackerPage === "pet")     return <><TrackerBackBar name="Ozzy" onBack={() => { setTrackerPage(null); localStorage.setItem("sanctum_page","trackers"); }} /><Ozzy /></>;
-      return <TrackerHub onNavigate={navigate} />;
+      return <TrackerHub archivedTrackers={archivedTrackers} onArchive={archiveTracker} onUnarchive={unarchiveTracker} onNavigate={navigate} />;
     }
     if (page === "settings") return <Settings user={user} onLogout={handleLogout} theme={theme} onThemeChange={applyTheme} font={font} onFontChange={applyFont} />;
   };
