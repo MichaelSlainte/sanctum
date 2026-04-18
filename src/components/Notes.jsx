@@ -95,17 +95,26 @@ export default function Notes() {
     return DEFAULT_NOTEBOOKS;
   });
   useEffect(() => {
-    sb.from('notebooks').select('*').eq('id', 'singleton').then(({ data }) => {
-      if (data?.[0]?.data) {
-        setNotebooks(data[0].data);
-        localStorage.setItem('sanctum_notebooks_v2', JSON.stringify(data[0].data));
+    sb.from('notebooks').select('*').then((res) => {
+      const rows = Array.isArray(res) ? res : res?.data;
+      const singleton = Array.isArray(rows) ? rows.find(r => r.id === 'singleton') : null;
+      if (singleton?.data) {
+        setNotebooks(singleton.data);
+        localStorage.setItem('sanctum_notebooks_v2', JSON.stringify(singleton.data));
       }
     });
   }, []);
-  const saveNotebooks = useCallback((nbs) => {
+  const saveNotebooks = useCallback(async (nbs) => {
     setNotebooks(nbs);
     localStorage.setItem('sanctum_notebooks_v2', JSON.stringify(nbs));
-    sb.from('notebooks').upsert({ id: 'singleton', data: nbs, updated_at: new Date().toISOString() });
+    const existing = await sb.from('notebooks').select('*');
+    const rows = Array.isArray(existing) ? existing : existing?.data;
+    const exists = Array.isArray(rows) && rows.find(r => r.id === 'singleton');
+    if (exists) {
+      await sb.from('notebooks').update({ data: nbs, updated_at: new Date().toISOString() }, { id: 'singleton' });
+    } else {
+      await sb.from('notebooks').insert({ id: 'singleton', data: nbs, updated_at: new Date().toISOString() });
+    }
   }, []);
   const [expandedNBs, setExpandedNBs] = useState(() => {
     try { const s = localStorage.getItem('sanctum_expanded_nbs'); if (s) return new Set(JSON.parse(s)); } catch {}
