@@ -93,8 +93,13 @@ export default function Ozzy() {
       const merged = { ...DEFAULT_PROFILE };
       const custom = [];
       data.forEach(row => {
-        if (row.key in DEFAULT_PROFILE) merged[row.key] = row.value;
-        else custom.push({ key: row.key, value: row.value, id: row.id });
+        if (row.key === "diet") {
+          try { setDiet(JSON.parse(row.value)); } catch {}
+        } else if (row.key in DEFAULT_PROFILE) {
+          merged[row.key] = row.value;
+        } else {
+          custom.push({ key: row.key, value: row.value, id: row.id });
+        }
       });
       setProfile(merged);
       if (custom.length > 0) setCustomFields(custom);
@@ -124,7 +129,11 @@ export default function Ozzy() {
 
   const saveVets = (v) => { setVets(v); localStorage.setItem("sanctum_ozzy_vets", JSON.stringify(v)); };
   const saveWeight = (w) => { setWeight(w); localStorage.setItem("sanctum_ozzy_weight", JSON.stringify(w)); };
-  const saveDiet = (d) => { setDiet(d); localStorage.setItem("sanctum_ozzy_diet", JSON.stringify(d)); };
+  const saveDiet = (d) => {
+    setDiet(d);
+    localStorage.setItem("sanctum_ozzy_diet", JSON.stringify(d));
+    sb.from("ozzy_profile").upsert({ key: "diet", value: JSON.stringify(d) }, "key").catch(() => {});
+  };
 
   const addVet = async () => {
     if (!newVet.date || !newVet.type) return;

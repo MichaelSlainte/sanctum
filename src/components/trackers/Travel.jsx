@@ -1,4 +1,5 @@
-import { useState } from "react";
+import { useState, useEffect } from "react";
+import { sb } from "../../lib/supabase";
 import { Icon, Modal } from "../shared";
 
 const STATUS_STYLE = {
@@ -11,48 +12,86 @@ const STATUS_STYLE = {
 
 const EMPTY_TRIP = { name: "", destination: "", start: "", end: "", travelers: "", budget: "", status: "planning", notes: "" };
 
+// Supabase row → component shape
+const fromDb = (row) => ({
+  ...row,
+  start: row.start_date || row.start || "",
+  end: row.end_date || row.end || "",
+  travelers: row.travellers || row.travelers || "",
+  checklist: Array.isArray(row.checklist) ? row.checklist : [],
+  spent: row.spent || 0,
+});
+
+// Component shape → Supabase columns
+const toDb = (trip) => ({
+  name: trip.name,
+  destination: trip.destination || null,
+  start_date: trip.start || null,
+  end_date: trip.end || null,
+  travellers: trip.travelers || null,
+  budget: trip.budget || 0,
+  status: trip.status || "planning",
+  checklist: trip.checklist || [],
+  notes: trip.notes || null,
+});
+
+const DEFAULT_TRIPS = [
+  {
+    id: "scotland-2026", name: "Scotland Road Trip", destination: "Scotland, UK",
+    start: "2026-09-07", end: "2026-09-13",
+    status: "planning", budget: 2000, spent: 0,
+    travelers: "Michael, Tamara, Ozzy",
+    notes: "Edinburgh → Highlands → Skye. Dog-friendly accommodation needed.",
+    checklist: [
+      { id: "c1", text: "Book accommodation", done: false },
+      { id: "c2", text: "Book ferry/route",   done: false },
+      { id: "c3", text: "Dog-friendly hotels check", done: false },
+      { id: "c4", text: "Travel insurance",   done: false },
+      { id: "c5", text: "Ozzy travel docs",   done: false },
+    ],
+  },
+  {
+    id: "italy-2026", name: "Italy Trip", destination: "Italy",
+    start: "2026-06-12", end: "2026-06-17",
+    status: "booked", budget: 1500, spent: 344,
+    travelers: "Michael, Tamara",
+    notes: "Flights booked — €344. Accommodation TBC.",
+    checklist: [
+      { id: "c1", text: "Flights",          done: true  },
+      { id: "c2", text: "Hotel/Airbnb",     done: false },
+      { id: "c3", text: "Travel insurance", done: false },
+      { id: "c4", text: "Activities plan",  done: false },
+    ],
+  },
+];
+
 export default function Travel() {
-  const [trips, setTrips] = useState(() => JSON.parse(localStorage.getItem("sanctum_trips") || JSON.stringify([
-    {
-      id: "scotland-2026", name: "Scotland Road Trip", destination: "Scotland, UK",
-      start: "2026-09-07", end: "2026-09-13",
-      status: "planning", budget: 2000, spent: 0,
-      travelers: "Michael, Tamara, Ozzy",
-      notes: "Edinburgh → Highlands → Skye. Dog-friendly accommodation needed.",
-      checklist: [
-        { id: "c1", text: "Book accommodation", done: false },
-        { id: "c2", text: "Book ferry/route",   done: false },
-        { id: "c3", text: "Dog-friendly hotels check", done: false },
-        { id: "c4", text: "Travel insurance",   done: false },
-        { id: "c5", text: "Ozzy travel docs",   done: false },
-      ],
-    },
-    {
-      id: "italy-2026", name: "Italy Trip", destination: "Italy",
-      start: "2026-06-12", end: "2026-06-17",
-      status: "booked", budget: 1500, spent: 344,
-      travelers: "Michael, Tamara",
-      notes: "Flights booked — €344. Accommodation TBC.",
-      checklist: [
-        { id: "c1", text: "Flights",          done: true  },
-        { id: "c2", text: "Hotel/Airbnb",     done: false },
-        { id: "c3", text: "Travel insurance", done: false },
-        { id: "c4", text: "Activities plan",  done: false },
-      ],
-    },
-  ])));
+  const [trips, setTrips] = useState(() => {
+    try { return JSON.parse(localStorage.getItem("sanctum_trips") || JSON.stringify(DEFAULT_TRIPS)); }
+    catch { return [...DEFAULT_TRIPS]; }
+  });
 
   const [showAdd,   setShowAdd]   = useState(false);
-  const [editTrip,  setEditTrip]  = useState(null);   // trip object being edited
+  const [editTrip,  setEditTrip]  = useState(null);
   const [newTrip,   setNewTrip]   = useState(EMPTY_TRIP);
-  const [expanded,  setExpanded]  = useState({});     // { tripId: true } when checklist visible
-  const [newItems,  setNewItems]  = useState({});     // { tripId: "draft text" }
+  const [expanded,  setExpanded]  = useState({});
+  const [newItems,  setNewItems]  = useState({});
   const [budgetFilter, setBudgetFilter] = useState("all");
 
-  const saveTrips = (t) => { setTrips(t); localStorage.setItem("sanctum_trips", JSON.stringify(t)); };
+  useEffect(() => {
+    sb.from("trips").select("*").then(data => {
+      if (Array.isArray(data) && data.length > 0) {
+        const mapped = data.map(fromDb);
+        setTrips(mapped);
+        localStorage.setItem("sanctum_trips", JSON.stringify(mapped));
+      }
+    }).catch(() => {});
+  }, []);
+
+  const saveLocal = (t) => { setTrips(t); localStorage.setItem("sanctum_trips", JSON.stringify(t)); };
 
   /* ── Add ── */
-  const addTrip = () => {
+  const addTrip = async () => {
     if (!newTrip.name || !newTrip.start) return;
     const trip = {
       ...newTrip,
@@ -61,43 +100,63 @@ export default function Travel() {
       spent: 0,
       checklist: [],
     };
-    saveTrips([trip, ...trips]);
+    try {
+      const res = await sb.from("trips").insert(toDb(trip));
+      const created = Array.isArray(res) && res[0] ? fromDb(res[0]) : trip;
+      saveLocal([created, ...trips]);
+    } catch {
+      saveLocal([trip, ...trips]);
+    }
     setNewTrip(EMPTY_TRIP);
     setShowAdd(false);
   };
 
   /* ── Edit ── */
-  const saveEdit = () => {
+  const saveEdit = async () => {
     if (!editTrip) return;
-    saveTrips(trips.map(t => t.id === editTrip.id
-      ? { ...t, ...editTrip, budget: parseFloat(editTrip.budget) || 0 }
-      : t
-    ));
+    const updated = { ...editTrip, budget: parseFloat(editTrip.budget) || 0 };
+    const next = trips.map(t => t.id === editTrip.id ? updated : t);
+    saveLocal(next);
+    try { await sb.from("trips").update(toDb(updated), { id: updated.id }); } catch {}
     setEditTrip(null);
   };
 
   /* ── Delete ── */
-  const deleteTrip = (id) => saveTrips(trips.filter(t => t.id !== id));
+  const deleteTrip = async (id) => {
+    saveLocal(trips.filter(t => t.id !== id));
+    try { await sb.from("trips").delete({ id }); } catch {}
+  };
 
   /* ── Checklist ── */
-  const toggleCheck = (tripId, checkId) =>
-    saveTrips(trips.map(t => t.id === tripId
+  const toggleCheck = (tripId, checkId) => {
+    const next = trips.map(t => t.id === tripId
       ? { ...t, checklist: t.checklist.map(c => c.id === checkId ? { ...c, done: !c.done } : c) }
-      : t));
+      : t);
+    saveLocal(next);
+    const trip = next.find(t => t.id === tripId);
+    if (trip) sb.from("trips").update({ checklist: trip.checklist }, { id: tripId }).catch(() => {});
+  };
 
   const addCheckItem = (tripId) => {
     const text = (newItems[tripId] || "").trim();
     if (!text) return;
-    saveTrips(trips.map(t => t.id === tripId
+    const next = trips.map(t => t.id === tripId
       ? { ...t, checklist: [...t.checklist, { id: Date.now().toString(), text, done: false }] }
-      : t));
+      : t);
+    saveLocal(next);
+    const trip = next.find(t => t.id === tripId);
+    if (trip) sb.from("trips").update({ checklist: trip.checklist }, { id: tripId }).catch(() => {});
     setNewItems(n => ({ ...n, [tripId]: "" }));
   };
 
-  const deleteCheckItem = (tripId, checkId) =>
-    saveTrips(trips.map(t => t.id === tripId
+  const deleteCheckItem = (tripId, checkId) => {
+    const next = trips.map(t => t.id === tripId
       ? { ...t, checklist: t.checklist.filter(c => c.id !== checkId) }
-      : t));
+      : t);
+    saveLocal(next);
+    const trip = next.find(t => t.id === tripId);
+    if (trip) sb.from("trips").update({ checklist: trip.checklist }, { id: tripId }).catch(() => {});
+  };
 
   /* ── Budget filter ── */
   const budgetTrips = budgetFilter === "all"
