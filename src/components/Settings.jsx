@@ -14,7 +14,6 @@ export default function Settings({ user, onLogout, theme, onThemeChange, font, o
   const emailUsername = (user?.email || "").split("@")[0];
   const [displayName, setDisplayName] = useState(() =>
     localStorage.getItem(userKey) ||
-    localStorage.getItem("sanctum_display_name") ||
     emailUsername
   );
   const [timezone, setTimezone] = useState(() =>
@@ -24,7 +23,6 @@ export default function Settings({ user, onLogout, theme, onThemeChange, font, o
 
   const save = () => {
     localStorage.setItem(userKey, displayName);
-    localStorage.setItem("sanctum_display_name", displayName);
     localStorage.setItem("sanctum_timezone", timezone);
     setSaved(true);
     setTimeout(() => setSaved(false), 2000);
