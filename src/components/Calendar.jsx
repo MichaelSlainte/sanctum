@@ -1,4 +1,4 @@
-import { useState, useEffect, useCallback } from "react";
+import { useState, useEffect, useCallback, useRef } from "react";
 import { sb } from "../lib/supabase";
 import { Icon, Modal } from "./shared";
 
@@ -189,6 +189,7 @@ const getEventsForDate = (events, dateStr) => {
 export default function Calendar({ initialDate, refreshKey }) {
   const now = new Date();
   const [currentDate, setCurrentDate] = useState(initialDate || now);
+  const scrollRef = useRef(null);
   const [calView,     setCalView]     = useState(() => localStorage.getItem("sanctum_cal_view") || "month");
   const [events,      setEvents]      = useState([]);
   const [showAdd,     setShowAdd]     = useState(false);
@@ -201,6 +202,14 @@ export default function Calendar({ initialDate, refreshKey }) {
   const month = currentDate.getMonth();
 
   useEffect(() => { loadEvents(); }, [refreshKey]);
+
+  useEffect(() => {
+    if (calView === "week" || calView === "3day") {
+      const h = new Date().getHours();
+      const top = Math.max(0, (h - 8) * 48 - 100);
+      scrollRef.current?.scrollTo({ top, behavior: "smooth" });
+    }
+  }, [calView]);
 
   const loadEvents = async () => {
     try {
@@ -841,7 +850,7 @@ export default function Calendar({ initialDate, refreshKey }) {
             {weekDays.map((d, i) => (
               <div key={i} className={`week-time-grid-day-head${isWToday(d)?" today":""}`}>
                 <div className="week-col-day">{DAYS_S[i]}</div>
-                <div className="week-col-num">{d.getDate()}</div>
+                <div className={`week-col-num${isWToday(d)?" today-num":""}`}>{d.getDate()}</div>
               </div>
             ))}
           </div>
@@ -866,7 +875,7 @@ export default function Calendar({ initialDate, refreshKey }) {
               );
             })}
           </div>
-          <div className="week-time-grid-scroll">
+          <div className="week-time-grid-scroll" ref={scrollRef}>
             <div className="week-time-grid-body">
               <div className="week-time-col">
                 {HOURS.map(h => (
@@ -919,7 +928,7 @@ export default function Calendar({ initialDate, refreshKey }) {
             {threeDays.map((d, i) => (
               <div key={i} className={`week-time-grid-day-head${isWToday(d)?" today":""}`}>
                 <div className="week-col-day">{d.toLocaleDateString("en-IE",{weekday:"short"})}</div>
-                <div className="week-col-num">{d.getDate()}</div>
+                <div className={`week-col-num${isWToday(d)?" today-num":""}`}>{d.getDate()}</div>
               </div>
             ))}
           </div>
@@ -944,7 +953,7 @@ export default function Calendar({ initialDate, refreshKey }) {
               );
             })}
           </div>
-          <div className="week-time-grid-scroll">
+          <div className="week-time-grid-scroll" ref={scrollRef}>
             <div className="week-time-grid-body">
               <div className="week-time-col">
                 {HOURS.map(h => (

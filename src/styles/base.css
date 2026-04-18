@@ -779,6 +779,7 @@
   }
   .week-time-grid-day-head:last-child { border-right: none; }
   .week-time-grid-day-head.today { background: rgba(59,130,246,0.08); }
+  .week-col-num.today-num { color: var(--blue); font-weight: 700; }
   .week-allday-row { display: flex; border-bottom: 1px solid var(--b2); background: var(--bg2); min-height: 30px; }
   .week-allday-label {
     width: 50px; flex-shrink: 0; border-right: 1px solid var(--b2);
