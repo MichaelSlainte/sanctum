@@ -1938,25 +1938,38 @@ function Notes() {
     try {
       const data = await sb.from("notes").select("*");
       if (Array.isArray(data)) {
-        // Normalize notebook/section values (trim whitespace)
-        const normalized = data.map(n => ({
-          ...n,
-          notebook: n.notebook?.trim() || '',
-          section:  n.section?.trim()  || '',
-        }));
-        console.log('[Notes] loaded', normalized.length, 'notes');
-        normalized.forEach(n => console.log(`  id=${n.id} notebook="${n.notebook}" section="${n.section}" title="${n.title}"`));
+        // Normalize notebook/section: match by id OR label (case-insensitive) → canonical id
+        const normalized = data.map(n => {
+          let nbVal  = n.notebook?.trim() || '';
+          let secVal = n.section?.trim()  || '';
+          const nbMatch = DEFAULT_NOTEBOOKS.find(nb =>
+            nb.id.toLowerCase() === nbVal.toLowerCase() ||
+            nb.label.toLowerCase() === nbVal.toLowerCase()
+          );
+          if (nbMatch) {
+            nbVal = nbMatch.id;
+            const secMatch = nbMatch.sections.find(s =>
+              s.id.toLowerCase() === secVal.toLowerCase() ||
+              s.label.toLowerCase() === secVal.toLowerCase()
+            );
+            if (secMatch) secVal = secMatch.id;
+          }
+          return { ...n, notebook: nbVal, section: secVal };
+        });
         setAllNotes(normalized);
-        // Restore last viewed state: try active section first, then active notebook, then first note
-        // Use case-insensitive comparison to handle legacy data stored with labels instead of IDs
+        // Restore last viewed state — case-insensitive so legacy label-stored values still match
         const storedNB  = (localStorage.getItem('sanctum_active_nb')  || DEFAULT_NOTEBOOKS[0]?.id || '').toLowerCase().trim();
         const storedSec = (localStorage.getItem('sanctum_active_sec') || '').toLowerCase().trim();
+        // Also match stored value as a label (e.g. localStorage had "mortgage & house" → id "mortgage")
+        const resolveNBId  = (v) => DEFAULT_NOTEBOOKS.find(nb => nb.id.toLowerCase()===v||nb.label.toLowerCase()===v)?.id || v;
+        const resolveSecId = (nbId, v) => DEFAULT_NOTEBOOKS.find(nb=>nb.id===nbId)?.sections.find(s=>s.id.toLowerCase()===v||s.label.toLowerCase()===v)?.id || v;
+        const resolvedNB  = resolveNBId(storedNB);
+        const resolvedSec = resolveSecId(resolvedNB, storedSec);
         let first;
-        if (storedSec) first = normalized.find(n => n.section.toLowerCase() === storedSec);
-        if (!first && storedNB) first = normalized.find(n => n.notebook.toLowerCase() === storedNB);
+        if (resolvedSec) first = normalized.find(n => n.section.toLowerCase() === resolvedSec.toLowerCase());
+        if (!first && resolvedNB) first = normalized.find(n => n.notebook.toLowerCase() === resolvedNB.toLowerCase());
         if (!first && normalized.length > 0) first = normalized[0];
         if (first) {
-          // Navigate sidebar to where this note lives so the list panel shows it correctly
           const nbId  = first.notebook || DEFAULT_NOTEBOOKS[0]?.id || '';
           const secId = first.section  || '';
           setActiveNB(nbId);   localStorage.setItem('sanctum_active_nb', nbId);
@@ -2034,7 +2047,9 @@ function Notes() {
   const newNote = async () => {
     const nb = notebooks.find(n => n.id === activeNB);
     const sectionId = activeSection || nb?.sections[0]?.id || '';
-    const note = { notebook: activeNB, section: sectionId, title: 'Untitled', body: '', tags: '', updated_at: new Date().toISOString().slice(0, 10) };
+    const sec = nb?.sections.find(s => s.id === sectionId);
+    // Save capitalised label so DB is consistent with config (normalization on load handles legacy lowercase ids)
+    const note = { notebook: nb?.label || activeNB, section: sec?.label || sectionId, title: 'Untitled', body: '', tags: '', updated_at: new Date().toISOString().slice(0, 10) };
     try {
       const res = await sb.from("notes").insert(note);
       const created = Array.isArray(res) && res[0] ? res[0] : { ...note, id: Date.now().toString() };
@@ -2069,9 +2084,16 @@ function Notes() {
     setNoteMenu(null);
   };
 
-  const moveNote = async (noteId, toNB, toSection) => {
-    setAllNotes(prev => prev.map(n => n.id === noteId ? { ...n, notebook: toNB, section: toSection } : n));
-    try { await sb.from("notes").update({ notebook: toNB, section: toSection }, { id: noteId }); } catch {}
+  const moveNote = async (noteId, toNBId, toSecId) => {
+    const nbConf  = notebooks.find(n => n.id === toNBId);
+    const secConf = nbConf?.sections.find(s => s.id === toSecId);
+    // Normalize internally to id; save label to DB for consistency
+    const nbId  = nbConf?.id  || toNBId;
+    const secId = secConf?.id || toSecId;
+    const nbLabel  = nbConf?.label  || toNBId;
+    const secLabel = secConf?.label || toSecId;
+    setAllNotes(prev => prev.map(n => n.id === noteId ? { ...n, notebook: nbId, section: secId } : n));
+    try { await sb.from("notes").update({ notebook: nbLabel, section: secLabel }, { id: noteId }); } catch {}
     setMoveModal(null); setNoteMenu(null);
   };
 
@@ -3945,7 +3967,7 @@ function Settings({ user, onLogout, theme, onThemeChange }) {
           {[
             { label: "Email", value: user?.email },
             { label: "Account created", value: user?.created_at?.slice(0, 10) || "—" },
-            { label: "Data location", value: "EU — Frankfurt" },
+            { label: "Data location", value: "EU — Stockholm" },
             { label: "Encryption", value: "End-to-end" },
             { label: "Plan", value: "Personal" },
           ].map(item => (
@@ -3965,7 +3987,7 @@ function Settings({ user, onLogout, theme, onThemeChange }) {
         <div className="grid-3">
           {[
             { icon: "🚫", title: "No ads. Ever.", body: "Sanctum will never show ads or sell your data." },
-            { icon: "🇪🇺", title: "EU data residency", body: "All data stored in Frankfurt, Germany. Fully GDPR compliant." },
+            { icon: "🇪🇺", title: "EU data residency", body: "All data stored in Stockholm, Sweden (eu-north-1). Fully GDPR compliant." },
             { icon: "🔐", title: "Encrypted", body: "Data encrypted in transit and at rest. We cannot read your notes." },
           ].map(item => (
             <div key={item.title} style={{ padding: 16, background: "var(--bg2)", borderRadius: 12, border: "1px solid var(--b1)" }}>

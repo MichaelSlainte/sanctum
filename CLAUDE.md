@@ -1,7 +1,7 @@
 # Sanctum — Project Context
 
 ## What this is
-A private personal life organiser app for Michael (Dublin) and Tamara. Stack: React 19 + Vite, Supabase (Frankfurt EU), Vercel, Claude Haiku AI proxy.
+A private personal life organiser app for Michael (Dublin) and Tamara. Stack: React 19 + Vite, Supabase (Stockholm EU, eu-north-1), Vercel, Claude Haiku AI proxy.
 
 ## Live URL
 https://sanctum-beige.vercel.app
