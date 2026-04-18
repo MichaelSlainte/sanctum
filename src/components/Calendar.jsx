@@ -344,6 +344,25 @@ export default function Calendar({ initialDate, refreshKey }) {
   const repeatSummary = buildRepeatSummary(formData);
   const hasRepeat     = formData.repeat !== "none";
 
+  // Quick date helpers
+  const _today = new Date();
+  const todayISO    = _today.toISOString().slice(0, 10);
+  const _tomorrow   = new Date(_today); _tomorrow.setDate(_today.getDate() + 1);
+  const tomorrowISO = _tomorrow.toISOString().slice(0, 10);
+  const _nextMon    = new Date(_today); _nextMon.setDate(_today.getDate() + ((8 - _today.getDay()) % 7 || 7));
+  const nextMonISO  = _nextMon.toISOString().slice(0, 10);
+  const _nextSat    = new Date(_today); _nextSat.setDate(_today.getDate() + ((6 - _today.getDay() + 7) % 7 || 7));
+  const nextSatISO  = _nextSat.toISOString().slice(0, 10);
+  const QUICK_DATES = [
+    { label: "Today",    date: todayISO    },
+    { label: "Tomorrow", date: tomorrowISO },
+    { label: "Next Mon", date: nextMonISO  },
+    { label: "Next Sat", date: nextSatISO  },
+  ];
+  const DATE_DAYS   = Array.from({ length: 31 }, (_, i) => i + 1);
+  const DATE_MONTHS = ["January","February","March","April","May","June","July","August","September","October","November","December"];
+  const DATE_YEARS  = [2025, 2026, 2027, 2028];
+
   // ── Render ──
   return (
     <div className="page-body page-enter">
@@ -362,7 +381,53 @@ export default function Calendar({ initialDate, refreshKey }) {
           {/* Date */}
           <div className="form-row">
             <label className="form-label">Date</label>
-            <input className="inp" type="date" value={formData.date} onChange={e => setF("date", e.target.value)} />
+            {/* Quick date buttons */}
+            <div style={{ display: "flex", gap: 6, marginBottom: 8, flexWrap: "wrap" }}>
+              {QUICK_DATES.map(({ label, date }) => (
+                <button key={label}
+                  className="time-quick-btn"
+                  style={{
+                    background: formData.date === date ? "var(--acc)" : "var(--bg2)",
+                    color: formData.date === date ? "#fff" : "var(--t2)",
+                    border: "1px solid var(--b2)",
+                    borderRadius: 6, padding: "4px 10px",
+                    fontSize: 11, cursor: "pointer"
+                  }}
+                  onClick={() => setF("date", date)}>
+                  {label}
+                </button>
+              ))}
+            </div>
+            {/* 3-part dropdown date selector */}
+            <div style={{ display: "flex", gap: 8, alignItems: "center" }}>
+              <select className="inp" style={{ width: 70 }}
+                value={new Date(formData.date + "T12:00:00").getDate()}
+                onChange={e => {
+                  const d = new Date(formData.date + "T12:00:00");
+                  d.setDate(parseInt(e.target.value));
+                  setF("date", d.toISOString().slice(0, 10));
+                }}>
+                {DATE_DAYS.map(d => <option key={d} value={d}>{d}</option>)}
+              </select>
+              <select className="inp" style={{ flex: 1 }}
+                value={new Date(formData.date + "T12:00:00").getMonth()}
+                onChange={e => {
+                  const d = new Date(formData.date + "T12:00:00");
+                  d.setMonth(parseInt(e.target.value));
+                  setF("date", d.toISOString().slice(0, 10));
+                }}>
+                {DATE_MONTHS.map((m, i) => <option key={i} value={i}>{m}</option>)}
+              </select>
+              <select className="inp" style={{ width: 80 }}
+                value={new Date(formData.date + "T12:00:00").getFullYear()}
+                onChange={e => {
+                  const d = new Date(formData.date + "T12:00:00");
+                  d.setFullYear(parseInt(e.target.value));
+                  setF("date", d.toISOString().slice(0, 10));
+                }}>
+                {DATE_YEARS.map(y => <option key={y} value={y}>{y}</option>)}
+              </select>
+            </div>
           </div>
 
           {/* Time quick presets */}
