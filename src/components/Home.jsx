@@ -1,6 +1,6 @@
 import { useState, useEffect, useRef } from "react";
 import { sb } from "../lib/supabase";
-import { Icon, Modal, EVENT_COLORS } from "./shared";
+import { Icon, Modal, EVENT_COLORS, SanctumLogo } from "./shared";
 
 function Dashboard({ onNavigate, onGoToCalendarDay }) {
   const [tasks, setTasks] = useState([]);
@@ -797,9 +797,7 @@ For all other queries respond in plain conversational text, warm but concise, ma
       {/* AI assistant bar */}
       <div className="home-ai-bar" style={{ marginBottom: 28 }}>
         <div className="ai-bar">
-          <div className="ai-avatar">
-            <Icon name="ai" size={15} color="#fff" />
-          </div>
+          <div style={{width:32,height:32,borderRadius:'50%',background:'#080808',border:'1px solid #333',display:'flex',alignItems:'center',justifyContent:'center',flexShrink:0,overflow:'hidden'}}><SanctumLogo size={28}/></div>
           <input
             ref={aiInputRef}
             className="ai-bar-input"

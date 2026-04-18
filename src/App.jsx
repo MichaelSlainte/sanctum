@@ -490,7 +490,7 @@ RESPONSE RULES — choose one format only:
         <div className="main main-bg">
           <div className="topbar">
             <div className="topbar-left">
-              <div className="topbar-title">{pageTitle}</div>
+              <div className="topbar-title" style={{visibility: page === 'home' ? 'hidden' : 'visible'}}>{pageTitle}</div>
             </div>
             <div className="topbar-right">
               <span className="topbar-sub">{today}</span>
@@ -500,7 +500,7 @@ RESPONSE RULES — choose one format only:
           {['calendar','trackers','settings'].includes(page) && (
             <div className="global-ai-bar-wrap" style={{padding:'12px 24px 0'}}>
               <div className="ai-bar">
-                <div className="ai-avatar" style={{background:'#080808',border:'1px solid #333',borderRadius:'50%',width:30,height:30,display:'flex',alignItems:'center',justifyContent:'center',overflow:'hidden',flexShrink:0}}><SanctumLogo size={28}/></div>
+                <div style={{width:32,height:32,borderRadius:'50%',background:'#080808',border:'1px solid #333',display:'flex',alignItems:'center',justifyContent:'center',flexShrink:0,overflow:'hidden'}}><SanctumLogo size={28}/></div>
                 <input
                   ref={globalAIRef}
                   className="ai-bar-input"
@@ -555,7 +555,7 @@ RESPONSE RULES — choose one format only:
       <div className={`mobile-ai-panel${mobileAIOpen?' open':''}`} onClick={e => e.stopPropagation()}>
         <div className="mobile-ai-panel-handle"/>
         <div className="ai-bar">
-          <div className="ai-avatar"><Icon name="ai" size={15} color="#fff"/></div>
+          <div style={{width:32,height:32,borderRadius:'50%',background:'#080808',border:'1px solid #333',display:'flex',alignItems:'center',justifyContent:'center',flexShrink:0,overflow:'hidden'}}><SanctumLogo size={28}/></div>
           <input
             className="ai-bar-input"
             value={globalAIInput}

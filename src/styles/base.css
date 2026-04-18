@@ -826,12 +826,6 @@
     border-color: var(--blueb);
     box-shadow: 0 0 0 3px rgba(59,130,246,0.08), 0 8px 32px rgba(0,0,0,0.22);
   }
-  .ai-avatar {
-    width: 30px; height: 30px; border-radius: 10px; flex-shrink: 0;
-    background: linear-gradient(135deg, var(--blue), var(--purple));
-    display: flex; align-items: center; justify-content: center;
-    box-shadow: 0 2px 8px rgba(59,130,246,0.35);
-  }
   .ai-bar-input {
     flex: 1; background: transparent; border: none; outline: none;
     color: var(--t1); font-size: 14px; font-family: var(--sans); padding: 9px 0;
