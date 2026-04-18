@@ -516,7 +516,7 @@ RESPONSE RULES — choose one format only:
   };
 
   const renderPage = () => {
-    if (page === "home") return <Home user={user} archivedTrackers={archivedTrackers} onNavigate={navigate} onGoToCalendarDay={goToCalendarDay} />;
+    if (page === "home") return <Home user={user} archivedTrackers={archivedTrackers} onNavigate={navigate} onGoToCalendarDay={goToCalendarDay} refreshKey={trackersRefreshKey} />;
     if (page === "notes") return <Notes user={user} />;
     if (page === "calendar") return <Calendar user={user} initialDate={calDate} refreshKey={calendarRefreshKey} />;
     if (page === "trackers") {

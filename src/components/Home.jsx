@@ -405,9 +405,10 @@ For everything else respond naturally in plain text. Be warm, concise, and perso
   );
 }
 
-export default function Home({ user, archivedTrackers = [], onNavigate, onGoToCalendarDay }) {
+export default function Home({ user, archivedTrackers = [], onNavigate, onGoToCalendarDay, refreshKey }) {
   const [tasks, setTasks] = useState([]);
   const [tasksLoading, setTasksLoading] = useState(true);
+  const [customTrackers, setCustomTrackers] = useState([]);
   const [showAddTask, setShowAddTask] = useState(false);
   const [newTask, setNewTask] = useState({ text: "", tag: "" });
   const [editingId, setEditingId] = useState(null);
@@ -622,7 +623,9 @@ export default function Home({ user, archivedTrackers = [], onNavigate, onGoToCa
   const todayDow = now.getDay() === 0 ? 6 : now.getDay() - 1;
   const weekDates = DAYS.map((_, i) => { const d = new Date(now); d.setDate(now.getDate() - todayDow + i); return d; });
 
-  useEffect(() => { loadTasks(); loadEvents(); loadStudy(); }, []);
+  useEffect(() => { loadTasks(); loadEvents(); loadStudy(); loadCustomTrackers(); }, []);
+
+  useEffect(() => { loadCustomTrackers(); }, [refreshKey]);
 
   const loadTasks = async () => {
     setTasksLoading(true);
@@ -634,6 +637,16 @@ export default function Home({ user, archivedTrackers = [], onNavigate, onGoToCa
   const loadEvents = async () => {
     try { const d = await sb.from("events").select("*"); if (Array.isArray(d)) setEvents(d); }
     catch {}
+  };
+
+  const loadCustomTrackers = async () => {
+    try {
+      const data = await sb.from("custom_trackers").select("*");
+      if (Array.isArray(data)) setCustomTrackers(data.filter(t => !t.archived));
+    } catch {
+      const local = JSON.parse(localStorage.getItem("sanctum_custom_trackers") || "[]");
+      setCustomTrackers(local.filter(t => !t.archived));
+    }
   };
 
   const loadStudy = async () => {
@@ -1177,6 +1190,18 @@ For all other queries respond in plain conversational text, warm but concise, ma
                   <div style={{ marginBottom:8 }}><Icon name={item.icon} size={20} color={item.color} /></div>
                   <div style={{ fontSize:13, fontWeight:600, color:"var(--t1)", marginBottom:2 }}>{item.label}</div>
                   <div style={{ fontSize:11, color:"var(--t3)" }}>{item.sub}</div>
+                </div>
+              ))}
+              {customTrackers.map(t => (
+                <div key={t.id} onMouseDown={e=>e.stopPropagation()} onClick={() => onNavigate("trackers")}
+                  style={{ background:"rgba(255,255,255,0.03)", border:"1px solid rgba(255,255,255,0.06)", borderLeft:`3px solid ${t.color || "var(--acc)"}`, borderRadius:12, padding:"14px 16px", cursor:"pointer", transition:"all .2s" }}
+                  onMouseEnter={e=>{ e.currentTarget.style.borderColor=t.color||"var(--acc)"; e.currentTarget.style.background="rgba(255,255,255,0.06)"; }}
+                  onMouseLeave={e=>{ e.currentTarget.style.borderColor="rgba(255,255,255,0.06)"; e.currentTarget.style.background="rgba(255,255,255,0.03)"; }}>
+                  <div style={{ marginBottom:8, width:20, height:20, borderRadius:6, background:(t.color||"#10b981")+"22", display:"flex", alignItems:"center", justifyContent:"center" }}>
+                    <Icon name="trackers" size={14} color={t.color||"#10b981"} />
+                  </div>
+                  <div style={{ fontSize:13, fontWeight:600, color:"var(--t1)", marginBottom:2 }}>{t.label}</div>
+                  <div style={{ fontSize:11, color:"var(--t3)" }}>{t.description || ""}</div>
                 </div>
               ))}
             </div>
