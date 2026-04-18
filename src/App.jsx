@@ -1028,7 +1028,7 @@ const CSS = `
 
   .mobile-ai-fab {
     display: none;
-    position: fixed; bottom: 72px; right: 18px; z-index: 200;
+    position: fixed; bottom: 72px; left: 16px; z-index: 200;
     width: 52px; height: 52px; border-radius: 50%; border: none; cursor: pointer;
     background: linear-gradient(135deg, var(--blue), var(--purple));
     box-shadow: 0 4px 18px rgba(59,130,246,0.45);
@@ -5108,7 +5108,7 @@ RESPONSE RULES — choose one format only:
 
       {/* ── Bottom nav (mobile) ── */}
       {/* ── Mobile AI FAB ── */}
-      <button className={`mobile-ai-fab${page==='home'?' hide-fab':''}`} onClick={() => setMobileAIOpen(v => !v)} title="AI Assistant">
+      <button className={`mobile-ai-fab${page==='notes'?' hide-fab':''}`} onClick={() => setMobileAIOpen(v => !v)} title="AI Assistant">
         <Icon name="ai" size={20} color="#fff"/>
       </button>
       <div className={`mobile-ai-panel${mobileAIOpen?' open':''}`} onClick={e => e.stopPropagation()}>
