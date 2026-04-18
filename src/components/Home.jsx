@@ -701,12 +701,17 @@ Study: PMP exam target July 7 2026. MSc Cybersecurity at SETU starts Sep 14 2026
 Travel: Italy Jun 12-17 2026. Scotland Sep 7-13 2026 (with Tamara + Ozzy).
 Active tasks: ${activeTasks.length} open, ${archivedTasks.length} completed.
 Notes are private — you cannot read note content.
-When the user asks to add a task, delete a task, log study hours, or navigate, respond ONLY with valid JSON (no markdown):
+When user mentions dates, always convert to ISO format YYYY-MM-DD in your JSON response.
+Examples: "tomorrow" = ${new Date(Date.now()+86400000).toISOString().slice(0,10)}, "next week" = ${new Date(Date.now()+7*86400000).toISOString().slice(0,10)}.
+For "next Monday", "this Friday" etc., compute the actual upcoming date.
+When the user asks to add a task, delete a task, log study hours, add a calendar event, or navigate, respond ONLY with valid JSON (no markdown):
 - Add task: {"action":"add_task","text":"task text","tag":"optional tag"}
 - Delete task: {"action":"delete_task","text":"partial task name to match"}
 - Log study: {"action":"log_study","hours":2,"topic":"integration","notes":"optional"}
 - Navigate: {"action":"navigate","page":"home|notes|calendar|trackers|career|study|finance|travel|pet|settings"}
-Topic IDs: integration, scope, schedule, cost, quality, resource, communications, risk, procurement, stakeholder, agile, ethics
+- Add calendar event: {"action":"add_event","title":"Event title","date":"${todayISO}","start_time":"09:00","end_time":"10:00","category":"personal","notes":"optional notes"}
+  category must be one of: personal, career, travel, study, family
+Topic IDs for study: integration, scope, schedule, cost, quality, resource, communications, risk, procurement, stakeholder, agile, ethics
 For all other queries respond in plain conversational text, warm but concise, max 2 sentences.`;
 
       const res  = await fetch("/api/chat", { method: "POST", headers: { "Content-Type": "application/json" },
@@ -716,6 +721,12 @@ For all other queries respond in plain conversational text, warm but concise, ma
 
       try {
         const action = JSON.parse(reply.replace(/```(?:json)?|```/g, "").trim());
+        const parseDate = (dateStr) => {
+          if (!dateStr) return todayISO;
+          const d = new Date(dateStr);
+          if (!isNaN(d)) return d.toISOString().slice(0, 10);
+          return todayISO;
+        };
         if (action.action === "add_task") {
           await addTask(action.text, action.tag || "");
           setAiResponse({ text: `Added: "${action.text}"${action.tag ? ` [${action.tag}]` : ""}`, type: "success" });
@@ -728,9 +739,30 @@ For all other queries respond in plain conversational text, warm but concise, ma
             setAiResponse({ text: `No task found matching "${action.text}"`, type: "error" });
           }
         } else if (action.action === "log_study") {
-          const todayISO = now.toISOString().slice(0, 10);
           await sb.from("study_sessions").insert({ type: "pmp", topic: action.topic, hours: parseFloat(action.hours), notes: action.notes || "", date: todayISO });
-          setAiResponse({ text: `Logged ${action.hours}h of ${action.topic} study.`, type: "success" });
+          await sb.from("events").insert({
+            title: `PMP Study — ${action.topic}`,
+            date: todayISO,
+            start_time: null,
+            end_time: null,
+            category: "study",
+            color: "#8b5cf6",
+            notes: `${action.hours}h logged`,
+          });
+          await loadEvents();
+          setAiResponse({ text: `Logged ${action.hours}h — ${action.topic} ✓\nAdded to calendar`, type: "success" });
+        } else if (action.action === "add_event") {
+          await sb.from("events").insert({
+            title: action.title,
+            date: parseDate(action.date) || todayISO,
+            start_time: action.start_time || null,
+            end_time: action.end_time || null,
+            category: action.category || "personal",
+            color: "#388bfd",
+            notes: action.notes || "",
+          });
+          await loadEvents();
+          setAiResponse({ text: `Added to calendar: "${action.title}" on ${parseDate(action.date)}`, type: "success" });
         } else if (action.action === "navigate") {
           setAiResponse({ text: `Opening ${action.page}...`, type: "success" });
           setTimeout(() => onNavigate(action.page), 400);

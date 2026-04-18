@@ -183,7 +183,7 @@ const getEventsForDate = (events, dateStr) => {
   return results;
 };
 
-export default function Calendar({ initialDate }) {
+export default function Calendar({ initialDate, refreshKey }) {
   const now = new Date();
   const [year,         setYear]        = useState(initialDate ? initialDate.getFullYear() : now.getFullYear());
   const [month,        setMonth]       = useState(initialDate ? initialDate.getMonth()    : now.getMonth());
@@ -195,7 +195,7 @@ export default function Calendar({ initialDate }) {
   const [activeEvent,  setActiveEvent] = useState(null);
   const [weekOffset,   setWeekOffset]  = useState(0);
 
-  useEffect(() => { loadEvents(); }, []);
+  useEffect(() => { loadEvents(); }, [refreshKey]);
 
   const loadEvents = async () => {
     try {

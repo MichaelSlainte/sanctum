@@ -190,6 +190,7 @@ export default function App() {
   const [globalAIResponse, setGlobalAIResponse] = useState(null);
   const globalAIRef = useRef(null);
   const [mobileAIOpen, setMobileAIOpen] = useState(false);
+  const [calendarRefreshKey, setCalendarRefreshKey] = useState(0);
 
   // Draggable AI FAB position
   const [fabPos, setFabPos] = useState(() => {
@@ -232,9 +233,14 @@ export default function App() {
       const todayISO = new Date().toISOString().slice(0, 10);
       const sys = `You are Sanctum AI, a personal assistant embedded in a private life organiser app.
 Today is ${todayISO}. User: Michael, Dublin, Ireland.
+When user mentions dates, always convert to ISO format YYYY-MM-DD in your JSON response.
+Examples: "tomorrow" = ${new Date(Date.now()+86400000).toISOString().slice(0,10)}, "next week" = ${new Date(Date.now()+7*86400000).toISOString().slice(0,10)}.
+For "next Monday", "this Friday" etc., compute the actual upcoming date.
 RESPONSE RULES — choose one format only:
 - Navigate → reply ONLY with valid JSON, no markdown: {"action":"navigate","page":"home|notes|calendar|trackers|career|study|finance|travel|pet|settings"}
 - Log study session → reply ONLY with valid JSON, no markdown: {"action":"log_study","hours":2,"topic":"Integration Management","notes":"optional"}
+- Add calendar event → reply ONLY with valid JSON, no markdown: {"action":"add_event","title":"Event title","date":"${todayISO}","start_time":"09:00","end_time":"10:00","category":"personal","notes":"optional notes"}
+  category must be one of: personal, career, travel, study, family
 - All other queries → plain conversational text, warm but concise, max 2 sentences. No JSON.`;
       const res = await fetch('/api/chat', { method: 'POST', headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({ system: sys, messages: [{ role: 'user', content: userMsg }] }) });
@@ -243,19 +249,46 @@ RESPONSE RULES — choose one format only:
       try {
         const cleaned = reply.replace(/```(?:json)?|```/g, '').trim();
         const action = JSON.parse(cleaned);
+        const parseDate = (dateStr) => {
+          if (!dateStr) return todayISO;
+          const d = new Date(dateStr);
+          if (!isNaN(d)) return d.toISOString().slice(0, 10);
+          return todayISO;
+        };
         if (action.action === 'navigate') {
           setGlobalAIResponse({ text: `Opening ${action.page}...`, type: 'success' });
           setTimeout(() => navigate(action.page), 400);
         } else if (action.action === 'log_study') {
-          const { error } = await sb.from('study_sessions').insert({
+          await sb.from('study_sessions').insert({
             hours: parseFloat(action.hours),
             topic: action.topic,
             notes: action.notes || '',
             date: todayISO,
             type: 'pmp',
           });
-          if (error) throw error;
-          setGlobalAIResponse({ text: `Logged ${action.hours}h — ${action.topic} ✓`, type: 'success' });
+          await sb.from('events').insert({
+            title: `PMP Study — ${action.topic}`,
+            date: todayISO,
+            start_time: null,
+            end_time: null,
+            category: 'study',
+            color: '#8b5cf6',
+            notes: `${action.hours}h logged`,
+          });
+          setCalendarRefreshKey(k => k + 1);
+          setGlobalAIResponse({ text: `Logged ${action.hours}h — ${action.topic} ✓\nAdded to calendar`, type: 'success' });
+        } else if (action.action === 'add_event') {
+          await sb.from('events').insert({
+            title: action.title,
+            date: parseDate(action.date) || todayISO,
+            start_time: action.start_time || null,
+            end_time: action.end_time || null,
+            category: action.category || 'personal',
+            color: '#388bfd',
+            notes: action.notes || '',
+          });
+          setCalendarRefreshKey(k => k + 1);
+          setGlobalAIResponse({ text: `Added to calendar: "${action.title}" on ${parseDate(action.date)}`, type: 'success' });
         } else {
           setGlobalAIResponse({ text: cleaned, type: 'text' });
         }
@@ -401,7 +434,7 @@ RESPONSE RULES — choose one format only:
   const renderPage = () => {
     if (page === "home") return <Home user={user} onNavigate={navigate} onGoToCalendarDay={goToCalendarDay} />;
     if (page === "notes") return <Notes />;
-    if (page === "calendar") return <Calendar initialDate={calDate} />;
+    if (page === "calendar") return <Calendar initialDate={calDate} refreshKey={calendarRefreshKey} />;
     if (page === "trackers") {
       if (trackerPage === "career")  return <><TrackerBackBar name="Career" onBack={() => { setTrackerPage(null); localStorage.setItem("sanctum_page","trackers"); }} /><Career /></>;
       if (trackerPage === "study")   return <><TrackerBackBar name="Study & PMP" onBack={() => { setTrackerPage(null); localStorage.setItem("sanctum_page","trackers"); }} /><Study /></>;
