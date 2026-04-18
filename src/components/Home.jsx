@@ -853,7 +853,7 @@ For all other queries respond in plain conversational text, warm but concise, ma
       </div>
 
       {/* Quick stats — ring cards, draggable */}
-      <div className="grid-4 mb18">
+      <div className="ring-cards-row grid-4 mb18">
         {cardOrder.map(id => {
           const cls = `ring-card${dragging === id ? " is-dragging" : ""}${dragOver === id ? " drag-over" : ""}`;
           const drag = {
@@ -869,7 +869,7 @@ For all other queries respond in plain conversational text, warm but concise, ma
             onTouchEnd:   onCardTouchEnd,
           };
           if (id === "pmp") return (
-            <div key="pmp" className={cls} {...drag}>
+            <div key="pmp" className={cls} {...drag} style={{ cursor: "pointer" }} onClick={() => onNavigate("study")}>
               <div className="drag-handle" style={{ position:"absolute", top:8, right:8 }}><Icon name="grab" size={12} /></div>
               <RingCard label="PMP EXAM" value={`${daysToExam}d`} sub="days left"
                 percent={Math.max(0, (420 - daysToExam) / 420)}
@@ -877,7 +877,7 @@ For all other queries respond in plain conversational text, warm but concise, ma
             </div>
           );
           if (id === "scotland") return (
-            <div key="scotland" className={cls} {...drag}>
+            <div key="scotland" className={cls} {...drag} style={{ cursor: "pointer" }} onClick={() => onNavigate("travel")}>
               <div className="drag-handle" style={{ position:"absolute", top:8, right:8 }}><Icon name="grab" size={12} /></div>
               <RingCard label="SCOTLAND" value={`${daysToScotland}d`} sub="Sep 7"
                 percent={Math.max(0, (420 - daysToScotland) / 420)}
@@ -885,7 +885,7 @@ For all other queries respond in plain conversational text, warm but concise, ma
             </div>
           );
           if (id === "msc") return (
-            <div key="msc" className={cls} {...drag}>
+            <div key="msc" className={cls} {...drag} style={{ cursor: "pointer" }} onClick={() => onNavigate("study")}>
               <div className="drag-handle" style={{ position:"absolute", top:8, right:8 }}><Icon name="grab" size={12} /></div>
               <RingCard label="MSC SETU" value={`${daysToMSc}d`} sub="Sep 14"
                 percent={Math.max(0, (420 - daysToMSc) / 420)}
@@ -906,7 +906,7 @@ For all other queries respond in plain conversational text, warm but concise, ma
       </div>
 
       {/* Weekly PMP study chart */}
-      <div style={{ marginBottom: 18, padding: "16px 20px", background: "var(--bg1)", border: "1px solid var(--b2)", borderRadius: 16 }}>
+      <div className="study-chart-wrap" style={{ marginBottom: 18, padding: "16px 20px", background: "var(--bg1)", border: "1px solid var(--b2)", borderRadius: 16 }}>
         <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: 10 }}>
           <div style={{ fontSize: 11, fontWeight: 600, color: "var(--t3)", textTransform: "uppercase", letterSpacing: "1px" }}>PMP study · last 6 weeks</div>
           <div style={{ fontSize: 11, color: "var(--t3)", fontFamily: "var(--mono)" }}>Goal: {weeklyGoalHours}h/wk</div>

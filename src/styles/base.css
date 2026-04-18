@@ -1009,6 +1009,9 @@
     .topbar { padding: 0 16px; }
     .cal-cell { min-height: 55px; }
     .cal-grid { padding-bottom: 70px; }
+    .ring-card { padding: 14px 10px; }
+    .ring-cards-row .ring-card svg { width: 65px; height: 65px; }
+    .study-chart-wrap { overflow-x: auto; -webkit-overflow-scrolling: touch; }
     .week-view { grid-template-columns: repeat(7,1fr); gap: 4px; }
     .week-col-num { font-size: 13px; }
     .week-event { font-size: 9px; padding: 3px 5px; }
