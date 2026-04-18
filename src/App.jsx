@@ -336,7 +336,6 @@ RESPONSE RULES — choose one format only:
 
   const email = user?.email || "";
   const username = email.split("@")[0];
-  const initials = username.slice(0, 2).toUpperCase();
 
   const addTaskFromAI = async (text, tag) => {
     const task = { text, tag, done: false };
@@ -375,7 +374,10 @@ RESPONSE RULES — choose one format only:
   ];
 
   const userDisplayKey = user?.id ? `sanctum_display_name_${user.id}` : "sanctum_display_name";
-  const displayName = localStorage.getItem(userDisplayKey) || "Michael";
+  const displayName = localStorage.getItem(userDisplayKey) || localStorage.getItem("sanctum_display_name") || "Michael";
+  const initials = displayName.split(' ').length > 1
+    ? displayName.split(' ').map(w => w[0]).join('').toUpperCase().slice(0, 2)
+    : displayName.slice(0, 2).toUpperCase();
 
   return (
     <>
