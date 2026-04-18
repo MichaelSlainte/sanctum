@@ -3,14 +3,14 @@
   *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
 
   :root {
-    /* Base surfaces — Midnight (default) */
-    --bg:    #0d1117;
-    --bg1:   #0d1117;
-    --bg2:   #161b22;
-    --bg3:   #1c2128;
+    /* Base surfaces — Notion Dark (default) */
+    --bg:    #191919;
+    --bg1:   #202020;
+    --bg2:   #252525;
+    --bg3:   #2a2a2a;
     /* Borders */
-    --b1:    #21262d;
-    --b2:    #30363d;
+    --b1:    #2f2f2f;
+    --b2:    #3a3a3a;
     --b3:    #484f58;
     /* Text — WCAG-AA contrast on dark backgrounds */
     --t1:    #f1f5f9;
@@ -45,10 +45,10 @@
   [data-theme="light"] {
     --bg:    #f8f5f0;
     --bg1:   #ffffff;
-    --bg2:   #f8f5f0;
-    --bg3:   #f0ece6;
-    --b1:    #e5e7eb;
-    --b2:    #d1d5db;
+    --bg2:   #f0ece6;
+    --bg3:   #e8e3dc;
+    --b1:    #e5e0d8;
+    --b2:    #d4cfc8;
     --b3:    #9ca3af;
     --t1:    #1f2937;
     --t2:    #4b5563;
@@ -71,31 +71,31 @@
   }
 
   [data-theme="tamara"] {
-    /* Warm dark base — deep aubergine */
-    --bg:    #150d1a;
-    --bg1:   #1a1023;
-    --bg2:   #20142c;
-    --bg3:   #271936;
-    --b1:    #2a1a35;
-    --b2:    #3d2850;
-    --b3:    #564070;
+    /* Blush Cream Dark */
+    --bg:    #1c1618;
+    --bg1:   #231c1e;
+    --bg2:   #2c2123;
+    --bg3:   #332527;
+    --b1:    #332527;
+    --b2:    #3d2d2f;
+    --b3:    #564040;
     /* Text — same WCAG contrast targets as Midnight */
     --t1:    #f1f5f9;
     --t2:    #cbd5e1;
     --t3:    #94a3b8;
-    /* Accent — pastel rose (softer than hot-pink) */
-    --blue:  #f9a8d4;
-    --blue2: #f472b6;
-    --bluem: rgba(249,168,212,0.1);
-    --blueb: rgba(249,168,212,0.25);
+    /* Accent — blush rose */
+    --blue:  #fbc4d4;
+    --blue2: #f9a8d4;
+    --bluem: rgba(251,196,212,0.12);
+    --blueb: rgba(251,196,212,0.25);
     --grn:   #10b981;
     --grnm:  rgba(16,185,129,0.10);
     --red:   #ef4444;
     --amber: #f59e0b;
     --purple:#f0abfc;
     --pink:  #f9a8d4;
-    --glass-bg:     rgba(21,13,26,0.75);
-    --glass-border: rgba(249,168,212,0.08);
+    --glass-bg:     rgba(28,22,24,0.75);
+    --glass-border: rgba(251,196,212,0.08);
     --glass-blur:   blur(20px) saturate(140%);
   }
 

@@ -755,7 +755,7 @@ export default function Notes() {
               <div className="nli-title">{n.title||'Untitled'}</div>
               <button className="nb-dot-btn" onClick={e=>{e.stopPropagation();setNoteMenu(m=>m?.id===n.id?null:{id:n.id,x:e.clientX,y:e.clientY});}}>···</button>
             </div>
-            <div className="nli-preview">{(n.body||'').replace(/[#*_`\[\]]/g,'').replace(/\n/g,' ').slice(0,72)||'No content'}</div>
+            <div className="nli-preview">{(() => { const d = document.createElement('div'); d.innerHTML = n.body || ''; return (d.textContent || d.innerText || '').replace(/\s+/g,' ').trim().slice(0,60) || 'No content'; })()}</div>
             {n.tags&&<div className="nli-tags">{n.tags.split(',').filter(Boolean).slice(0,3).map(t=><span key={t} className="nli-tag">{t.trim()}</span>)}</div>}
             <div className="nli-date">{n.updated_at ? new Date(n.updated_at).toLocaleDateString("en-IE", { day: "numeric", month: "short", year: "numeric" }) : ''}</div>
           </div>
