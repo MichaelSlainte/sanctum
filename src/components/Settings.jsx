@@ -1,7 +1,7 @@
 import { useState } from "react";
 import { Icon } from "./shared";
 
-export default function Settings({ user, onLogout, theme, onThemeChange }) {
+export default function Settings({ user, onLogout, theme, onThemeChange, font, onFontChange }) {
   const userKey = user?.id ? `sanctum_display_name_${user.id}` : "sanctum_display_name";
   const emailUsername = (user?.email || "").split("@")[0];
   const [displayName, setDisplayName] = useState(() =>
@@ -17,6 +17,13 @@ export default function Settings({ user, onLogout, theme, onThemeChange }) {
     setSaved(true);
     setTimeout(() => setSaved(false), 2000);
   };
+
+  const FONTS = [
+    { id: "default", label: "Default (Inter)" },
+    { id: "sans",    label: "Sans (system-ui)" },
+    { id: "mono",    label: "Mono (JetBrains)" },
+    { id: "dyslexic",label: "Dyslexic friendly" },
+  ];
 
   const THEMES = [
     {
@@ -66,6 +73,12 @@ export default function Settings({ user, onLogout, theme, onThemeChange }) {
               <div className="theme-card-desc">{t.desc}</div>
             </div>
           ))}
+        </div>
+        <div style={{ marginTop: 20 }}>
+          <label className="form-label">App font</label>
+          <select className="inp" value={font || "default"} onChange={e => onFontChange(e.target.value)} style={{ maxWidth: 280 }}>
+            {FONTS.map(f => <option key={f.id} value={f.id}>{f.label}</option>)}
+          </select>
         </div>
       </div>
 

@@ -140,12 +140,33 @@ export default function App() {
   const globalAIRef = useRef(null);
   const [mobileAIOpen, setMobileAIOpen] = useState(false);
 
+  // Draggable AI FAB position
+  const [fabPos, setFabPos] = useState(() => {
+    try { return JSON.parse(localStorage.getItem("sanctum_ai_btn_pos")) || { bottom: 72, left: 16 }; }
+    catch { return { bottom: 72, left: 16 }; }
+  });
+  const fabDrag = useRef({ active: false, startTouchX: 0, startTouchY: 0, startLeft: 0, startBottom: 0 });
+
   const [theme, setTheme] = useState(() => localStorage.getItem("sanctum_theme") || "dark");
+  const [font, setFont] = useState(() => localStorage.getItem("sanctum_font") || "default");
+
+  const FONT_MAP = {
+    default: "",
+    sans: "system-ui, sans-serif",
+    mono: "'JetBrains Mono', monospace",
+    dyslexic: "'OpenDyslexic', Arial, sans-serif",
+  };
 
   const applyTheme = (t) => {
     localStorage.setItem("sanctum_theme", t);
     document.documentElement.setAttribute("data-theme", t);
     setTheme(t);
+  };
+
+  const applyFont = (f) => {
+    localStorage.setItem("sanctum_font", f);
+    document.body.style.fontFamily = FONT_MAP[f] ?? "";
+    setFont(f);
   };
 
   const sendGlobalAI = async () => {
@@ -263,6 +284,10 @@ RESPONSE RULES — choose one format only:
   };
 
   useEffect(() => {
+    // Apply saved font immediately on mount
+    const savedFont = localStorage.getItem("sanctum_font") || "default";
+    document.body.style.fontFamily = FONT_MAP[savedFont] ?? "";
+
     const init = async () => {
       let session = auth.getSession();
       if (!session) {
@@ -284,6 +309,23 @@ RESPONSE RULES — choose one format only:
 
   const handleLogin = (u) => setUser(u);
   const handleLogout = () => { auth.signOut(); setUser(null); setPage("home"); setTrackerPage(null); localStorage.removeItem("sanctum_page"); };
+
+  const onFabTouchStart = (e) => {
+    const t = e.touches[0];
+    fabDrag.current = { active: true, startTouchX: t.clientX, startTouchY: t.clientY, startLeft: fabPos.left, startBottom: fabPos.bottom };
+  };
+  const onFabTouchMove = (e) => {
+    if (!fabDrag.current.active) return;
+    e.preventDefault();
+    const t = e.touches[0];
+    const left = Math.max(0, Math.min(window.innerWidth - 52, fabDrag.current.startLeft + (t.clientX - fabDrag.current.startTouchX)));
+    const bottom = Math.max(72, Math.min(window.innerHeight - 52, fabDrag.current.startBottom - (t.clientY - fabDrag.current.startTouchY)));
+    setFabPos({ left, bottom });
+  };
+  const onFabTouchEnd = () => {
+    fabDrag.current.active = false;
+    setFabPos(pos => { localStorage.setItem("sanctum_ai_btn_pos", JSON.stringify(pos)); return pos; });
+  };
 
   if (checking) return null;
   if (!user) return <Login onLogin={handleLogin} />;
@@ -314,7 +356,7 @@ RESPONSE RULES — choose one format only:
       if (trackerPage === "pet")     return <><TrackerBackBar name="Ozzy" onBack={() => { setTrackerPage(null); localStorage.setItem("sanctum_page","trackers"); }} /><Ozzy /></>;
       return <TrackerHub onNavigate={navigate} />;
     }
-    if (page === "settings") return <Settings user={user} onLogout={handleLogout} theme={theme} onThemeChange={applyTheme} />;
+    if (page === "settings") return <Settings user={user} onLogout={handleLogout} theme={theme} onThemeChange={applyTheme} font={font} onFontChange={applyFont} />;
   };
 
   const today = new Date().toLocaleDateString("en-IE", { weekday: "short", day: "numeric", month: "short", year: "numeric" });
@@ -442,7 +484,15 @@ RESPONSE RULES — choose one format only:
 
       {/* ── Bottom nav (mobile) ── */}
       {/* ── Mobile AI FAB ── */}
-      <button className={`mobile-ai-fab${!['home','calendar','trackers','settings'].includes(page)?' hide-fab':''}`} onClick={() => setMobileAIOpen(v => !v)} title="AI Assistant">
+      <button
+        className={`mobile-ai-fab${!['home','calendar','trackers','settings'].includes(page)?' hide-fab':''}`}
+        style={{ bottom: fabPos.bottom + 'px', left: fabPos.left + 'px' }}
+        onTouchStart={onFabTouchStart}
+        onTouchMove={onFabTouchMove}
+        onTouchEnd={onFabTouchEnd}
+        onClick={() => setMobileAIOpen(v => !v)}
+        title="AI Assistant"
+      >
         <Icon name="ai" size={20} color="#fff"/>
       </button>
       <div className={`mobile-ai-panel${mobileAIOpen?' open':''}`} onClick={e => e.stopPropagation()}>
