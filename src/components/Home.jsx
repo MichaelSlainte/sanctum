@@ -746,6 +746,15 @@ For all other queries respond in plain conversational text, warm but concise, ma
   });
   const maxWkHours = Math.max(...weeklyStudyData.map(w => w.hours), weeklyGoalHours * 0.3, 1);
 
+  const weekStart = new Date(now);
+  weekStart.setDate(now.getDate() - now.getDay() + 1);
+  weekStart.setHours(0, 0, 0, 0);
+  const thisWeekHours = pmpSessions
+    .filter(s => new Date(s.date) >= weekStart)
+    .reduce((sum, s) => sum + (s.hours || 0), 0);
+  const weekPercent = Math.min(thisWeekHours / weeklyGoalHours, 1);
+  const weekRingColor = weekPercent >= 1 ? "var(--grn)" : weekPercent >= 0.5 ? "var(--amber)" : "#ef4444";
+
   const RingCard = ({ label, value, sub, percent, color }) => {
     const r = 34, circ = 2 * Math.PI * r;
     const offset = circ - circ * Math.min(Math.max(percent, 0), 1);
@@ -869,7 +878,7 @@ For all other queries respond in plain conversational text, warm but concise, ma
           if (id === "pmp") return (
             <div key="pmp" className={cls} {...drag} style={{ cursor: "pointer" }} onClick={() => onNavigate("study")}>
               <div className="drag-handle" style={{ position:"absolute", top:8, right:8 }}><Icon name="grab" size={12} /></div>
-              <RingCard label="PMP EXAM" value={`${daysToExam}d`} sub="days left"
+              <RingCard label="PMP EXAM" value={`${daysToExam}d`} sub={`${daysToExam}d · ${Math.ceil(daysToExam / 7)}w`}
                 percent={Math.max(0, (420 - daysToExam) / 420)}
                 color={daysToExam < 60 ? "var(--red)" : daysToExam < 120 ? "var(--amber)" : "var(--purple)"} />
             </div>
@@ -901,6 +910,31 @@ For all other queries respond in plain conversational text, warm but concise, ma
           );
           return null;
         })}
+      </div>
+
+      {/* Weekly study completion ring */}
+      <div style={{ display: "flex", justifyContent: "center", marginBottom: 18 }}>
+        <div style={{ background: "var(--glass-bg)", border: "1px solid var(--glass-border)", borderRadius: 20, padding: "20px 32px", display: "flex", flexDirection: "column", alignItems: "center", gap: 8, backdropFilter: "blur(12px)" }}>
+          {(() => {
+            const r2 = 60, circ2 = 2 * Math.PI * r2;
+            const off2 = circ2 - circ2 * weekPercent;
+            return (
+              <svg width="140" height="140" viewBox="0 0 140 140">
+                <circle cx="70" cy="70" r={r2} fill="none" style={{ stroke: "var(--b2)" }} strokeWidth="8" />
+                <circle cx="70" cy="70" r={r2} fill="none" style={{ stroke: weekRingColor }}
+                  strokeWidth="8" strokeDasharray={circ2} strokeDashoffset={off2}
+                  strokeLinecap="round" transform="rotate(-90 70 70)" />
+                <text x="70" y="62" textAnchor="middle" fontSize="26" fontWeight="700"
+                  style={{ fill: "var(--t1)", fontFamily: "var(--mono)" }}>{thisWeekHours.toFixed(thisWeekHours % 1 === 0 ? 0 : 1)}h</text>
+                <text x="70" y="82" textAnchor="middle" fontSize="11" style={{ fill: "var(--t3)" }}>{weeklyGoalHours}h goal</text>
+              </svg>
+            );
+          })()}
+          <div style={{ fontSize: 11, fontWeight: 600, color: "var(--t3)", textTransform: "uppercase", letterSpacing: "1px" }}>This Week · PMP Study</div>
+          {weekPercent >= 1 && (
+            <div style={{ fontSize: 11, fontWeight: 600, color: "var(--grn)", background: "rgba(34,197,94,0.12)", border: "1px solid rgba(34,197,94,0.3)", borderRadius: 8, padding: "2px 10px" }}>Goal reached</div>
+          )}
+        </div>
       </div>
 
       {/* Weekly PMP study chart */}
