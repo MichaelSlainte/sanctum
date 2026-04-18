@@ -15,20 +15,6 @@ const MiniRing = ({ percent, color }) => {
   );
 };
 
-const BigRing = ({ percent, color, size = 80 }) => {
-  const r = (size / 2) - 6;
-  const circ = 2 * Math.PI * r;
-  const offset = circ - circ * Math.min(Math.max(percent, 0), 1);
-  return (
-    <svg width={size} height={size} viewBox={`0 0 ${size} ${size}`}>
-      <circle cx={size/2} cy={size/2} r={r} fill="none" style={{ stroke: "var(--b2)" }} strokeWidth="6" />
-      <circle cx={size/2} cy={size/2} r={r} fill="none" style={{ stroke: color }}
-        strokeWidth="6" strokeDasharray={circ} strokeDashoffset={offset}
-        strokeLinecap="round" transform={`rotate(-90 ${size/2} ${size/2})`} />
-    </svg>
-  );
-};
-
 export function PlaceholderPage({ label }) {
   return (
     <div className="page-body" style={{ display: "flex", alignItems: "center", justifyContent: "center", height: "100%", flexDirection: "column", gap: 16 }}>
@@ -83,10 +69,8 @@ const getWeekStart = () => {
 };
 
 const todayISO = () => new Date().toISOString().slice(0, 10);
-
 const yesterdayISO = () => {
-  const d = new Date();
-  d.setDate(d.getDate() - 1);
+  const d = new Date(); d.setDate(d.getDate() - 1);
   return d.toISOString().slice(0, 10);
 };
 
@@ -94,7 +78,6 @@ const loadCustomEntries = () => {
   try { return JSON.parse(localStorage.getItem('sanctum_tracker_entries') || '[]'); }
   catch { return []; }
 };
-
 const saveCustomEntries = (entries) => {
   localStorage.setItem('sanctum_tracker_entries', JSON.stringify(entries));
 };
@@ -103,19 +86,143 @@ const DATE_DAYS   = Array.from({ length: 31 }, (_, i) => i + 1);
 const DATE_MONTHS = ["January","February","March","April","May","June","July","August","September","October","November","December"];
 const DATE_YEARS  = [2025, 2026, 2027, 2028];
 
-// ── Custom Tracker Detail Modal ───────────────────────────────────────────────
-function CustomTrackerDetail({ tracker, onClose, user }) {
-  const [entries, setEntries] = useState(() => loadCustomEntries().filter(e => e.tracker_id === tracker.id));
+const PALETTE = [
+  '#10b981','#3b82f6','#8b5cf6','#f59e0b','#ef4444',
+  '#ec4899','#06b6d4','#f97316','#6366f1','#14b8a6',
+];
+
+const getActivityPresets = (label) => {
+  const l = (label || '').toLowerCase();
+  if (/workout|gym|fitness|exercise|lift|strength/.test(l))
+    return ['Gym — Upper body','Gym — Lower body','Gym — Full body','Cardio — Run','Cardio — Cycle','Cardio — Swim','Yoga / Stretch','Walk','Other'];
+  if (/run|jog|cardio/.test(l))
+    return ['Easy run','Tempo run','Long run','Intervals','Trail run','Cycle','Walk','Cross-train','Other'];
+  if (/read|book/.test(l))
+    return ['Fiction','Non-fiction','Technical','Self-help','Biography','Research','Other'];
+  if (/meditat|mindful|yoga|breath/.test(l))
+    return ['Guided meditation','Breathing','Body scan','Yoga flow','Stretching','Journaling','Other'];
+  if (/learn|study|course|code|program/.test(l))
+    return ['Video course','Reading','Practice','Project','Review notes','Tutorial','Other'];
+  if (/diet|food|nutrition|eat/.test(l))
+    return ['Healthy meal','Meal prep','No sugar','Water goal','Supplement','Other'];
+  if (/sleep|rest|recover/.test(l))
+    return ['Full sleep','Nap','Early night','No screen','Other'];
+  return ['Session','Practice','Review','Completed','Other'];
+};
+
+// ── Custom Tracker Detail — full page ────────────────────────────────────────
+function CustomTrackerDetail({ tracker: initialTracker, onClose, user, onUpdate }) {
+  const [tracker, setTracker] = useState(initialTracker);
+  const [entries, setEntries] = useState([]);
+  const [loadingEntries, setLoadingEntries] = useState(true);
+
+  // Editable header state
+  const [editName, setEditName]   = useState(false);
+  const [nameVal,  setNameVal]    = useState(initialTracker.label);
+  const [editDesc, setEditDesc]   = useState(false);
+  const [descVal,  setDescVal]    = useState(initialTracker.description || '');
+
+  // Log state
   const [logEntry, setLogEntry] = useState({ date: todayISO(), type: '', duration: 45, intensity: 3, notes: '' });
-  const [saving, setSaving] = useState(false);
+  const [saving,  setSaving]  = useState(false);
   const [savedOk, setSavedOk] = useState(false);
   const [activeTab, setActiveTab] = useState('log');
 
-  const weekStart = getWeekStart();
-  const thisWeek = entries.filter(e => new Date(e.date) >= weekStart).length;
-  const percent = thisWeek / (tracker.weekly_goal || 3);
+  // Load entries from Supabase
+  useEffect(() => {
+    const load = async () => {
+      setLoadingEntries(true);
+      try {
+        const data = await sb.from('tracker_entries').select('*');
+        const mine = (Array.isArray(data) ? data : [])
+          .filter(e => e.tracker_id === tracker.id)
+          .map(e => ({
+            ...e,
+            data: typeof e.data === 'string' ? JSON.parse(e.data || '{}') : (e.data || {}),
+          }));
+        if (mine.length > 0) {
+          setEntries(mine);
+        } else {
+          setEntries(loadCustomEntries().filter(e => e.tracker_id === tracker.id));
+        }
+      } catch {
+        setEntries(loadCustomEntries().filter(e => e.tracker_id === tracker.id));
+      }
+      setLoadingEntries(false);
+    };
+    load();
+  }, [tracker.id]);
 
-  const allEntries = loadCustomEntries();
+  const updateTracker = async (fields) => {
+    const updated = { ...tracker, ...fields };
+    setTracker(updated);
+    const all = JSON.parse(localStorage.getItem('sanctum_custom_trackers') || '[]');
+    localStorage.setItem('sanctum_custom_trackers', JSON.stringify(all.map(t => t.id === tracker.id ? { ...t, ...fields } : t)));
+    try { await sb.from('custom_trackers').update(fields, { id: tracker.id }); } catch {}
+    onUpdate?.(updated);
+  };
+
+  // Stats derived
+  const weekStart = getWeekStart();
+  const thisWeek  = entries.filter(e => new Date(e.date) >= weekStart).length;
+  const percent   = thisWeek / (tracker.weekly_goal || 3);
+
+  const totalEntries  = entries.length;
+  const totalMinutes  = entries.reduce((s, e) => s + (e.data?.duration ?? e.duration ?? 0), 0);
+  const avgDuration   = Math.round(totalMinutes / (totalEntries || 1));
+
+  const byWeek = {};
+  entries.forEach(e => {
+    const d = new Date(e.date);
+    const day = d.getDay();
+    const mon = new Date(d);
+    mon.setDate(d.getDate() + (day === 0 ? -6 : 1 - day));
+    const key = mon.toISOString().slice(0, 10);
+    byWeek[key] = (byWeek[key] || 0) + 1;
+  });
+  const weekCounts = Object.values(byWeek);
+  const bestWeek   = weekCounts.length > 0 ? Math.max(...weekCounts) : 0;
+
+  let streak = 0;
+  for (let w = 0; w < 52; w++) {
+    const m = new Date(weekStart);
+    m.setDate(weekStart.getDate() - w * 7);
+    if (byWeek[m.toISOString().slice(0, 10)]) streak++;
+    else if (w > 0) break;
+  }
+
+  const last8Weeks = [];
+  for (let w = 7; w >= 0; w--) {
+    const m = new Date(weekStart);
+    m.setDate(weekStart.getDate() - w * 7);
+    const key = m.toISOString().slice(0, 10);
+    last8Weeks.push({ key, label: w === 0 ? 'now' : `W-${w}`, count: byWeek[key] || 0 });
+  }
+  const barMax = Math.max(...last8Weeks.map(w => w.count), tracker.weekly_goal || 3, 1);
+
+  // Activity breakdown
+  const activityBreakdown = {};
+  entries.forEach(e => {
+    const t = e.data?.type || e.type || 'Session';
+    activityBreakdown[t] = (activityBreakdown[t] || 0) + 1;
+  });
+  const activityList = Object.entries(activityBreakdown)
+    .sort((a, b) => b[1] - a[1])
+    .slice(0, 6);
+
+  // History grouped by week
+  const sortedEntries = [...entries].sort((a, b) => new Date(b.date) - new Date(a.date));
+  const groupedHistory = [];
+  sortedEntries.forEach(e => {
+    const d = new Date(e.date);
+    const day = d.getDay();
+    const mon = new Date(d);
+    mon.setDate(d.getDate() + (day === 0 ? -6 : 1 - day));
+    const weekLabel = mon.toLocaleDateString('en-IE', { day: 'numeric', month: 'short' }) + ' week';
+    let group = groupedHistory.find(g => g.week === weekLabel);
+    if (!group) { group = { week: weekLabel, entries: [] }; groupedHistory.push(group); }
+    group.entries.push(e);
+  });
 
   const saveEntry = async () => {
     if (!logEntry.date) return;
@@ -135,11 +242,19 @@ function CustomTrackerDetail({ tracker, onClose, user }) {
       notes: logEntry.notes,
       created_at: new Date().toISOString(),
     };
-    const updated = [entry, ...allEntries];
-    saveCustomEntries(updated);
-    const newEntries = updated.filter(e => e.tracker_id === tracker.id);
-    setEntries(newEntries);
-    try { await sb.from('tracker_entries').insert({ ...entry, user_id: user?.id }); } catch {}
+    const localAll = loadCustomEntries();
+    saveCustomEntries([entry, ...localAll]);
+    setEntries(prev => [entry, ...prev]);
+    try {
+      await sb.from('tracker_entries').insert({
+        tracker_id: tracker.id,
+        type: logEntry.type,
+        duration: parseInt(logEntry.duration) || 45,
+        data: JSON.stringify({ type: logEntry.type, duration: logEntry.duration, intensity: logEntry.intensity, notes: logEntry.notes }),
+        date: logEntry.date,
+        user_id: user?.id,
+      });
+    } catch {}
     setLogEntry({ date: todayISO(), type: '', duration: 45, intensity: 3, notes: '' });
     setSaving(false);
     setSavedOk(true);
@@ -147,288 +262,350 @@ function CustomTrackerDetail({ tracker, onClose, user }) {
   };
 
   const deleteEntry = (id) => {
-    const updated = allEntries.filter(e => e.id !== id);
+    const updated = loadCustomEntries().filter(e => e.id !== id);
     saveCustomEntries(updated);
-    setEntries(updated.filter(e => e.tracker_id === tracker.id));
-  };
-
-  // Stats
-  const totalEntries = entries.length;
-  const totalMinutes = entries.reduce((sum, e) => sum + (e.data?.duration || e.duration || 0), 0);
-
-  const byWeek = {};
-  entries.forEach(e => {
-    const d = new Date(e.date);
-    const day = d.getDay();
-    const diff = day === 0 ? -6 : 1 - day;
-    const mon = new Date(d);
-    mon.setDate(d.getDate() + diff);
-    const key = mon.toISOString().slice(0, 10);
-    byWeek[key] = (byWeek[key] || 0) + 1;
-  });
-  const weekCounts = Object.values(byWeek);
-  const bestWeek = weekCounts.length > 0 ? Math.max(...weekCounts) : 0;
-
-  let streak = 0;
-  for (let w = 0; w < 52; w++) {
-    const checkMon = new Date(weekStart);
-    checkMon.setDate(weekStart.getDate() - w * 7);
-    const key = checkMon.toISOString().slice(0, 10);
-    if (byWeek[key]) streak++;
-    else if (w > 0) break;
-  }
-
-  // Last 8 weeks bar chart data
-  const last8Weeks = [];
-  for (let w = 7; w >= 0; w--) {
-    const mon = new Date(weekStart);
-    mon.setDate(weekStart.getDate() - w * 7);
-    const key = mon.toISOString().slice(0, 10);
-    last8Weeks.push({ key, label: w === 0 ? 'now' : `W-${w}`, count: byWeek[key] || 0 });
-  }
-  const barMax = Math.max(...last8Weeks.map(w => w.count), tracker.weekly_goal || 3, 1);
-
-  // Group history by week
-  const sortedEntries = [...entries].sort((a, b) => new Date(b.date) - new Date(a.date));
-  const groupedHistory = [];
-  sortedEntries.forEach(e => {
-    const d = new Date(e.date);
-    const day = d.getDay();
-    const diff = day === 0 ? -6 : 1 - day;
-    const mon = new Date(d);
-    mon.setDate(d.getDate() + diff);
-    const weekLabel = mon.toLocaleDateString('en-IE', { day: 'numeric', month: 'short' }) + ' week';
-    let group = groupedHistory.find(g => g.week === weekLabel);
-    if (!group) { group = { week: weekLabel, entries: [] }; groupedHistory.push(group); }
-    group.entries.push(e);
-  });
-
-  const getMotivation = () => {
-    if (thisWeek >= tracker.weekly_goal) return "Goal reached this week! Keep going!";
-    if (thisWeek === tracker.weekly_goal - 1) return "One more session to hit your goal!";
-    if (thisWeek === 0) return "Start your first session this week";
-    return `${tracker.weekly_goal - thisWeek} sessions to go`;
+    setEntries(prev => prev.filter(e => e.id !== id));
+    try { sb.from('tracker_entries').delete({ id }); } catch {}
   };
 
   const setDateField = (fn) => {
-    const d = new Date(logEntry.date + "T12:00:00");
+    const d = new Date(logEntry.date + 'T12:00:00');
     fn(d);
     setLogEntry(n => ({ ...n, date: d.toISOString().slice(0, 10) }));
   };
 
+  const activityPresets = getActivityPresets(tracker.label);
+  const ringColor = percent >= 1 ? 'var(--grn)' : percent >= 0.5 ? 'var(--amber)' : tracker.color;
+  const r = 52, circ = 2 * Math.PI * r;
+
   return (
-    <div className="modal-overlay" onClick={onClose} style={{ zIndex: 1000 }}>
-      <div className="modal" style={{ maxWidth: 480, width: '90%' }} onClick={e => e.stopPropagation()}>
-        {/* Header */}
-        <div style={{ display:'flex', alignItems:'center', gap:16, padding:'0 0 16px', borderBottom:'1px solid var(--b1)' }}>
-          <div style={{ position:'relative', flexShrink:0 }}>
-            <svg width="64" height="64" viewBox="0 0 64 64">
-              <circle cx="32" cy="32" r="28" fill="none" stroke="var(--b2)" strokeWidth="5"/>
-              <circle cx="32" cy="32" r="28" fill="none" stroke={tracker.color} strokeWidth="5"
-                strokeDasharray={2*Math.PI*28}
-                strokeDashoffset={2*Math.PI*28*(1-Math.min(percent,1))}
-                strokeLinecap="round" transform="rotate(-90 32 32)"/>
-              <text x="32" y="36" textAnchor="middle" fontSize="14" fontWeight="700" fill="var(--t1)">{thisWeek}</text>
+    <div className="page-body animate-in">
+      {/* Breadcrumb */}
+      <div className="tracker-back-bar" style={{ marginBottom: 16 }}>
+        <button className="tracker-back-btn" onClick={onClose}>
+          <Icon name="chevL" size={13} /> Trackers
+        </button>
+        <span style={{ color: 'var(--b3)', fontSize: 12 }}>/</span>
+        <span className="tracker-section-label">{tracker.label}</span>
+      </div>
+
+      {/* Editable header */}
+      <div className="card" style={{ marginBottom: 20 }}>
+        <div style={{ display: 'flex', gap: 20, alignItems: 'flex-start', flexWrap: 'wrap' }}>
+          {/* Weekly ring */}
+          <div style={{ flexShrink: 0 }}>
+            <svg width="110" height="110" viewBox="0 0 120 120">
+              <circle cx="60" cy="60" r={r} fill="none" style={{ stroke: 'var(--b2)' }} strokeWidth="8" />
+              <circle cx="60" cy="60" r={r} fill="none" style={{ stroke: ringColor }}
+                strokeWidth="8" strokeDasharray={circ} strokeDashoffset={circ - circ * Math.min(percent, 1)}
+                strokeLinecap="round" transform="rotate(-90 60 60)" />
+              <text x="60" y="56" textAnchor="middle" fontSize="22" fontWeight="700" style={{ fill: 'var(--t1)', fontFamily: 'var(--mono)' }}>{thisWeek}</text>
+              <text x="60" y="72" textAnchor="middle" fontSize="12" style={{ fill: 'var(--t3)' }}>/ {tracker.weekly_goal}</text>
+              <text x="60" y="87" textAnchor="middle" fontSize="10" style={{ fill: ringColor }}>
+                {percent >= 1 ? 'Goal met!' : `${tracker.weekly_goal - thisWeek} to go`}
+              </text>
             </svg>
-            <div style={{ position:'absolute', bottom:-4, right:-4, fontSize:10, background:'var(--bg2)', border:'1px solid var(--b2)', borderRadius:6, padding:'1px 5px', color:'var(--t3)' }}>/{tracker.weekly_goal}</div>
           </div>
-          <div style={{ flex:1 }}>
-            <div style={{ fontSize:18, fontWeight:700, color:'var(--t1)' }}>{tracker.label}</div>
-            <div style={{ fontSize:13, color:'var(--t3)', marginTop:2 }}>{thisWeek} of {tracker.weekly_goal} sessions this week</div>
-            {tracker.description && <div style={{ fontSize:12, color:'var(--t3)', marginTop:4 }}>{tracker.description}</div>}
-            <div style={{ fontSize:12, marginTop:6, fontWeight: thisWeek >= tracker.weekly_goal ? 600 : 400,
-              color: thisWeek >= tracker.weekly_goal ? 'var(--grn)' : 'var(--t3)' }}>{getMotivation()}</div>
-          </div>
-          <button style={{ background:'none', border:'none', color:'var(--t3)', cursor:'pointer', fontSize:20, padding:'0 4px', alignSelf:'flex-start' }} onClick={onClose}>×</button>
-        </div>
 
-        {/* Tabs */}
-        <div style={{ display:'flex', gap:4, margin:'12px 0 0', borderBottom:'1px solid var(--b2)' }}>
-          {['log', 'history', 'stats'].map(tab => (
-            <button key={tab} onClick={() => setActiveTab(tab)}
-              style={{ background:'none', border:'none', padding:'6px 12px', cursor:'pointer', fontSize:13,
-                fontWeight: activeTab===tab ? 700 : 400, color: activeTab===tab ? 'var(--t1)' : 'var(--t3)',
-                borderBottom: activeTab===tab ? `2px solid ${tracker.color}` : '2px solid transparent', marginBottom:-1 }}>
-              {tab.charAt(0).toUpperCase() + tab.slice(1)}
-            </button>
-          ))}
-        </div>
+          {/* Name / desc / controls */}
+          <div style={{ flex: 1, minWidth: 200 }}>
+            {/* Name */}
+            {editName ? (
+              <input className="inp" autoFocus style={{ fontSize: 20, fontWeight: 700, padding: '4px 8px', marginBottom: 6, width: '100%' }}
+                value={nameVal}
+                onChange={e => setNameVal(e.target.value)}
+                onBlur={() => { setEditName(false); if (nameVal.trim()) updateTracker({ label: nameVal.trim() }); }}
+                onKeyDown={e => { if (e.key === 'Enter') { setEditName(false); if (nameVal.trim()) updateTracker({ label: nameVal.trim() }); } if (e.key === 'Escape') { setEditName(false); setNameVal(tracker.label); } }}
+              />
+            ) : (
+              <div onClick={() => setEditName(true)} title="Click to edit name"
+                style={{ fontSize: 20, fontWeight: 700, color: 'var(--t1)', cursor: 'text', marginBottom: 6, display: 'flex', alignItems: 'center', gap: 6 }}>
+                {tracker.label}
+                <span style={{ fontSize: 11, color: 'var(--t3)', opacity: 0.6 }}>✎</span>
+              </div>
+            )}
 
-        {/* Log tab */}
-        {activeTab === 'log' && (
-          <div style={{ display:'flex', flexDirection:'column', gap:14, marginTop:16 }}>
-            <div className="form-row">
-              <label className="form-label">Date</label>
-              <div style={{ display:'flex', gap:6, marginBottom:8 }}>
-                {[['Today', todayISO()], ['Yesterday', yesterdayISO()]].map(([label, val]) => (
-                  <button key={label} onClick={() => setLogEntry(n => ({...n, date: val}))}
-                    style={{ padding:'5px 14px', borderRadius:8, border:'1px solid var(--b2)', cursor:'pointer', fontSize:12, fontWeight:500,
-                      background: logEntry.date === val ? tracker.color : 'var(--bg2)',
-                      color: logEntry.date === val ? '#fff' : 'var(--t2)' }}>
-                    {label}
-                  </button>
+            {/* Description */}
+            {editDesc ? (
+              <input className="inp" autoFocus style={{ fontSize: 13, padding: '3px 8px', marginBottom: 10, width: '100%' }}
+                value={descVal}
+                onChange={e => setDescVal(e.target.value)}
+                onBlur={() => { setEditDesc(false); updateTracker({ description: descVal }); }}
+                onKeyDown={e => { if (e.key === 'Enter' || e.key === 'Escape') { setEditDesc(false); updateTracker({ description: descVal }); } }}
+              />
+            ) : (
+              <div onClick={() => setEditDesc(true)} title="Click to edit description"
+                style={{ fontSize: 13, color: 'var(--t3)', cursor: 'text', marginBottom: 10, minHeight: 20 }}>
+                {tracker.description || <span style={{ opacity: 0.45 }}>Add description…</span>}
+              </div>
+            )}
+
+            {/* Weekly goal */}
+            <div style={{ display: 'flex', alignItems: 'center', gap: 8, marginBottom: 12, flexWrap: 'wrap' }}>
+              <span style={{ fontSize: 12, color: 'var(--t3)', fontWeight: 600 }}>Weekly goal</span>
+              <input type="number" className="inp" min="1" max="99"
+                style={{ width: 60, padding: '3px 8px', fontSize: 13, textAlign: 'center' }}
+                value={tracker.weekly_goal || 3}
+                onChange={e => setTracker(t => ({ ...t, weekly_goal: parseInt(e.target.value) || 1 }))}
+                onBlur={e => updateTracker({ weekly_goal: parseInt(e.target.value) || 1 })}
+              />
+              <span style={{ fontSize: 12, color: 'var(--t3)' }}>{tracker.unit || 'sessions'}/week</span>
+            </div>
+
+            {/* Color picker */}
+            <div style={{ display: 'flex', alignItems: 'center', gap: 8, flexWrap: 'wrap' }}>
+              <span style={{ fontSize: 12, color: 'var(--t3)', fontWeight: 600 }}>Color</span>
+              <div style={{ display: 'flex', gap: 6, flexWrap: 'wrap' }}>
+                {PALETTE.map(c => (
+                  <button key={c} onClick={() => updateTracker({ color: c })}
+                    style={{ width: 22, height: 22, borderRadius: '50%', background: c, border: c === tracker.color ? '2px solid var(--t1)' : '2px solid transparent',
+                      cursor: 'pointer', outline: c === tracker.color ? `2px solid ${c}` : 'none', outlineOffset: 1 }} />
                 ))}
               </div>
-              <div style={{ display:'flex', gap:8, alignItems:'center' }}>
-                <select className="inp" style={{ width:70 }}
-                  value={new Date(logEntry.date + "T12:00:00").getDate()}
-                  onChange={e => setDateField(d => d.setDate(parseInt(e.target.value)))}>
-                  {DATE_DAYS.map(d => <option key={d} value={d}>{d}</option>)}
-                </select>
-                <select className="inp" style={{ flex:1 }}
-                  value={new Date(logEntry.date + "T12:00:00").getMonth()}
-                  onChange={e => setDateField(d => d.setMonth(parseInt(e.target.value)))}>
-                  {DATE_MONTHS.map((m, i) => <option key={i} value={i}>{m}</option>)}
-                </select>
-                <select className="inp" style={{ width:80 }}
-                  value={new Date(logEntry.date + "T12:00:00").getFullYear()}
-                  onChange={e => setDateField(d => d.setFullYear(parseInt(e.target.value)))}>
-                  {DATE_YEARS.map(y => <option key={y} value={y}>{y}</option>)}
-                </select>
-              </div>
             </div>
-            <div className="form-row">
-              <label className="form-label">Activity</label>
-              <select className="inp" value={logEntry.type}
-                onChange={e => setLogEntry(n => ({...n, type: e.target.value}))}>
-                <option value="">Select activity...</option>
-                <option>Gym — Upper body</option>
-                <option>Gym — Lower body</option>
-                <option>Gym — Full body</option>
-                <option>Cardio — Run</option>
-                <option>Cardio — Cycle</option>
-                <option>Cardio — Swim</option>
-                <option>Yoga / Stretch</option>
-                <option>Walk with Ozzy</option>
-                <option>Other</option>
+          </div>
+        </div>
+      </div>
+
+      {/* Stat cards */}
+      <div className="grid-4 mb18">
+        <div className="stat">
+          <div className="stat-label">This week</div>
+          <div className="stat-value" style={{ color: thisWeek >= (tracker.weekly_goal || 3) ? 'var(--grn)' : 'var(--t1)' }}>
+            {thisWeek}<span style={{ fontSize: 14, color: 'var(--t3)', fontWeight: 400 }}>/{tracker.weekly_goal || 3}</span>
+          </div>
+          <div className="stat-sub">{tracker.unit || 'sessions'}</div>
+          <div className="stat-bar">
+            <div className="stat-fill" style={{ width: `${Math.min(percent * 100, 100)}%`, background: ringColor }} />
+          </div>
+        </div>
+        <div className="stat">
+          <div className="stat-label">Total sessions</div>
+          <div className="stat-value">{totalEntries}</div>
+          <div className="stat-sub">all time</div>
+        </div>
+        <div className="stat">
+          <div className="stat-label">Best week</div>
+          <div className="stat-value">{bestWeek}</div>
+          <div className="stat-sub">{tracker.unit || 'sessions'}</div>
+        </div>
+        <div className="stat">
+          <div className="stat-label">Total time</div>
+          <div className="stat-value" style={{ fontSize: 20 }}>
+            {Math.floor(totalMinutes / 60)}h<span style={{ fontSize: 13 }}> {totalMinutes % 60}m</span>
+          </div>
+          <div className="stat-sub">avg {avgDuration} min/session</div>
+        </div>
+      </div>
+
+      {/* Tab bar */}
+      <div style={{ display: 'flex', gap: 4, marginBottom: 16, borderBottom: '1px solid var(--b2)' }}>
+        {['log', 'history', 'stats'].map(tab => (
+          <button key={tab} onClick={() => setActiveTab(tab)}
+            style={{ background: 'none', border: 'none', padding: '6px 16px', cursor: 'pointer', fontSize: 13,
+              fontWeight: activeTab === tab ? 700 : 400, color: activeTab === tab ? 'var(--t1)' : 'var(--t3)',
+              borderBottom: activeTab === tab ? `2px solid ${tracker.color}` : '2px solid transparent', marginBottom: -1 }}>
+            {tab.charAt(0).toUpperCase() + tab.slice(1)}
+          </button>
+        ))}
+      </div>
+
+      {/* ── Log tab ── */}
+      {activeTab === 'log' && (
+        <div className="card" style={{ display: 'flex', flexDirection: 'column', gap: 14 }}>
+          <div className="form-row">
+            <label className="form-label">Date</label>
+            <div style={{ display: 'flex', gap: 6, marginBottom: 8 }}>
+              {[['Today', todayISO()], ['Yesterday', yesterdayISO()]].map(([lbl, val]) => (
+                <button key={lbl} onClick={() => setLogEntry(n => ({ ...n, date: val }))}
+                  style={{ padding: '5px 14px', borderRadius: 8, border: '1px solid var(--b2)', cursor: 'pointer', fontSize: 12, fontWeight: 500,
+                    background: logEntry.date === val ? tracker.color : 'var(--bg2)',
+                    color: logEntry.date === val ? '#fff' : 'var(--t2)' }}>
+                  {lbl}
+                </button>
+              ))}
+            </div>
+            <div style={{ display: 'flex', gap: 8, alignItems: 'center' }}>
+              <select className="inp" style={{ width: 70 }}
+                value={new Date(logEntry.date + 'T12:00:00').getDate()}
+                onChange={e => setDateField(d => d.setDate(parseInt(e.target.value)))}>
+                {DATE_DAYS.map(d => <option key={d} value={d}>{d}</option>)}
+              </select>
+              <select className="inp" style={{ flex: 1 }}
+                value={new Date(logEntry.date + 'T12:00:00').getMonth()}
+                onChange={e => setDateField(d => d.setMonth(parseInt(e.target.value)))}>
+                {DATE_MONTHS.map((m, i) => <option key={i} value={i}>{m}</option>)}
+              </select>
+              <select className="inp" style={{ width: 80 }}
+                value={new Date(logEntry.date + 'T12:00:00').getFullYear()}
+                onChange={e => setDateField(d => d.setFullYear(parseInt(e.target.value)))}>
+                {DATE_YEARS.map(y => <option key={y} value={y}>{y}</option>)}
               </select>
             </div>
-            <div className="form-row">
-              <label className="form-label">Duration</label>
-              <div style={{ display:'flex', gap:12, alignItems:'center', padding:'4px 0' }}>
-                <input type="range" min="10" max="120" step="5"
-                  value={logEntry.duration}
-                  onChange={e => setLogEntry(n => ({...n, duration: parseInt(e.target.value)}))}
-                  style={{ flex:1, accentColor: tracker.color }}/>
-                <span style={{ fontSize:18, fontWeight:700, color:'var(--t1)', minWidth:60, textAlign:'right' }}>
-                  {logEntry.duration}<span style={{ fontSize:12, color:'var(--t3)', fontWeight:400 }}> min</span>
-                </span>
-              </div>
-            </div>
-            <div className="form-row">
-              <label className="form-label">Intensity</label>
-              <div style={{ display:'flex', gap:6 }}>
-                {['Easy','Light','Medium','Hard','Max'].map((lvl, i) => (
-                  <button key={i} onClick={() => setLogEntry(n => ({...n, intensity: i+1}))}
-                    style={{ flex:1, padding:'6px 0', borderRadius:8, border:'1px solid var(--b2)',
-                      background: logEntry.intensity === i+1 ? tracker.color : 'var(--bg2)',
-                      color: logEntry.intensity === i+1 ? '#fff' : 'var(--t3)',
-                      fontSize:11, cursor:'pointer', fontWeight: logEntry.intensity === i+1 ? 600 : 400 }}>
-                    {lvl}
-                  </button>
-                ))}
-              </div>
-            </div>
-            <div className="form-row">
-              <label className="form-label">Notes</label>
-              <input className="inp" type="text" placeholder="Optional notes"
-                value={logEntry.notes} onChange={e => setLogEntry(n => ({...n, notes: e.target.value}))} />
-            </div>
-            <button
-              style={{ width:'100%', padding:'14px', fontSize:15, fontWeight:600,
-                background: savedOk ? 'var(--grn)' : tracker.color,
-                border:'none', borderRadius:12, marginTop:8, color:'#fff', cursor:'pointer',
-                display:'flex', alignItems:'center', justifyContent:'center', gap:8,
-                opacity: saving ? 0.7 : 1 }}
-              onClick={saveEntry} disabled={saving || savedOk}>
-              {savedOk
-                ? <><Icon name="check" size={14} color="#fff"/> Session logged!</>
-                : saving ? 'Saving…' : 'Log Session'}
-            </button>
           </div>
-        )}
 
-        {/* History tab */}
-        {activeTab === 'history' && (
-          <div style={{ marginTop:12 }}>
-            {entries.length === 0 ? (
-              <div style={{ fontSize:13, color:'var(--t3)', textAlign:'center', padding:'24px 0' }}>No entries yet. Log your first session!</div>
-            ) : groupedHistory.map(({ week, entries: grpEntries }) => (
-              <div key={week}>
-                <div style={{ fontSize:11, fontWeight:600, color:'var(--t3)', letterSpacing:.5,
-                  textTransform:'uppercase', padding:'8px 0 4px' }}>{week}</div>
-                {grpEntries.map(e => (
-                  <div key={e.id} className="fin-row">
-                    <div style={{ display:'flex', gap:10, alignItems:'center' }}>
-                      <div style={{ width:8, height:8, borderRadius:'50%', background:tracker.color, flexShrink:0 }}/>
-                      <div>
-                        <div style={{ fontSize:13, fontWeight:500, color:'var(--t1)' }}>{e.data?.type || e.type || 'Session'}</div>
-                        <div style={{ fontSize:11, color:'var(--t3)' }}>
-                          {e.date} · {e.data?.duration || e.duration || 0} min
-                          {e.data?.intensity ? ` · Intensity ${e.data.intensity}/5` : ''}
-                        </div>
+          <div className="form-row">
+            <label className="form-label">Activity</label>
+            <select className="inp" value={logEntry.type}
+              onChange={e => setLogEntry(n => ({ ...n, type: e.target.value }))}>
+              <option value="">Select activity…</option>
+              {activityPresets.map(a => <option key={a}>{a}</option>)}
+            </select>
+          </div>
+
+          <div className="form-row">
+            <label className="form-label">Duration</label>
+            <div style={{ display: 'flex', gap: 12, alignItems: 'center', padding: '4px 0' }}>
+              <input type="range" min="10" max="120" step="5"
+                value={logEntry.duration}
+                onChange={e => setLogEntry(n => ({ ...n, duration: parseInt(e.target.value) }))}
+                style={{ flex: 1, accentColor: tracker.color }} />
+              <span style={{ fontSize: 18, fontWeight: 700, color: 'var(--t1)', minWidth: 60, textAlign: 'right' }}>
+                {logEntry.duration}<span style={{ fontSize: 12, color: 'var(--t3)', fontWeight: 400 }}> min</span>
+              </span>
+            </div>
+          </div>
+
+          <div className="form-row">
+            <label className="form-label">Intensity</label>
+            <div style={{ display: 'flex', gap: 6 }}>
+              {['Easy', 'Light', 'Medium', 'Hard', 'Max'].map((lvl, i) => (
+                <button key={i} onClick={() => setLogEntry(n => ({ ...n, intensity: i + 1 }))}
+                  style={{ flex: 1, padding: '6px 0', borderRadius: 8, border: '1px solid var(--b2)',
+                    background: logEntry.intensity === i + 1 ? tracker.color : 'var(--bg2)',
+                    color: logEntry.intensity === i + 1 ? '#fff' : 'var(--t3)',
+                    fontSize: 11, cursor: 'pointer', fontWeight: logEntry.intensity === i + 1 ? 600 : 400 }}>
+                  {lvl}
+                </button>
+              ))}
+            </div>
+          </div>
+
+          <div className="form-row">
+            <label className="form-label">Notes</label>
+            <textarea className="inp" placeholder="Optional notes…" style={{ minHeight: 60, resize: 'vertical' }}
+              value={logEntry.notes} onChange={e => setLogEntry(n => ({ ...n, notes: e.target.value }))} />
+          </div>
+
+          <button
+            style={{ width: '100%', padding: '14px', fontSize: 15, fontWeight: 600,
+              background: savedOk ? 'var(--grn)' : tracker.color,
+              border: 'none', borderRadius: 12, marginTop: 4, color: '#fff', cursor: 'pointer',
+              display: 'flex', alignItems: 'center', justifyContent: 'center', gap: 8,
+              opacity: saving ? 0.7 : 1 }}
+            onClick={saveEntry} disabled={saving || savedOk}>
+            {savedOk ? <><Icon name="check" size={14} color="#fff" /> Session logged!</>
+              : saving ? 'Saving…' : 'Log Session'}
+          </button>
+        </div>
+      )}
+
+      {/* ── History tab ── */}
+      {activeTab === 'history' && (
+        <div>
+          {loadingEntries && <div style={{ fontSize: 13, color: 'var(--t3)', padding: '16px 0' }}>Loading…</div>}
+          {!loadingEntries && entries.length === 0 && (
+            <div style={{ fontSize: 13, color: 'var(--t3)', textAlign: 'center', padding: '32px 0' }}>
+              No entries yet. Log your first session!
+            </div>
+          )}
+          {groupedHistory.map(({ week, entries: grp }) => (
+            <div key={week}>
+              <div style={{ fontSize: 11, fontWeight: 600, color: 'var(--t3)', letterSpacing: 0.5,
+                textTransform: 'uppercase', padding: '10px 0 4px' }}>{week}</div>
+              {grp.map(e => (
+                <div key={e.id} className="fin-row">
+                  <div style={{ display: 'flex', gap: 10, alignItems: 'center' }}>
+                    <div style={{ width: 8, height: 8, borderRadius: '50%', background: tracker.color, flexShrink: 0 }} />
+                    <div>
+                      <div style={{ fontSize: 13, fontWeight: 500, color: 'var(--t1)' }}>{e.data?.type || e.type || 'Session'}</div>
+                      <div style={{ fontSize: 11, color: 'var(--t3)' }}>
+                        {e.date} · {e.data?.duration ?? e.duration ?? 0} min
+                        {e.data?.intensity ? ` · ${['Easy','Light','Medium','Hard','Max'][e.data.intensity - 1] || `Intensity ${e.data.intensity}`}` : ''}
+                        {e.data?.notes || e.notes ? ` · ${(e.data?.notes || e.notes).slice(0, 40)}` : ''}
                       </div>
                     </div>
-                    <button className="btn xs danger" onClick={() => deleteEntry(e.id)}><Icon name="trash" size={11}/></button>
                   </div>
-                ))}
-              </div>
-            ))}
-          </div>
-        )}
+                  <button className="btn xs danger" onClick={() => deleteEntry(e.id)}><Icon name="trash" size={11} /></button>
+                </div>
+              ))}
+            </div>
+          ))}
+        </div>
+      )}
 
-        {/* Stats tab */}
-        {activeTab === 'stats' && (
-          <div style={{ display:'flex', flexDirection:'column', gap:16, marginTop:16 }}>
-            <div className="grid-2" style={{ gap:12 }}>
-              <div className="stat">
-                <div className="stat-label">Total sessions</div>
-                <div className="stat-value">{totalEntries}</div>
-              </div>
-              <div className="stat">
-                <div className="stat-label">This week</div>
-                <div className="stat-value" style={{ color: thisWeek >= tracker.weekly_goal ? 'var(--grn)' : 'var(--t1)' }}>{thisWeek}/{tracker.weekly_goal}</div>
-              </div>
-              <div className="stat">
-                <div className="stat-label">Best week</div>
-                <div className="stat-value">{bestWeek}</div>
-              </div>
-              <div className="stat">
-                <div className="stat-label">Current streak</div>
-                <div className="stat-value">{streak} <span style={{ fontSize:14 }}>wks</span></div>
-              </div>
-              <div className="stat">
-                <div className="stat-label">Total time</div>
-                <div className="stat-value" style={{ fontSize:18 }}>{Math.floor(totalMinutes/60)}h {totalMinutes%60}m</div>
-              </div>
-              <div className="stat">
-                <div className="stat-label">Avg duration</div>
-                <div className="stat-value" style={{ fontSize:18 }}>{Math.round(totalMinutes/(totalEntries||1))} <span style={{ fontSize:14 }}>min</span></div>
-              </div>
+      {/* ── Stats tab ── */}
+      {activeTab === 'stats' && (
+        <div style={{ display: 'flex', flexDirection: 'column', gap: 20 }}>
+          {/* Last 8 weeks bar chart */}
+          <div className="card">
+            <div style={{ fontSize: 11, fontWeight: 600, color: 'var(--t3)', letterSpacing: 0.5, textTransform: 'uppercase', marginBottom: 10 }}>
+              Last 8 weeks
             </div>
-            {/* Mini bar chart — last 8 weeks */}
-            <div>
-              <div style={{ fontSize:11, fontWeight:600, color:'var(--t3)', letterSpacing:.5, textTransform:'uppercase', marginBottom:8 }}>Last 8 weeks</div>
-              <div style={{ display:'flex', alignItems:'flex-end', gap:4, height:60 }}>
-                {last8Weeks.map((w, i) => {
-                  const heightPx = w.count > 0 ? Math.max(Math.round((w.count / barMax) * 56), 4) : 0;
-                  return (
-                    <div key={i} style={{ flex:1, height: heightPx,
-                      background: w.count >= tracker.weekly_goal ? 'var(--grn)' : tracker.color,
-                      borderRadius:'3px 3px 0 0', opacity:0.85, transition:'height .3s', minWidth:0 }}/>
-                  );
-                })}
-              </div>
-              <div style={{ display:'flex', gap:4, marginTop:4 }}>
-                {last8Weeks.map((w, i) => (
-                  <div key={i} style={{ flex:1, fontSize:7, color:'var(--t3)', textAlign:'center',
-                    fontFamily:'var(--mono)', overflow:'hidden', minWidth:0 }}>{w.label}</div>
-                ))}
-              </div>
+            <div style={{ display: 'flex', alignItems: 'flex-end', gap: 4, height: 80 }}>
+              {last8Weeks.map((w, i) => {
+                const h = w.count > 0 ? Math.max(Math.round((w.count / barMax) * 76), 4) : 0;
+                return (
+                  <div key={i} title={`${w.label}: ${w.count} sessions`}
+                    style={{ flex: 1, height: h,
+                      background: w.count >= (tracker.weekly_goal || 3) ? 'var(--grn)' : tracker.color,
+                      borderRadius: '3px 3px 0 0', opacity: 0.85, transition: 'height .3s', minWidth: 0 }} />
+                );
+              })}
+            </div>
+            <div style={{ display: 'flex', gap: 4, marginTop: 4 }}>
+              {last8Weeks.map((w, i) => (
+                <div key={i} style={{ flex: 1, fontSize: 7, color: 'var(--t3)', textAlign: 'center',
+                  fontFamily: 'var(--mono)', overflow: 'hidden', minWidth: 0 }}>{w.label}</div>
+              ))}
             </div>
           </div>
-        )}
-      </div>
+
+          {/* Activity breakdown */}
+          {activityList.length > 0 && (
+            <div className="card">
+              <div style={{ fontSize: 11, fontWeight: 600, color: 'var(--t3)', letterSpacing: 0.5, textTransform: 'uppercase', marginBottom: 10 }}>
+                Activity breakdown
+              </div>
+              {activityList.map(([type, count]) => (
+                <div key={type} style={{ marginBottom: 10 }}>
+                  <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 4 }}>
+                    <span style={{ fontSize: 12, color: 'var(--t2)' }}>{type}</span>
+                    <span style={{ fontSize: 11, fontFamily: 'var(--mono)', color: tracker.color }}>{count}</span>
+                  </div>
+                  <div className="stat-bar" style={{ margin: 0 }}>
+                    <div style={{ height: '100%', width: `${(count / (activityList[0][1] || 1)) * 100}%`,
+                      background: tracker.color, borderRadius: 'inherit', opacity: 0.8 }} />
+                  </div>
+                </div>
+              ))}
+            </div>
+          )}
+
+          {/* Summary stats */}
+          <div className="grid-2" style={{ gap: 12 }}>
+            <div className="stat">
+              <div className="stat-label">Streak</div>
+              <div className="stat-value">{streak} <span style={{ fontSize: 14 }}>wks</span></div>
+              <div className="stat-sub">consecutive weeks</div>
+            </div>
+            <div className="stat">
+              <div className="stat-label">Avg duration</div>
+              <div className="stat-value">{avgDuration} <span style={{ fontSize: 14 }}>min</span></div>
+              <div className="stat-sub">per session</div>
+            </div>
+            <div className="stat">
+              <div className="stat-label">Total time</div>
+              <div className="stat-value" style={{ fontSize: 18 }}>{Math.floor(totalMinutes / 60)}h {totalMinutes % 60}m</div>
+            </div>
+            <div className="stat">
+              <div className="stat-label">Best week</div>
+              <div className="stat-value">{bestWeek}</div>
+              <div className="stat-sub">{tracker.unit || 'sessions'}</div>
+            </div>
+          </div>
+        </div>
+      )}
     </div>
   );
 }
@@ -448,12 +625,10 @@ export default function TrackerHub({ archivedTrackers = [], onArchive, onUnarchi
   });
 
   const [trackerEntries, setTrackerEntries] = useState([]);
-
   const [detailTracker, setDetailTracker] = useState(null);
 
   const loadCustomTrackers = async () => {
     const data = await sb.from('custom_trackers').select('*');
-    console.log('Loaded custom trackers:', data);
     if (Array.isArray(data) && data.length > 0) {
       const active = data.filter(t => !t.archived);
       setCustomTrackers(active);
@@ -468,11 +643,8 @@ export default function TrackerHub({ archivedTrackers = [], onArchive, onUnarchi
     loadCustomTrackers();
     const loadEntries = async () => {
       const data = await sb.from('tracker_entries').select('*');
-      if (Array.isArray(data) && data.length > 0) {
-        setTrackerEntries(data);
-      } else {
-        setTrackerEntries(loadCustomEntries());
-      }
+      if (Array.isArray(data) && data.length > 0) setTrackerEntries(data);
+      else setTrackerEntries(loadCustomEntries());
     };
     loadEntries();
   }, [refreshKey]);
@@ -502,9 +674,7 @@ export default function TrackerHub({ archivedTrackers = [], onArchive, onUnarchi
         let travelRatio = 0;
         try {
           const trips = JSON.parse(localStorage.getItem("sanctum_trips") || "[]");
-          const total = trips.length;
-          const completed = trips.filter(t => t.status === "completed").length;
-          travelRatio = total > 0 ? Math.min(completed / total, 1) : 0;
+          travelRatio = trips.length > 0 ? Math.min(trips.filter(t => t.status === "completed").length / trips.length, 1) : 0;
         } catch {}
 
         let ozzyRing = 0, ozzyColor = "var(--grn)";
@@ -541,21 +711,13 @@ export default function TrackerHub({ archivedTrackers = [], onArchive, onUnarchi
   });
 
   const [archivedOpen, setArchivedOpen] = useState(false);
-
-  const [dragOver, setDragOver]   = useState(null);
-  const [dragging, setDragging]   = useState(null);
+  const [dragOver, setDragOver] = useState(null);
+  const [dragging, setDragging] = useState(null);
   const dragId = useRef(null);
 
-  const onDragStart = (e, id) => {
-    dragId.current = id; setDragging(id); e.dataTransfer.effectAllowed = "move";
-  };
-  const onDragOver = (e, id) => {
-    e.preventDefault(); e.dataTransfer.dropEffect = "move";
-    if (id !== dragId.current) setDragOver(id);
-  };
-  const onDragLeave = (e, id) => {
-    if (!e.currentTarget.contains(e.relatedTarget)) setDragOver(prev => prev === id ? null : prev);
-  };
+  const onDragStart = (e, id) => { dragId.current = id; setDragging(id); e.dataTransfer.effectAllowed = "move"; };
+  const onDragOver  = (e, id) => { e.preventDefault(); e.dataTransfer.dropEffect = "move"; if (id !== dragId.current) setDragOver(id); };
+  const onDragLeave = (e, id) => { if (!e.currentTarget.contains(e.relatedTarget)) setDragOver(prev => prev === id ? null : prev); };
   const onDrop = (e, id) => {
     e.preventDefault();
     if (!dragId.current || dragId.current === id) { setDragOver(null); return; }
@@ -571,7 +733,7 @@ export default function TrackerHub({ archivedTrackers = [], onArchive, onUnarchi
   };
   const onDragEnd = () => { setDragOver(null); setDragging(null); dragId.current = null; };
 
-  const activeOrder = order.filter(id => !archivedTrackers.includes(id));
+  const activeOrder  = order.filter(id => !archivedTrackers.includes(id));
   const archivedList = order.filter(id => archivedTrackers.includes(id));
 
   const deleteCustomTracker = (id) => {
@@ -580,38 +742,38 @@ export default function TrackerHub({ archivedTrackers = [], onArchive, onUnarchi
     localStorage.setItem('sanctum_custom_trackers', JSON.stringify(updated));
   };
 
+  const handleTrackerUpdate = (updated) => {
+    setCustomTrackers(prev => prev.map(t => t.id === updated.id ? updated : t));
+    setDetailTracker(updated);
+  };
+
+  // When a custom tracker is open, render detail full page
+  if (detailTracker) {
+    return (
+      <CustomTrackerDetail
+        tracker={detailTracker}
+        onClose={() => setDetailTracker(null)}
+        user={user}
+        onUpdate={handleTrackerUpdate}
+      />
+    );
+  }
+
   const renderCard = (id) => {
     const t = TRACKERS.find(x => x.id === id);
     if (!t) return null;
     const ring = getRingProps(t.id, ringData);
-
-    const cls = [
-      "tracker-card",
-      dragging === id ? "is-dragging" : "",
-      dragOver === id ? "drag-over" : "",
-    ].filter(Boolean).join(" ");
-
+    const cls = ["tracker-card", dragging === id ? "is-dragging" : "", dragOver === id ? "drag-over" : ""].filter(Boolean).join(" ");
     return (
-      <div
-        key={t.id}
-        className={cls}
-        draggable
-        onDragStart={e => onDragStart(e, t.id)}
-        onDragOver={e  => onDragOver(e, t.id)}
-        onDragLeave={e => onDragLeave(e, t.id)}
-        onDrop={e      => onDrop(e, t.id)}
-        onDragEnd={onDragEnd}
-        onClick={() => onNavigate(t.id)}
-      >
+      <div key={t.id} className={cls} draggable
+        onDragStart={e => onDragStart(e, t.id)} onDragOver={e => onDragOver(e, t.id)}
+        onDragLeave={e => onDragLeave(e, t.id)} onDrop={e => onDrop(e, t.id)}
+        onDragEnd={onDragEnd} onClick={() => onNavigate(t.id)}>
         <div className="drag-handle" style={{ position: "absolute", top: 12, left: 14 }}>
           <Icon name="grab" size={12} />
         </div>
-
-        <button
-          className="tracker-archive-btn"
-          title="Archive tracker"
-          onClick={e => { e.stopPropagation(); onArchive(t.id); }}
-        >
+        <button className="tracker-archive-btn" title="Archive tracker"
+          onClick={e => { e.stopPropagation(); onArchive(t.id); }}>
           <svg width="14" height="14" viewBox="0 0 24 24" fill="none"
             stroke="currentColor" strokeWidth="2" strokeLinecap="round">
             <polyline points="21 8 21 21 3 21 3 8"/>
@@ -619,7 +781,6 @@ export default function TrackerHub({ archivedTrackers = [], onArchive, onUnarchi
             <line x1="10" y1="12" x2="14" y2="12"/>
           </svg>
         </button>
-
         <div className="tc-ring"><MiniRing percent={ring.percent} color={ring.color} /></div>
         <div className="tc-icon"><Icon name={t.icon} size={22} color="var(--t2)" /></div>
         <div className="tc-name">{t.name}</div>
@@ -632,24 +793,18 @@ export default function TrackerHub({ archivedTrackers = [], onArchive, onUnarchi
     const ws = getWeekStart();
     const thisWeekCount = trackerEntries.filter(e => e.tracker_id === tracker.id && new Date(e.date) >= ws).length;
     const percent = thisWeekCount / (tracker.weekly_goal || 3);
-
     return (
       <div key={tracker.id} className="tracker-card" onClick={() => setDetailTracker(tracker)}>
-        <button
-          className="tracker-archive-btn"
-          title="Delete tracker"
-          onClick={e => { e.stopPropagation(); if (confirm(`Delete "${tracker.label}" tracker?`)) deleteCustomTracker(tracker.id); }}
-        >
+        <button className="tracker-archive-btn" title="Delete tracker"
+          onClick={e => { e.stopPropagation(); if (confirm(`Delete "${tracker.label}" tracker?`)) deleteCustomTracker(tracker.id); }}>
           <svg width="14" height="14" viewBox="0 0 24 24" fill="none"
             stroke="currentColor" strokeWidth="2.5" strokeLinecap="round">
-            <line x1="18" y1="6" x2="6" y2="18"/>
-            <line x1="6" y1="6" x2="18" y2="18"/>
+            <line x1="18" y1="6" x2="6" y2="18"/><line x1="6" y1="6" x2="18" y2="18"/>
           </svg>
         </button>
-
         <div className="tc-ring"><MiniRing percent={percent} color={tracker.color} /></div>
         <div className="tc-icon">
-          <div style={{ width:36, height:36, borderRadius:10, background: tracker.color + '22', display:'flex', alignItems:'center', justifyContent:'center' }}>
+          <div style={{ width: 36, height: 36, borderRadius: 10, background: tracker.color + '22', display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
             <Icon name={tracker.icon || 'trackers'} size={18} color={tracker.color} />
           </div>
         </div>
@@ -675,38 +830,28 @@ export default function TrackerHub({ archivedTrackers = [], onArchive, onUnarchi
       </div>
 
       <div className="archived-section">
-        <button
-          className="btn ghost"
+        <button className="btn ghost"
           style={{ fontSize: 13, color: "var(--t3)", padding: "6px 0", gap: 6, display: "flex", alignItems: "center" }}
-          onClick={() => setArchivedOpen(o => !o)}
-        >
+          onClick={() => setArchivedOpen(o => !o)}>
           {archivedOpen ? "▲" : "▶"} Archived ({archivedList.length})
         </button>
         {archivedOpen && (
           <div className="archived-grid">
-            {archivedList.length === 0 ? (
-              <div style={{ fontSize: 13, color: "var(--t3)" }}>No archived trackers</div>
-            ) : archivedList.map(id => {
-              const t = TRACKERS.find(x => x.id === id);
-              if (!t) return null;
-              return (
-                <div key={t.id} className="archived-card">
-                  <span>{t.name}</span>
-                  <button className="btn sm" onClick={() => onUnarchive(t.id)}>Restore</button>
-                </div>
-              );
-            })}
+            {archivedList.length === 0
+              ? <div style={{ fontSize: 13, color: "var(--t3)" }}>No archived trackers</div>
+              : archivedList.map(id => {
+                  const t = TRACKERS.find(x => x.id === id);
+                  if (!t) return null;
+                  return (
+                    <div key={t.id} className="archived-card">
+                      <span>{t.name}</span>
+                      <button className="btn sm" onClick={() => onUnarchive(t.id)}>Restore</button>
+                    </div>
+                  );
+                })}
           </div>
         )}
       </div>
-
-      {detailTracker && (
-        <CustomTrackerDetail
-          tracker={detailTracker}
-          onClose={() => setDetailTracker(null)}
-          user={user}
-        />
-      )}
     </div>
   );
 }
