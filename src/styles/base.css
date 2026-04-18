@@ -862,13 +862,14 @@
   /* ── Tracker hub ── */
   .tracker-hub { display: grid; grid-template-columns: repeat(auto-fill, minmax(240px, 1fr)); gap: 18px; }
   .tracker-card {
-    background: var(--glass-bg);
-    backdrop-filter: var(--glass-blur); -webkit-backdrop-filter: var(--glass-blur);
-    border: 1px solid var(--glass-border);
-    border-radius: var(--r2); padding: 26px; cursor: pointer;
-    transition: all .2s; position: relative; overflow: hidden;
+    background: var(--bg1);
+    border: 1px solid var(--b2);
+    border-radius: 16px; padding: 20px; cursor: pointer;
+    transition: border-color .15s, transform .15s;
+    position: relative; overflow: hidden;
+    min-height: 160px; display: flex; flex-direction: column; justify-content: flex-end;
   }
-  .tracker-card:hover { border-color: var(--blueb); transform: translateY(-2px); box-shadow: 0 8px 32px rgba(0,0,0,0.3); }
+  .tracker-card:hover { border-color: var(--blue); transform: translateY(-2px); box-shadow: 0 8px 32px rgba(0,0,0,0.3); }
   .tracker-card::before {
     content: ''; position: absolute; top: 0; left: 0; right: 0; height: 2px;
     background: linear-gradient(90deg, var(--blue), var(--purple));
