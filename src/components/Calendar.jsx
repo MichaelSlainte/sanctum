@@ -22,12 +22,15 @@ const TIMEZONES = [
   { id: "America/Sao_Paulo",   label: "São Paulo (BRT)" },
 ];
 
+// All repeat option IDs (used for label lookup in detail modal)
 const REPEATS = [
-  { id: "none",    label: "Does not repeat" },
-  { id: "daily",   label: "Daily"           },
-  { id: "weekly",  label: "Weekly"          },
-  { id: "monthly", label: "Monthly"         },
-  { id: "yearly",  label: "Yearly"          },
+  { id: "none",    label: "Does not repeat"          },
+  { id: "daily",   label: "Daily"                    },
+  { id: "weekday", label: "Every weekday (Mon–Fri)"  },
+  { id: "weekly",  label: "Weekly"                   },
+  { id: "monthly", label: "Monthly"                  },
+  { id: "yearly",  label: "Yearly"                   },
+  { id: "custom",  label: "Custom"                   },
 ];
 
 const REMINDERS = [
@@ -37,6 +40,71 @@ const REMINDERS = [
   { id: "1hour",  label: "1 hour before"       },
   { id: "1day",   label: "1 day before"        },
 ];
+
+// 15-minute interval time options
+const TIME_OPTIONS = [];
+for (let h = 0; h < 24; h++) {
+  for (let m = 0; m < 60; m += 15) {
+    const hh = String(h).padStart(2, "0");
+    const mm = String(m).padStart(2, "0");
+    const label = h === 0 ? `12:${mm} AM`
+      : h < 12  ? `${h}:${mm} AM`
+      : h === 12 ? `12:${mm} PM`
+      : `${h - 12}:${mm} PM`;
+    TIME_OPTIONS.push({ value: `${hh}:${mm}`, label });
+  }
+}
+
+const TIME_PRESETS = [
+  { label: "Morning",   time: "09:00" },
+  { label: "Lunch",     time: "12:00" },
+  { label: "Afternoon", time: "14:00" },
+  { label: "Evening",   time: "18:00" },
+  { label: "Night",     time: "20:00" },
+];
+
+// Add 1 hour to a HH:MM string
+const addOneHour = (t) => {
+  if (!t) return "";
+  const [h, m] = t.split(":").map(Number);
+  return `${String((h + 1) % 24).padStart(2, "0")}:${String(m).padStart(2, "0")}`;
+};
+
+// Dynamic repeat labels that incorporate the selected date
+const getRepeatOptions = (dateStr) => {
+  const d = dateStr ? new Date(dateStr + "T00:00:00") : null;
+  const dayName  = d ? d.toLocaleDateString("en-IE", { weekday: "long" }) : "day";
+  const dateNum  = d ? d.getDate() : "date";
+  const monthDay = d ? d.toLocaleDateString("en-IE", { month: "long", day: "numeric" }) : "date";
+  return [
+    { id: "none",    label: "Does not repeat"                },
+    { id: "daily",   label: "Daily"                         },
+    { id: "weekday", label: "Every weekday (Mon–Fri)"       },
+    { id: "weekly",  label: `Weekly on ${dayName}`          },
+    { id: "monthly", label: `Monthly on the ${dateNum}`     },
+    { id: "yearly",  label: `Yearly on ${monthDay}`         },
+    { id: "custom",  label: "Custom…"                       },
+  ];
+};
+
+const buildRepeatSummary = (fd) => {
+  if (!fd.repeat || fd.repeat === "none") return "";
+  const d = fd.date ? new Date(fd.date + "T00:00:00") : null;
+  let base = "";
+  if (fd.repeat === "daily")   base = "Repeats daily";
+  else if (fd.repeat === "weekday") base = "Repeats every weekday (Mon–Fri)";
+  else if (fd.repeat === "weekly")  base = `Repeats weekly on ${d ? d.toLocaleDateString("en-IE",{weekday:"long"}) : "..."}`;
+  else if (fd.repeat === "monthly") base = `Repeats monthly on the ${d ? d.getDate() : "..."}`;
+  else if (fd.repeat === "yearly")  base = `Repeats yearly on ${d ? d.toLocaleDateString("en-IE",{month:"long",day:"numeric"}) : "..."}`;
+  else if (fd.repeat === "custom") {
+    const u = fd.repeatCustomUnit || "week";
+    const n = fd.repeatCustomInterval || 2;
+    base = `Repeats every ${n} ${u}${n > 1 ? "s" : ""}`;
+  }
+  if (fd.repeatEnd === "until" && fd.repeatEndDate)       base += `, until ${fd.repeatEndDate}`;
+  else if (fd.repeatEnd === "count" && fd.repeatEndCount) base += `, ${fd.repeatEndCount} time${fd.repeatEndCount != 1 ? "s" : ""}`;
+  return base;
+};
 
 const catOf    = (ev) => CATS.find(c => c.id === ev.category) || CATS[0];
 const badgeCls = (cat) =>
@@ -48,6 +116,8 @@ const BLANK_FORM = {
   timezone: () => localStorage.getItem("sanctum_timezone") || "Europe/Dublin",
   location: "", notes: "",
   repeat: "none", reminder: "none",
+  repeatEnd: "forever", repeatEndDate: "", repeatEndCount: 10,
+  repeatCustomInterval: 2, repeatCustomUnit: "week",
   shared: false,
 };
 
@@ -81,11 +151,33 @@ const getEventsForDate = (events, dateStr) => {
     const base   = new Date(ev.date + "T00:00:00");
     const target = new Date(dateStr + "T00:00:00");
     if (target <= base) continue;
+
+    // Check repeat end
+    if (ev.repeatEnd === "until" && ev.repeatEndDate) {
+      if (target > new Date(ev.repeatEndDate + "T00:00:00")) continue;
+    }
+
     let matches = false;
     if      (ev.repeat === "daily")   matches = true;
+    else if (ev.repeat === "weekday") { const d = target.getDay(); matches = d >= 1 && d <= 5; }
     else if (ev.repeat === "weekly")  matches = base.getDay() === target.getDay();
     else if (ev.repeat === "monthly") matches = base.getDate() === target.getDate();
     else if (ev.repeat === "yearly")  matches = base.getMonth() === target.getMonth() && base.getDate() === target.getDate();
+    else if (ev.repeat === "custom") {
+      const interval = ev.repeatCustomInterval || 2;
+      const unit     = ev.repeatCustomUnit     || "week";
+      const diffDays = Math.round((target - base) / 86400000);
+      if      (unit === "day")   matches = diffDays % interval === 0;
+      else if (unit === "week")  matches = diffDays % (interval * 7) === 0;
+      else if (unit === "month") {
+        const md = (target.getFullYear() - base.getFullYear()) * 12 + (target.getMonth() - base.getMonth());
+        matches = md % interval === 0 && target.getDate() === base.getDate();
+      }
+      else if (unit === "year") {
+        const yd = target.getFullYear() - base.getFullYear();
+        matches = yd % interval === 0 && target.getMonth() === base.getMonth() && target.getDate() === base.getDate();
+      }
+    }
     if (matches) results.push({ ...ev, date: dateStr, _virtual: true, id: `${ev.id}_v_${dateStr}` });
   }
   return results;
@@ -123,7 +215,7 @@ export default function Calendar({ initialDate }) {
 
   const openAdd = (dateStr, presetTime = "") => {
     setEditingEvent(null);
-    setFormData({ ...makeBlank(), date: dateStr, start_time: presetTime });
+    setFormData({ ...makeBlank(), date: dateStr, start_time: presetTime, end_time: presetTime ? addOneHour(presetTime) : "" });
     setShowAdd(true);
   };
 
@@ -131,17 +223,22 @@ export default function Calendar({ initialDate }) {
     setActiveEvent(null);
     setEditingEvent(ev);
     setFormData({
-      title:      ev.title      || "",
-      category:   ev.category   || "personal",
-      date:       ev.date       || "",
-      start_time: ev.start_time || ev.time || "",
-      end_time:   ev.end_time   || "",
-      timezone:   ev.timezone   || localStorage.getItem("sanctum_timezone") || "Europe/Dublin",
-      location:   ev.location   || "",
-      notes:      ev.notes      || "",
-      repeat:     ev.repeat     || "none",
-      reminder:   ev.reminder   || "none",
-      shared:     ev.shared     || false,
+      title:               ev.title               || "",
+      category:            ev.category            || "personal",
+      date:                ev.date                || "",
+      start_time:          ev.start_time          || ev.time || "",
+      end_time:            ev.end_time            || "",
+      timezone:            ev.timezone            || localStorage.getItem("sanctum_timezone") || "Europe/Dublin",
+      location:            ev.location            || "",
+      notes:               ev.notes               || "",
+      repeat:              ev.repeat              || "none",
+      reminder:            ev.reminder            || "none",
+      repeatEnd:           ev.repeatEnd           || "forever",
+      repeatEndDate:       ev.repeatEndDate       || "",
+      repeatEndCount:      ev.repeatEndCount      || 10,
+      repeatCustomInterval: ev.repeatCustomInterval || 2,
+      repeatCustomUnit:    ev.repeatCustomUnit    || "week",
+      shared:              ev.shared              || false,
     });
     setShowAdd(true);
   };
@@ -152,19 +249,24 @@ export default function Calendar({ initialDate }) {
     if (!formData.title.trim() || !formData.date) return;
     const cat = catOf({ category: formData.category });
     const payload = {
-      title:      formData.title.trim(),
-      date:       formData.date,
-      category:   formData.category,
-      color:      cat.color,
-      start_time: formData.start_time || null,
-      end_time:   formData.end_time   || null,
-      timezone:   formData.timezone,
-      location:   formData.location   || null,
-      notes:      formData.notes      || null,
-      repeat:     formData.repeat,
-      reminder:   formData.reminder,
-      shared:     formData.shared,
-      shared_with: formData.shared ? ["Tamara"] : [],
+      title:               formData.title.trim(),
+      date:                formData.date,
+      category:            formData.category,
+      color:               cat.color,
+      start_time:          formData.start_time          || null,
+      end_time:            formData.end_time            || null,
+      timezone:            formData.timezone,
+      location:            formData.location            || null,
+      notes:               formData.notes               || null,
+      repeat:              formData.repeat,
+      reminder:            formData.reminder,
+      repeatEnd:           formData.repeat !== "none" ? formData.repeatEnd           : "forever",
+      repeatEndDate:       formData.repeat !== "none" ? formData.repeatEndDate       : null,
+      repeatEndCount:      formData.repeat !== "none" ? formData.repeatEndCount      : null,
+      repeatCustomInterval: formData.repeat === "custom" ? formData.repeatCustomInterval : null,
+      repeatCustomUnit:    formData.repeat === "custom" ? formData.repeatCustomUnit    : null,
+      shared:              formData.shared,
+      shared_with:         formData.shared ? ["Tamara"] : [],
     };
     if (editingEvent) {
       try { await sb.from("events").update(payload, { id: editingEvent.id }); } catch {}
@@ -189,6 +291,14 @@ export default function Calendar({ initialDate }) {
   };
 
   const setF = (k, v) => setFormData(f => ({ ...f, [k]: v }));
+
+  const setStartTime = (val) => {
+    setFormData(f => ({ ...f, start_time: val, end_time: val ? addOneHour(val) : f.end_time }));
+  };
+
+  const applyTimePreset = (t) => {
+    setFormData(f => ({ ...f, start_time: t, end_time: addOneHour(t) }));
+  };
 
   // ── Monthly grid ──
   const firstDay    = new Date(year, month, 1).getDay();
@@ -230,6 +340,10 @@ export default function Calendar({ initialDate }) {
     return result.sort((a, b) => a.date.localeCompare(b.date));
   })();
 
+  const repeatOpts    = getRepeatOptions(formData.date);
+  const repeatSummary = buildRepeatSummary(formData);
+  const hasRepeat     = formData.repeat !== "none";
+
   // ── Render ──
   return (
     <div className="page-body page-enter">
@@ -245,19 +359,41 @@ export default function Calendar({ initialDate }) {
               onKeyDown={e => e.key === "Enter" && saveEvent()} />
           </div>
 
-          {/* Date | Start | End */}
-          <div className="form-row" style={{ display: "grid", gridTemplateColumns: "1fr 1fr 1fr", gap: 10 }}>
-            <div>
-              <label className="form-label">Date</label>
-              <input className="inp" type="date" value={formData.date} onChange={e => setF("date", e.target.value)} />
+          {/* Date */}
+          <div className="form-row">
+            <label className="form-label">Date</label>
+            <input className="inp" type="date" value={formData.date} onChange={e => setF("date", e.target.value)} />
+          </div>
+
+          {/* Time quick presets */}
+          <div className="form-row">
+            <label className="form-label">Time</label>
+            <div style={{ display: "flex", gap: 6, flexWrap: "wrap", marginBottom: 8 }}>
+              {TIME_PRESETS.map(p => (
+                <button key={p.label} className="time-quick-btn"
+                  style={{ padding: "4px 10px", borderRadius: 6, background: "var(--bg2)", border: "1px solid var(--b2)", fontSize: 11, color: "var(--t2)", cursor: "pointer" }}
+                  onMouseOver={e => e.currentTarget.style.background = "var(--b2)"}
+                  onMouseOut={e  => e.currentTarget.style.background = "var(--bg2)"}
+                  onClick={() => applyTimePreset(p.time)}>
+                  {p.label} {p.time.replace(/^0/, "").replace(":00","").replace(":","h")}
+                </button>
+              ))}
             </div>
-            <div>
-              <label className="form-label">Start time</label>
-              <input className="inp" type="time" value={formData.start_time} onChange={e => setF("start_time", e.target.value)} />
-            </div>
-            <div>
-              <label className="form-label">End time</label>
-              <input className="inp" type="time" value={formData.end_time} onChange={e => setF("end_time", e.target.value)} />
+            <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: 10 }}>
+              <div>
+                <label className="form-label" style={{ fontSize: 10 }}>Start</label>
+                <select className="inp" value={formData.start_time} onChange={e => setStartTime(e.target.value)}>
+                  <option value="">No time</option>
+                  {TIME_OPTIONS.map(o => <option key={o.value} value={o.value}>{o.label}</option>)}
+                </select>
+              </div>
+              <div>
+                <label className="form-label" style={{ fontSize: 10 }}>End</label>
+                <select className="inp" value={formData.end_time} onChange={e => setF("end_time", e.target.value)}>
+                  <option value="">No end time</option>
+                  {TIME_OPTIONS.map(o => <option key={o.value} value={o.value}>{o.label}</option>)}
+                </select>
+              </div>
             </div>
           </div>
 
@@ -286,6 +422,9 @@ export default function Calendar({ initialDate }) {
                 onChange={e => setF("location", e.target.value)}
                 placeholder="Add location or address" style={{ paddingLeft: 30 }} />
             </div>
+            <div style={{ fontSize: 11, color: "var(--t3)", marginTop: 4 }}>
+              Enter address, place name, or Eircode
+            </div>
           </div>
 
           {/* Repeat | Reminder */}
@@ -293,7 +432,7 @@ export default function Calendar({ initialDate }) {
             <div>
               <label className="form-label">Repeat</label>
               <select className="inp" value={formData.repeat} onChange={e => setF("repeat", e.target.value)}>
-                {REPEATS.map(r => <option key={r.id} value={r.id}>{r.label}</option>)}
+                {repeatOpts.map(r => <option key={r.id} value={r.id}>{r.label}</option>)}
               </select>
             </div>
             <div>
@@ -303,6 +442,69 @@ export default function Calendar({ initialDate }) {
               </select>
             </div>
           </div>
+
+          {/* Custom repeat interval */}
+          {formData.repeat === "custom" && (
+            <div className="form-row">
+              <label className="form-label">Custom interval</label>
+              <div style={{ display: "flex", gap: 8, alignItems: "center" }}>
+                <span style={{ fontSize: 13, color: "var(--t2)" }}>Every</span>
+                <input className="inp" type="number" min={1} max={99}
+                  value={formData.repeatCustomInterval}
+                  onChange={e => setF("repeatCustomInterval", Math.max(1, parseInt(e.target.value)||1))}
+                  style={{ width: 64, textAlign: "center" }} />
+                <select className="inp" value={formData.repeatCustomUnit}
+                  onChange={e => setF("repeatCustomUnit", e.target.value)}
+                  style={{ flex: 1 }}>
+                  <option value="day">Day(s)</option>
+                  <option value="week">Week(s)</option>
+                  <option value="month">Month(s)</option>
+                  <option value="year">Year(s)</option>
+                </select>
+              </div>
+            </div>
+          )}
+
+          {/* Repeat end */}
+          {hasRepeat && (
+            <div className="form-row">
+              <label className="form-label">Ends</label>
+              <div style={{ display: "flex", flexDirection: "column", gap: 8 }}>
+                {[
+                  { id: "forever", label: "Forever" },
+                  { id: "until",   label: "Until date" },
+                  { id: "count",   label: "After" },
+                ].map(opt => (
+                  <label key={opt.id} style={{ display: "flex", alignItems: "center", gap: 10, fontSize: 13, color: "var(--t2)", cursor: "pointer" }}>
+                    <input type="radio" name="repeatEnd" value={opt.id}
+                      checked={formData.repeatEnd === opt.id}
+                      onChange={() => setF("repeatEnd", opt.id)}
+                      style={{ accentColor: "var(--blue)" }} />
+                    <span>{opt.label}</span>
+                    {opt.id === "until" && formData.repeatEnd === "until" && (
+                      <input className="inp" type="date" value={formData.repeatEndDate}
+                        onChange={e => setF("repeatEndDate", e.target.value)}
+                        style={{ flex: 1, marginLeft: 4 }} />
+                    )}
+                    {opt.id === "count" && formData.repeatEnd === "count" && (
+                      <div style={{ display: "flex", alignItems: "center", gap: 6, marginLeft: 4 }}>
+                        <input className="inp" type="number" min={1} max={999}
+                          value={formData.repeatEndCount}
+                          onChange={e => setF("repeatEndCount", Math.max(1, parseInt(e.target.value)||1))}
+                          style={{ width: 70, textAlign: "center" }} />
+                        <span style={{ fontSize: 13, color: "var(--t3)" }}>occurrences</span>
+                      </div>
+                    )}
+                  </label>
+                ))}
+              </div>
+              {repeatSummary && (
+                <div style={{ fontSize: 12, color: "var(--t3)", marginTop: 8, fontStyle: "italic" }}>
+                  {repeatSummary}
+                </div>
+              )}
+            </div>
+          )}
 
           {/* Notes */}
           <div className="form-row">
