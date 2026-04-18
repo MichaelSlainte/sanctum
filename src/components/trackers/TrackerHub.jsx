@@ -1,5 +1,19 @@
-import { useState, useRef } from "react";
+import { useState, useRef, useEffect } from "react";
 import { Icon } from "../shared";
+import { sb } from "../../lib/supabase";
+
+const MiniRing = ({ percent, color }) => {
+  const r = 16, circ = 2 * Math.PI * r;
+  const offset = circ - circ * Math.min(Math.max(percent, 0), 1);
+  return (
+    <svg width="40" height="40" viewBox="0 0 40 40">
+      <circle cx="20" cy="20" r={r} fill="none" style={{ stroke: "var(--b2)" }} strokeWidth="4" />
+      <circle cx="20" cy="20" r={r} fill="none" style={{ stroke: color }}
+        strokeWidth="4" strokeDasharray={circ} strokeDashoffset={offset}
+        strokeLinecap="round" transform="rotate(-90 20 20)" />
+    </svg>
+  );
+};
 
 export function PlaceholderPage({ label, emoji }) {
   return (
@@ -32,6 +46,38 @@ const TRACKERS = [
 ];
 
 export default function TrackerHub({ onNavigate }) {
+  const [ringData, setRingData] = useState({ studyHours: 0, studyTarget: 150, activeApps: 0, financeRatio: 0, ozzyRing: 0 });
+
+  useEffect(() => {
+    const load = async () => {
+      try {
+        const [sessions, apps, finance] = await Promise.all([
+          sb.from("study_sessions").select("*"),
+          sb.from("applications").select("*"),
+          sb.from("finance").select("*"),
+        ]);
+        const studyHours = Array.isArray(sessions)
+          ? sessions.filter(s => s.type === "pmp").reduce((sum, s) => sum + (s.hours || 0), 0) : 0;
+        const activeApps = Array.isArray(apps)
+          ? apps.filter(a => !["rejected","withdrawn","closed"].includes((a.status || "").toLowerCase())).length : 0;
+        const now = new Date();
+        const month = now.toLocaleDateString("en-IE", { month: "long", year: "numeric" });
+        const mf = Array.isArray(finance) ? finance.filter(f => f.month === month) : [];
+        const income   = mf.filter(f => f.category === "income").reduce((s, f) => s + Number(f.amount || 0), 0);
+        const expenses = mf.filter(f => f.category !== "income").reduce((s, f) => s + Number(f.amount || 0), 0);
+        const vets = JSON.parse(localStorage.getItem("sanctum_ozzy_vets") || "[]");
+        const nextDue = vets.map(v => v.next_due).filter(Boolean).sort()[0];
+        const ozzyDays = nextDue ? Math.ceil((new Date(nextDue) - now) / 86400000) : null;
+        setRingData({
+          studyHours, studyTarget: parseFloat(localStorage.getItem("sanctum_pmp_target")) || 150,
+          activeApps, financeRatio: income > 0 ? Math.min(expenses / income, 1) : 0,
+          ozzyRing: ozzyDays !== null ? Math.max(0, 1 - ozzyDays / 180) : 0,
+        });
+      } catch {}
+    };
+    load();
+  }, []);
+
   const [order, setOrder] = useState(() => {
     const known = TRACKERS.map(t => t.id);
     try {
@@ -104,7 +150,13 @@ export default function TrackerHub({ onNavigate }) {
               <div className="drag-handle" style={{ position:"absolute", top:12, left:14 }}>
                 <Icon name="grab" size={12} />
               </div>
-              <div className="tc-arrow"><Icon name="chevR" size={16} /></div>
+              <div className="tc-ring">
+                {t.id === "study"   && <MiniRing percent={ringData.studyHours / ringData.studyTarget} color="var(--purple)" />}
+                {t.id === "career"  && <MiniRing percent={ringData.activeApps / 10} color="var(--amber)" />}
+                {t.id === "finance" && <MiniRing percent={ringData.financeRatio} color="var(--grn)" />}
+                {t.id === "pet"     && <MiniRing percent={ringData.ozzyRing} color="var(--pink)" />}
+                {t.id === "travel"  && <MiniRing percent={0.4} color="var(--blue)" />}
+              </div>
               <div className="tc-emoji">{t.emoji}</div>
               <div className="tc-name">{t.name}</div>
               <div className="tc-sub">{t.sub}</div>

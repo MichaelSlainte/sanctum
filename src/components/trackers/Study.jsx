@@ -28,7 +28,7 @@ export default function Study() {
   const [showAddPmp, setShowAddPmp] = useState(false);
   const [newPmp, setNewPmp] = useState({ topic: "", hours: "", notes: "", date: today.toISOString().slice(0, 10) });
 
-  const TOPICS = [
+  const DEFAULT_TOPICS = [
     { id: "integration",    label: "Integration Management",    icon: "🔗" },
     { id: "scope",          label: "Scope Management",          icon: "📐" },
     { id: "schedule",       label: "Schedule Management",       icon: "📅" },
@@ -42,13 +42,46 @@ export default function Study() {
     { id: "agile",          label: "Agile & Hybrid",            icon: "🔄" },
     { id: "ethics",         label: "Ethics & Professional",     icon: "🎯" },
   ];
+  const [topics, setTopics] = useState(() => {
+    try { const s = JSON.parse(localStorage.getItem("sanctum_pmbok_topics")); if (Array.isArray(s) && s.length > 0) return s; } catch {}
+    return DEFAULT_TOPICS;
+  });
+  const [editTopicId,   setEditTopicId]   = useState(null);
+  const [editTopicText, setEditTopicText] = useState("");
+
+  const saveTopics = (t) => { localStorage.setItem("sanctum_pmbok_topics", JSON.stringify(t)); setTopics(t); };
+  const moveTopicUp   = (i) => { if (i === 0) return; const t = [...topics]; [t[i-1], t[i]] = [t[i], t[i-1]]; saveTopics(t); };
+  const moveTopicDown = (i) => { if (i === topics.length-1) return; const t = [...topics]; [t[i+1], t[i]] = [t[i], t[i+1]]; saveTopics(t); };
+  const deleteTopic   = (id) => saveTopics(topics.filter(t => t.id !== id));
+  const addTopic      = () => {
+    const id = `topic_${Date.now()}`;
+    const t = [...topics, { id, label: "New Topic", icon: "📖" }];
+    saveTopics(t); setEditTopicId(id); setEditTopicText("New Topic");
+  };
+  const saveTopicName = (id) => {
+    if (editTopicText.trim()) saveTopics(topics.map(t => t.id === id ? { ...t, label: editTopicText.trim() } : t));
+    setEditTopicId(null);
+  };
 
   // ── TryHackMe ──
   const [thmSessions, setThmSessions] = useState([]);
   const [showAddThm, setShowAddThm] = useState(false);
   const [newThm, setNewThm] = useState({ room_name: "", category: "", completed: true, date: today.toISOString().slice(0, 10), notes: "" });
 
-  const THM_CATS = ["Network", "Web", "Crypto", "Linux", "Windows", "OSINT", "Forensics", "Malware", "Reverse Engineering", "Misc"];
+  const DEFAULT_THM_CATS = ["Network", "Web", "Crypto", "Linux", "Windows", "OSINT", "Forensics", "Malware", "Reverse Engineering", "Misc"];
+  const [thmCats, setThmCats] = useState(() => {
+    try { const s = JSON.parse(localStorage.getItem("sanctum_thm_cats")); if (Array.isArray(s) && s.length > 0) return s; } catch {}
+    return DEFAULT_THM_CATS;
+  });
+  const [editCatIdx,  setEditCatIdx]  = useState(null);
+  const [editCatText, setEditCatText] = useState("");
+
+  const saveThmCats = (c) => { localStorage.setItem("sanctum_thm_cats", JSON.stringify(c)); setThmCats(c); };
+  const addThmCat   = () => { const c = [...thmCats, "New Category"]; saveThmCats(c); setEditCatIdx(c.length-1); setEditCatText("New Category"); };
+  const saveCatName = (idx) => {
+    if (editCatText.trim()) { const c = [...thmCats]; c[idx] = editCatText.trim(); saveThmCats(c); }
+    setEditCatIdx(null);
+  };
 
   // ── Load ──
   useEffect(() => { loadAll(); }, []);
@@ -90,11 +123,13 @@ export default function Study() {
   // ── PMP derived ──
   const totalHours = pmpSessions.reduce((s, x) => s + (x.hours || 0), 0);
   const weekStart = new Date(today);
-  weekStart.setDate(today.getDate() - today.getDay() + 1);
+  weekStart.setDate(today.getDate() - (today.getDay() === 0 ? 6 : today.getDay() - 1));
+  weekStart.setHours(0, 0, 0, 0);
   const thisWeekHours = pmpSessions
     .filter(s => new Date(s.date) >= weekStart)
     .reduce((s, x) => s + (x.hours || 0), 0);
-  const topicHours = TOPICS.map(t => ({
+  const weeksLeft = Math.ceil(daysLeft / 7);
+  const topicHours = topics.map(t => ({
     ...t,
     hours: pmpSessions.filter(s => s.topic === t.id).reduce((s, x) => s + (x.hours || 0), 0)
   }));
@@ -113,7 +148,7 @@ export default function Study() {
     }
     return streak;
   })();
-  const thmByCategory = THM_CATS.map(cat => ({
+  const thmByCategory = thmCats.map(cat => ({
     cat,
     count: thmSessions.filter(s => s.category === cat).length
   })).filter(x => x.count > 0).sort((a, b) => b.count - a.count);
@@ -189,7 +224,7 @@ export default function Study() {
               <div className="stat-icon" style={{ background: "rgba(239,68,68,0.15)" }}>⏰</div>
               <div className="stat-label">Days to exam</div>
               <div className="stat-value" style={{ color: daysLeft < 60 ? "var(--red)" : daysLeft < 120 ? "var(--amber)" : "var(--t1)" }}>{daysLeft}</div>
-              <div className="stat-sub">PMP — Jul 7 2026</div>
+              <div className="stat-sub">{weeksLeft} weeks · Jul 7 2026</div>
               <div className="stat-bar"><div className="stat-fill red" style={{ width: `${Math.max(0, 100 - (daysLeft / 365) * 100)}%` }} /></div>
             </div>
             <div className="stat">
@@ -214,24 +249,67 @@ export default function Study() {
             </div>
           </div>
 
+          {/* Weekly completion ring */}
+          {(() => {
+            const r = 52, circ = 2 * Math.PI * r;
+            const pct = Math.min(thisWeekHours / weeklyGoal, 1);
+            const offset = circ - circ * pct;
+            const ringColor = pct >= 1 ? "var(--grn)" : pct >= 0.5 ? "var(--amber)" : "var(--red)";
+            return (
+              <div className="weekly-ring-wrap">
+                <svg width="120" height="120" viewBox="0 0 120 120">
+                  <circle cx="60" cy="60" r={r} fill="none" style={{ stroke: "var(--b2)" }} strokeWidth="8" />
+                  <circle cx="60" cy="60" r={r} fill="none" style={{ stroke: ringColor }}
+                    strokeWidth="8" strokeDasharray={circ} strokeDashoffset={offset}
+                    strokeLinecap="round" transform="rotate(-90 60 60)" />
+                  <text x="60" y="54" textAnchor="middle" fontSize="22" fontWeight="700"
+                    style={{ fill: "var(--t1)", fontFamily: "var(--mono)" }}>{thisWeekHours.toFixed(1)}h</text>
+                  <text x="60" y="71" textAnchor="middle" fontSize="12" style={{ fill: "var(--t3)" }}>/ {weeklyGoal}h goal</text>
+                  <text x="60" y="87" textAnchor="middle" fontSize="10" style={{ fill: ringColor }}>
+                    {pct >= 1 ? "Goal met! 🎉" : pct >= 0.5 ? "Halfway there" : "Keep pushing"}
+                  </text>
+                </svg>
+                <div className="weekly-ring-label">This week's progress</div>
+              </div>
+            );
+          })()}
+
           <div className="grid-2 mb18">
             <div className="card">
               <div className="card-header">
-                <div><div className="card-title">PMBOK Topics</div><div className="card-sub">Hours per knowledge area</div></div>
+                <div><div className="card-title">PMBOK Topics</div><div className="card-sub">Click name to rename · ▲▼ to reorder</div></div>
               </div>
-              {topicHours.map(t => (
-                <div key={t.id} style={{ marginBottom: 10 }}>
-                  <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: 4 }}>
-                    <span style={{ fontSize: 12, color: "var(--t2)", display: "flex", alignItems: "center", gap: 6 }}>
-                      <span>{t.icon}</span>{t.label}
-                    </span>
-                    <span style={{ fontSize: 11, fontFamily: "var(--mono)", color: t.hours > 0 ? "var(--blue)" : "var(--t3)" }}>{t.hours.toFixed(1)}h</span>
+              {topicHours.map((t, idx) => (
+                <div key={t.id} style={{ display: "flex", alignItems: "center", gap: 8, marginBottom: 8, paddingBottom: 8, borderBottom: "1px solid var(--b1)" }}>
+                  <div style={{ display: "flex", flexDirection: "column", gap: 1 }}>
+                    <button className="btn xs ghost" style={{ padding: "0 5px", fontSize: 9, lineHeight: 1.4 }}
+                      onClick={() => moveTopicUp(idx)} disabled={idx === 0}>▲</button>
+                    <button className="btn xs ghost" style={{ padding: "0 5px", fontSize: 9, lineHeight: 1.4 }}
+                      onClick={() => moveTopicDown(idx)} disabled={idx === topics.length - 1}>▼</button>
                   </div>
-                  <div className="stat-bar" style={{ margin: 0 }}>
-                    <div className="stat-fill" style={{ width: `${Math.min((t.hours / Math.max(totalHours, 1)) * 100 * TOPICS.length / 2, 100)}%`, background: t.hours > 0 ? "var(--blue)" : "var(--b3)" }} />
-                  </div>
+                  <span style={{ fontSize: 14, flexShrink: 0 }}>{t.icon}</span>
+                  {editTopicId === t.id ? (
+                    <input className="inp" style={{ flex: 1, padding: "3px 8px", fontSize: 12 }}
+                      value={editTopicText} autoFocus
+                      onChange={e => setEditTopicText(e.target.value)}
+                      onBlur={() => saveTopicName(t.id)}
+                      onKeyDown={e => { if (e.key === "Enter") saveTopicName(t.id); if (e.key === "Escape") setEditTopicId(null); }} />
+                  ) : (
+                    <div onClick={() => { setEditTopicId(t.id); setEditTopicText(t.label); }}
+                      style={{ flex: 1, fontSize: 12, color: "var(--t2)", cursor: "text" }}>{t.label}</div>
+                  )}
+                  <span style={{ fontSize: 11, fontFamily: "var(--mono)", color: t.hours > 0 ? "var(--blue)" : "var(--t3)", minWidth: 36, textAlign: "right" }}>
+                    {t.hours.toFixed(1)}h
+                  </span>
+                  {t.hours === 0 && (
+                    <button className="btn xs danger" style={{ padding: "2px 6px", fontSize: 11 }}
+                      onClick={() => deleteTopic(t.id)}>×</button>
+                  )}
                 </div>
               ))}
+              <button className="btn sm" style={{ marginTop: 8, width: "100%", justifyContent: "center" }} onClick={addTopic}>
+                + Add topic
+              </button>
             </div>
 
             <div className="card">
@@ -246,7 +324,7 @@ export default function Study() {
                 </div>
               )}
               {pmpSessions.slice(0, 10).map(s => {
-                const topic = TOPICS.find(t => t.id === s.topic);
+                const topic = topics.find(t => t.id === s.topic);
                 return (
                   <div key={s.id} className="fin-row">
                     <div style={{ display: "flex", alignItems: "center", gap: 10, flex: 1 }}>
@@ -296,7 +374,7 @@ export default function Study() {
                   <label className="form-label">Category</label>
                   <select className="inp" value={newThm.category} onChange={e => setNewThm(n => ({ ...n, category: e.target.value }))}>
                     <option value="">Select category...</option>
-                    {THM_CATS.map(c => <option key={c} value={c}>{c}</option>)}
+                    {thmCats.map(c => <option key={c} value={c}>{c}</option>)}
                   </select>
                 </div>
               </div>
@@ -404,6 +482,35 @@ export default function Study() {
                   <button className="btn xs danger" onClick={() => deleteThmSession(s.id)}><Icon name="trash" size={11} /></button>
                 </div>
               ))}
+            </div>
+          </div>
+
+          {/* Editable categories */}
+          <div className="card">
+            <div className="card-header">
+              <div><div className="card-title">Categories</div><div className="card-sub">Click to rename · × removes if unused</div></div>
+              <button className="btn sm primary" onClick={addThmCat}><Icon name="plus" size={13} /> Add</button>
+            </div>
+            <div style={{ display: "flex", flexWrap: "wrap", gap: 8 }}>
+              {thmCats.map((cat, idx) => {
+                const used = thmSessions.filter(s => s.category === cat).length > 0;
+                return editCatIdx === idx ? (
+                  <input key={idx} className="inp" style={{ width: 160, padding: "4px 10px", fontSize: 12 }}
+                    value={editCatText} autoFocus
+                    onChange={e => setEditCatText(e.target.value)}
+                    onBlur={() => saveCatName(idx)}
+                    onKeyDown={e => { if (e.key === "Enter") saveCatName(idx); if (e.key === "Escape") setEditCatIdx(null); }} />
+                ) : (
+                  <div key={idx} style={{ display: "flex", alignItems: "center", gap: 4, background: "var(--bg2)", border: "1px solid var(--b2)", borderRadius: 8, padding: "4px 10px" }}>
+                    <span style={{ fontSize: 12, color: "var(--t2)", cursor: "text" }}
+                      onClick={() => { setEditCatIdx(idx); setEditCatText(cat); }}>{cat}</span>
+                    {!used && (
+                      <button style={{ fontSize: 13, color: "var(--t3)", background: "none", border: "none", cursor: "pointer", padding: "0 2px", lineHeight: 1 }}
+                        onClick={() => saveThmCats(thmCats.filter((_, i) => i !== idx))}>×</button>
+                    )}
+                  </div>
+                );
+              })}
             </div>
           </div>
         </>

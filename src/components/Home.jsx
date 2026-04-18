@@ -418,6 +418,7 @@ export default function Home({ user, onNavigate, onGoToCalendarDay }) {
   const [aiLoading, setAiLoading] = useState(false);
   const [aiResponse, setAiResponse] = useState(null);
   const aiInputRef = useRef(null);
+  const [pmpSessions, setPmpSessions] = useState([]);
 
   // Drag-and-drop card ordering
   const CARD_IDS = ["pmp", "scotland", "msc", "tasks"];
@@ -596,7 +597,7 @@ export default function Home({ user, onNavigate, onGoToCalendarDay }) {
   const todayDow = now.getDay() === 0 ? 6 : now.getDay() - 1;
   const weekDates = DAYS.map((_, i) => { const d = new Date(now); d.setDate(now.getDate() - todayDow + i); return d; });
 
-  useEffect(() => { loadTasks(); loadEvents(); }, []);
+  useEffect(() => { loadTasks(); loadEvents(); loadStudy(); }, []);
 
   const loadTasks = async () => {
     setTasksLoading(true);
@@ -608,6 +609,13 @@ export default function Home({ user, onNavigate, onGoToCalendarDay }) {
   const loadEvents = async () => {
     try { const d = await sb.from("events").select("*"); if (Array.isArray(d)) setEvents(d); }
     catch {}
+  };
+
+  const loadStudy = async () => {
+    try {
+      const d = await sb.from("study_sessions").select("*");
+      if (Array.isArray(d)) setPmpSessions(d.filter(s => s.type === "pmp"));
+    } catch {}
   };
 
   const toggleTask = async (t) => {
@@ -724,6 +732,39 @@ For all other queries respond in plain conversational text, warm but concise, ma
   const daysToScotland = daysTo(SCOTLAND_DATE);
   const daysToMSc      = daysTo(MSC_DATE);
 
+  const weeklyGoalHours = parseFloat(localStorage.getItem("sanctum_study_goal")) || 10;
+  const thisMonday = new Date(now);
+  thisMonday.setDate(now.getDate() - todayDow);
+  thisMonday.setHours(0, 0, 0, 0);
+  const weeklyStudyData = Array.from({ length: 6 }, (_, i) => {
+    const wStart = new Date(thisMonday.getTime() - (5 - i) * 7 * 86400000);
+    const wEnd   = new Date(wStart.getTime() + 7 * 86400000);
+    const hours  = pmpSessions
+      .filter(s => { const d = new Date(s.date); return d >= wStart && d < wEnd; })
+      .reduce((sum, s) => sum + (s.hours || 0), 0);
+    return { hours, label: `${wStart.getDate()}/${wStart.getMonth() + 1}` };
+  });
+  const maxWkHours = Math.max(...weeklyStudyData.map(w => w.hours), weeklyGoalHours * 0.3, 1);
+
+  const RingCard = ({ label, value, sub, percent, color }) => {
+    const r = 34, circ = 2 * Math.PI * r;
+    const offset = circ - circ * Math.min(Math.max(percent, 0), 1);
+    return (
+      <>
+        <svg width="80" height="80" viewBox="0 0 80 80">
+          <circle cx="40" cy="40" r={r} fill="none" style={{ stroke: "var(--b2)" }} strokeWidth="5" />
+          <circle cx="40" cy="40" r={r} fill="none" style={{ stroke: color }}
+            strokeWidth="5" strokeDasharray={circ} strokeDashoffset={offset}
+            strokeLinecap="round" transform="rotate(-90 40 40)" />
+          <text x="40" y="36" textAnchor="middle" fontSize="14" fontWeight="700"
+            style={{ fill: "var(--t1)", fontFamily: "var(--mono)" }}>{value}</text>
+          <text x="40" y="50" textAnchor="middle" fontSize="9" style={{ fill: "var(--t3)" }}>{sub}</text>
+        </svg>
+        <div className="ring-label">{label}</div>
+      </>
+    );
+  };
+
   return (
     <div className="page-body page-enter">
       {showAddTask && (
@@ -811,10 +852,10 @@ For all other queries respond in plain conversational text, warm but concise, ma
         )}
       </div>
 
-      {/* Quick stats — draggable */}
+      {/* Quick stats — ring cards, draggable */}
       <div className="grid-4 mb18">
         {cardOrder.map(id => {
-          const cls = `stat${dragging === id ? " is-dragging" : ""}${dragOver === id ? " drag-over" : ""}`;
+          const cls = `ring-card${dragging === id ? " is-dragging" : ""}${dragOver === id ? " drag-over" : ""}`;
           const drag = {
             'data-card-id': id,
             draggable: true,
@@ -830,45 +871,58 @@ For all other queries respond in plain conversational text, warm but concise, ma
           if (id === "pmp") return (
             <div key="pmp" className={cls} {...drag}>
               <div className="drag-handle" style={{ position:"absolute", top:8, right:8 }}><Icon name="grab" size={12} /></div>
-              <div className="stat-icon" style={{ background: "rgba(139,92,246,0.15)" }}><Icon name="study" size={18} color="var(--purple)" /></div>
-              <div className="stat-label">PMP Exam</div>
-              <div className="stat-value" style={{ color: daysToExam < 60 ? "var(--red)" : daysToExam < 120 ? "var(--amber)" : "var(--t1)" }}>{daysToExam}d</div>
-              <div className="stat-sub">Jul 7 2026</div>
-              <div className="stat-bar"><div className="stat-fill" style={{ width: `${Math.min(Math.max(0, 100 - (daysToExam / 420) * 100), 100)}%` }} /></div>
+              <RingCard label="PMP EXAM" value={`${daysToExam}d`} sub="days left"
+                percent={Math.max(0, (420 - daysToExam) / 420)}
+                color={daysToExam < 60 ? "var(--red)" : daysToExam < 120 ? "var(--amber)" : "var(--purple)"} />
             </div>
           );
           if (id === "scotland") return (
             <div key="scotland" className={cls} {...drag}>
               <div className="drag-handle" style={{ position:"absolute", top:8, right:8 }}><Icon name="grab" size={12} /></div>
-              <div className="stat-icon" style={{ background: "rgba(59,130,246,0.15)" }}><Icon name="travel" size={18} color="var(--blue)" /></div>
-              <div className="stat-label">Scotland trip</div>
-              <div className="stat-value">{daysToScotland}d</div>
-              <div className="stat-sub">Sep 7 · Tamara + Ozzy</div>
-              <div className="stat-bar"><div className="stat-fill amber" style={{ width: `${Math.min(Math.max(0, 100 - (daysToScotland / 420) * 100), 100)}%` }} /></div>
+              <RingCard label="SCOTLAND" value={`${daysToScotland}d`} sub="Sep 7"
+                percent={Math.max(0, (420 - daysToScotland) / 420)}
+                color="var(--blue)" />
             </div>
           );
           if (id === "msc") return (
             <div key="msc" className={cls} {...drag}>
               <div className="drag-handle" style={{ position:"absolute", top:8, right:8 }}><Icon name="grab" size={12} /></div>
-              <div className="stat-icon" style={{ background: "rgba(16,185,129,0.15)" }}><Icon name="lock" size={18} color="var(--grn)" /></div>
-              <div className="stat-label">MSc Cybersecurity</div>
-              <div className="stat-value">{daysToMSc}d</div>
-              <div className="stat-sub">SETU — Sep 14 2026</div>
-              <div className="stat-bar"><div className="stat-fill grn" style={{ width: `${Math.min(Math.max(0, 100 - (daysToMSc / 420) * 100), 100)}%` }} /></div>
+              <RingCard label="MSC SETU" value={`${daysToMSc}d`} sub="Sep 14"
+                percent={Math.max(0, (420 - daysToMSc) / 420)}
+                color="var(--grn)" />
             </div>
           );
           if (id === "tasks") return (
             <div key="tasks" className={cls} {...drag} onClick={() => setShowAddTask(true)}>
               <div className="drag-handle" style={{ position:"absolute", top:8, right:8 }}><Icon name="grab" size={12} /></div>
-              <div className="stat-icon" style={{ background: "rgba(245,158,11,0.15)" }}><Icon name="check" size={18} color="var(--amber)" /></div>
-              <div className="stat-label">Active tasks</div>
-              <div className="stat-value">{activeTasks.length}</div>
-              <div className="stat-sub">{archivedTasks.length} completed · click to add</div>
-              <div className="stat-bar"><div className="stat-fill amber" style={{ width: tasks.length ? `${(activeTasks.length / tasks.length) * 100}%` : "0%" }} /></div>
+              <RingCard label="TASKS" value={activeTasks.length}
+                sub={`${archivedTasks.length} done`}
+                percent={tasks.length ? archivedTasks.length / tasks.length : 0}
+                color="var(--amber)" />
             </div>
           );
           return null;
         })}
+      </div>
+
+      {/* Weekly PMP study chart */}
+      <div style={{ marginBottom: 18, padding: "16px 20px", background: "var(--bg1)", border: "1px solid var(--b2)", borderRadius: 16 }}>
+        <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: 10 }}>
+          <div style={{ fontSize: 11, fontWeight: 600, color: "var(--t3)", textTransform: "uppercase", letterSpacing: "1px" }}>PMP study · last 6 weeks</div>
+          <div style={{ fontSize: 11, color: "var(--t3)", fontFamily: "var(--mono)" }}>Goal: {weeklyGoalHours}h/wk</div>
+        </div>
+        <div className="study-week-chart">
+          {weeklyStudyData.map((w, i) => {
+            const pct = Math.min(w.hours / maxWkHours, 1);
+            const cls2 = w.hours >= weeklyGoalHours ? "met" : w.hours >= weeklyGoalHours * 0.5 ? "partial" : "unmet";
+            return (
+              <div key={i} className="swc-bar-wrap" title={`${w.hours.toFixed(1)}h`}>
+                <div className={`swc-bar ${cls2}`} style={{ height: `${Math.max(pct * 100, 6)}%` }} />
+                <div className="swc-label">{w.label}</div>
+              </div>
+            );
+          })}
+        </div>
       </div>
 
       {/* Tasks + Week + Trackers (drag to reorder) */}
