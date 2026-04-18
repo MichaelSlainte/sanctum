@@ -5064,7 +5064,7 @@ RESPONSE RULES — choose one format only:
               <div className="user-avatar" title={email}>{initials}</div>
             </div>
           </div>
-          {page !== 'home' && (
+          {['calendar','trackers','settings'].includes(page) && (
             <div className="global-ai-bar-wrap" style={{padding:'12px 24px 0'}}>
               <div className="ai-bar">
                 <div className="ai-avatar"><Icon name="ai" size={15} color="#fff"/></div>
