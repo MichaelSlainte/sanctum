@@ -191,6 +191,8 @@ export default function App() {
   const globalAIRef = useRef(null);
   const [mobileAIOpen, setMobileAIOpen] = useState(false);
   const [calendarRefreshKey, setCalendarRefreshKey] = useState(0);
+  const [trackersRefreshKey, setTrackersRefreshKey] = useState(0);
+  const [globalAIHistory, setGlobalAIHistory] = useState([]);
 
   // Draggable AI FAB position
   const [fabPos, setFabPos] = useState(() => {
@@ -231,6 +233,12 @@ export default function App() {
     setGlobalAIResponse({ text: 'Thinking...', type: 'loading' });
     try {
       const todayISO = new Date().toISOString().slice(0, 10);
+      const trackerCreationInstructions = page === 'trackers' ? `
+- Create custom tracker → When user asks to create a tracker, guide them through a conversation one question at a time:
+  Step 1: Ask the tracker name. Step 2: Ask weekly goal (e.g. "3 sessions"). Step 3: Ask preferred time (e.g. "07:00"). Step 4: Ask which days (e.g. "Mon, Wed, Fri"). Step 5: Confirm and ask if they want it added to the calendar.
+  Only after confirmation, reply ONLY with valid JSON, no markdown: {"action":"create_tracker","name":"Workout","description":"Track gym sessions","icon":"trackers","color":"#10b981","weekly_goal":3,"unit":"sessions","has_ring":true,"schedule_days":["monday","wednesday","friday"],"schedule_time":"07:00","add_to_calendar":true}
+  Choose a fitting color hex (green=#10b981, blue=#388bfd, purple=#8b5cf6, amber=#f59e0b, red=#ef4444).
+  For intermediate conversation steps, reply with plain conversational text only.` : '';
       const sys = `You are Sanctum AI, a personal assistant embedded in a private life organiser app.
 Today is ${todayISO}. User: Michael, Dublin, Ireland.
 When user mentions dates, always convert to ISO format YYYY-MM-DD in your JSON response.
@@ -240,10 +248,11 @@ RESPONSE RULES — choose one format only:
 - Navigate → reply ONLY with valid JSON, no markdown: {"action":"navigate","page":"home|notes|calendar|trackers|career|study|finance|travel|pet|settings"}
 - Log study session → reply ONLY with valid JSON, no markdown: {"action":"log_study","hours":2,"topic":"Integration Management","notes":"optional"}
 - Add calendar event → reply ONLY with valid JSON, no markdown: {"action":"add_event","title":"Event title","date":"${todayISO}","start_time":"09:00","end_time":"10:00","category":"personal","notes":"optional notes"}
-  category must be one of: personal, career, travel, study, family
+  category must be one of: personal, career, travel, study, family${trackerCreationInstructions}
 - All other queries → plain conversational text, warm but concise, max 2 sentences. No JSON.`;
+      const newHistory = [...globalAIHistory, { role: 'user', content: userMsg }];
       const res = await fetch('/api/chat', { method: 'POST', headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ system: sys, messages: [{ role: 'user', content: userMsg }] }) });
+        body: JSON.stringify({ system: sys, messages: newHistory }) });
       const data = await res.json();
       const reply = (data.content?.[0]?.text || '').trim();
       try {
@@ -256,9 +265,11 @@ RESPONSE RULES — choose one format only:
           return todayISO;
         };
         if (action.action === 'navigate') {
+          setGlobalAIHistory([]);
           setGlobalAIResponse({ text: `Opening ${action.page}...`, type: 'success' });
           setTimeout(() => navigate(action.page), 400);
         } else if (action.action === 'log_study') {
+          setGlobalAIHistory([]);
           await sb.from('study_sessions').insert({
             hours: parseFloat(action.hours),
             topic: action.topic,
@@ -280,6 +291,7 @@ RESPONSE RULES — choose one format only:
           setCalendarRefreshKey(k => k + 1);
           setGlobalAIResponse({ text: `Logged ${action.hours}h — ${action.topic} ✓\nAdded to calendar`, type: 'success' });
         } else if (action.action === 'add_event') {
+          setGlobalAIHistory([]);
           await sb.from('events').insert({
             title: action.title,
             date: parseDate(action.date) || todayISO,
@@ -292,10 +304,55 @@ RESPONSE RULES — choose one format only:
           });
           setCalendarRefreshKey(k => k + 1);
           setGlobalAIResponse({ text: `Added to calendar: "${action.title}" on ${parseDate(action.date)}`, type: 'success' });
+        } else if (action.action === 'create_tracker') {
+          setGlobalAIHistory([]);
+          const tracker = {
+            id: 'custom_' + Date.now(),
+            label: action.name,
+            description: action.description || '',
+            icon: action.icon || 'trackers',
+            color: action.color || '#10b981',
+            has_ring: true,
+            weekly_goal: action.weekly_goal || 3,
+            unit: action.unit || 'sessions',
+            created_at: new Date().toISOString(),
+          };
+          const existing = JSON.parse(localStorage.getItem('sanctum_custom_trackers') || '[]');
+          localStorage.setItem('sanctum_custom_trackers', JSON.stringify([...existing, tracker]));
+          try { await sb.from('custom_trackers').insert({ ...tracker, user_id: user?.id }); } catch {}
+          if (action.add_to_calendar && action.schedule_days?.length) {
+            const dayMap = { monday:1, tuesday:2, wednesday:3, thursday:4, friday:5, saturday:6, sunday:0 };
+            for (const day of action.schedule_days) {
+              for (let week = 0; week < 8; week++) {
+                const d = new Date();
+                const targetDay = dayMap[day.toLowerCase()];
+                const currentDay = d.getDay();
+                const daysUntil = (targetDay - currentDay + 7) % 7 || 7;
+                d.setDate(d.getDate() + daysUntil + (week * 7));
+                try {
+                  await sb.from('events').insert({
+                    title: action.name,
+                    date: d.toISOString().slice(0, 10),
+                    start_time: action.schedule_time || '07:00',
+                    end_time: null,
+                    category: 'personal',
+                    color: action.color || '#10b981',
+                    notes: '',
+                    user_id: user?.id,
+                  });
+                } catch {}
+              }
+            }
+            setCalendarRefreshKey(k => k + 1);
+          }
+          setGlobalAIResponse({ text: `Created "${action.name}" tracker${action.add_to_calendar ? ' and added 8 weeks of events to calendar' : ''}! Check your Trackers hub.`, type: 'success' });
+          setTrackersRefreshKey(k => k + 1);
         } else {
+          setGlobalAIHistory([...newHistory, { role: 'assistant', content: reply }]);
           setGlobalAIResponse({ text: cleaned, type: 'text' });
         }
       } catch {
+        setGlobalAIHistory([...newHistory, { role: 'assistant', content: reply }]);
         setGlobalAIResponse({ text: reply || 'Got it.', type: 'text' });
       }
     } catch {
@@ -464,7 +521,7 @@ RESPONSE RULES — choose one format only:
       if (trackerPage === "finance") return <><TrackerBackBar name="Finance" onBack={() => { setTrackerPage(null); localStorage.setItem("sanctum_page","trackers"); }} /><Finance user={user} /></>;
       if (trackerPage === "travel")  return <><TrackerBackBar name="Travel" onBack={() => { setTrackerPage(null); localStorage.setItem("sanctum_page","trackers"); }} /><Travel user={user} /></>;
       if (trackerPage === "pet")     return <><TrackerBackBar name="Ozzy" onBack={() => { setTrackerPage(null); localStorage.setItem("sanctum_page","trackers"); }} /><Ozzy user={user} /></>;
-      return <TrackerHub archivedTrackers={archivedTrackers} onArchive={archiveTracker} onUnarchive={unarchiveTracker} onNavigate={navigate} />;
+      return <TrackerHub archivedTrackers={archivedTrackers} onArchive={archiveTracker} onUnarchive={unarchiveTracker} onNavigate={navigate} user={user} refreshKey={trackersRefreshKey} />;
     }
     if (page === "settings") return <Settings user={user} onLogout={handleLogout} theme={theme} onThemeChange={applyTheme} font={font} onFontChange={applyFont} />;
   };
