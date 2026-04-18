@@ -9,13 +9,11 @@ export default function Settings({ user, onLogout, theme, onThemeChange }) {
     localStorage.getItem("sanctum_display_name") ||
     emailUsername
   );
-  const [weeklyGoal, setWeeklyGoal] = useState(() => localStorage.getItem("sanctum_weekly_goal") || "10");
   const [saved, setSaved] = useState(false);
 
   const save = () => {
     localStorage.setItem(userKey, displayName);
     localStorage.setItem("sanctum_display_name", displayName); // legacy compat
-    localStorage.setItem("sanctum_weekly_goal", weeklyGoal);
     setSaved(true);
     setTimeout(() => setSaved(false), 2000);
   };
@@ -86,10 +84,6 @@ export default function Settings({ user, onLogout, theme, onThemeChange }) {
           <div className="form-row">
             <label className="form-label">Display name</label>
             <input className="inp" value={displayName} onChange={e => setDisplayName(e.target.value)} placeholder={emailUsername || "Your name"} />
-          </div>
-          <div className="form-row">
-            <label className="form-label">Weekly study goal (hours)</label>
-            <input className="inp" type="number" min="1" max="40" value={weeklyGoal} onChange={e => setWeeklyGoal(e.target.value)} />
           </div>
           <button className="btn primary" onClick={save} style={{ marginTop: 8 }}>{saved ? "✓ Saved" : "Save changes"}</button>
         </div>

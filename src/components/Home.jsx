@@ -272,9 +272,9 @@ function Dashboard({ onNavigate, onGoToCalendarDay }) {
   );
 }
 
-function AIAssistant({ onAddTask, onNavigate }) {
+function AIAssistant({ onAddTask, onDeleteTask, onNavigate }) {
   const [messages, setMessages] = useState([
-    { role: "assistant", text: "Hi Michael! I'm your Sanctum AI. I can add tasks, log study sessions, or answer questions about your life. Try: \"add a task: call the vet\" or \"log 2 hours of PMP study on risk management\"." }
+    { role: "assistant", text: "Hi Michael! I'm your Sanctum AI. Try: \"add a task: call the vet\", \"delete task: book flights\", or \"log 2 hours of PMP study on risk management\"." }
   ]);
   const [input, setInput] = useState("");
   const [loading, setLoading] = useState(false);
@@ -296,13 +296,12 @@ He is pursuing PMP certification (July 7 2026 target) and starting an MSc in Cyb
 Active job applications: Anthropic (Copyright Ops PM), Google (Sr Analyst Trust & Safety), Google (TPM Analytics EU).
 Upcoming trips: Italy Jun 12-17 2026, Scotland Sep 7-13 2026 (with Tamara and Ozzy).
 
-When asked to add/create/log something, respond ONLY with JSON:
+When the user asks to add a task, delete a task, log study hours, or navigate, respond ONLY with valid JSON (no markdown):
 - Add task: {"action":"add_task","text":"task text","tag":"optional tag"}
+- Delete task: {"action":"delete_task","text":"partial task name to match"}
 - Log study: {"action":"log_study","topic":"topic_id","hours":1.5,"notes":"optional"}
-- Navigate: {"action":"navigate","page":"dashboard|notes|calendar|career|finance|study|travel|pet|settings"}
-
-Topic IDs for study: integration, scope, schedule, cost, quality, resource, communications, risk, procurement, stakeholder, agile, ethics
-
+- Navigate: {"action":"navigate","page":"home|notes|calendar|trackers|career|study|finance|travel|pet|settings"}
+Topic IDs: integration, scope, schedule, cost, quality, resource, communications, risk, procurement, stakeholder, agile, ethics
 For everything else respond naturally in plain text. Be warm, concise, and personal. You know Michael well.`;
 
       const response = await fetch("/api/chat", {
@@ -328,12 +327,14 @@ For everything else respond naturally in plain text. Be warm, concise, and perso
         const action = JSON.parse(cleanReply);
         if (action.action === "add_task") {
           await onAddTask(action.text, action.tag || "");
-          setMessages(prev => [...prev, { role: "assistant", text: `✓ Task added: "${action.text}"${action.tag ? ` [${action.tag}]` : ""} — check your Dashboard` }]);
+          setMessages(prev => [...prev, { role: "assistant", text: `✓ Task added: "${action.text}"${action.tag ? ` [${action.tag}]` : ""}` }]);
+        } else if (action.action === "delete_task") {
+          const result = await onDeleteTask(action.text);
+          setMessages(prev => [...prev, { role: "assistant", text: result }]);
         } else if (action.action === "log_study") {
-          const sessions = JSON.parse(localStorage.getItem("sanctum_study_sessions") || "[]");
-          const s = { id: Date.now().toString(), topic: action.topic, hours: action.hours, notes: action.notes || "", date: new Date().toISOString().slice(0, 10) };
-          localStorage.setItem("sanctum_study_sessions", JSON.stringify([s, ...sessions]));
-          setMessages(prev => [...prev, { role: "assistant", text: `✓ Logged ${action.hours}h of study — ${action.topic}.` }]);
+          const todayISO = new Date().toISOString().slice(0, 10);
+          await sb.from("study_sessions").insert({ type: "pmp", topic: action.topic, hours: parseFloat(action.hours), notes: action.notes || "", date: todayISO });
+          setMessages(prev => [...prev, { role: "assistant", text: `✓ Logged ${action.hours}h of ${action.topic} study.` }]);
         } else if (action.action === "navigate") {
           onNavigate(action.page);
           setMessages(prev => [...prev, { role: "assistant", text: `Opening ${action.page}...` }]);
@@ -666,11 +667,14 @@ Career: Applications open at Anthropic (Copyright Ops PM), Google (Sr Analyst T&
 Study: PMP exam target July 7 2026. MSc Cybersecurity at SETU starts Sep 14 2026.
 Travel: Italy Jun 12-17 2026. Scotland Sep 7-13 2026 (with Tamara + Ozzy).
 Active tasks: ${activeTasks.length} open, ${archivedTasks.length} completed.
-IMPORTANT: You CANNOT read note content — notes are private and encrypted on-device.
-RESPONSE RULES — choose one format only:
-- Add task → reply ONLY with valid JSON, no markdown: {"action":"add_task","text":"task text","tag":"optional tag"}
-- Navigate  → reply ONLY with valid JSON, no markdown: {"action":"navigate","page":"home|notes|calendar|trackers|career|study|finance|travel|pet|settings"}
-- All other queries → plain conversational text, warm but concise, max 2 sentences. No JSON.`;
+Notes are private — you cannot read note content.
+When the user asks to add a task, delete a task, log study hours, or navigate, respond ONLY with valid JSON (no markdown):
+- Add task: {"action":"add_task","text":"task text","tag":"optional tag"}
+- Delete task: {"action":"delete_task","text":"partial task name to match"}
+- Log study: {"action":"log_study","hours":2,"topic":"integration","notes":"optional"}
+- Navigate: {"action":"navigate","page":"home|notes|calendar|trackers|career|study|finance|travel|pet|settings"}
+Topic IDs: integration, scope, schedule, cost, quality, resource, communications, risk, procurement, stakeholder, agile, ethics
+For all other queries respond in plain conversational text, warm but concise, max 2 sentences.`;
 
       const res  = await fetch("/api/chat", { method: "POST", headers: { "Content-Type": "application/json" },
         body: JSON.stringify({ system: sys, messages: [{ role: "user", content: userMsg }] }) });
@@ -682,6 +686,18 @@ RESPONSE RULES — choose one format only:
         if (action.action === "add_task") {
           await addTask(action.text, action.tag || "");
           setAiResponse({ text: `Added: "${action.text}"${action.tag ? ` [${action.tag}]` : ""}`, type: "success" });
+        } else if (action.action === "delete_task") {
+          const match = tasks.find(t => t.text.toLowerCase().includes(action.text.toLowerCase()));
+          if (match) {
+            await deleteTask(match.id);
+            setAiResponse({ text: `Deleted: "${match.text}"`, type: "success" });
+          } else {
+            setAiResponse({ text: `No task found matching "${action.text}"`, type: "error" });
+          }
+        } else if (action.action === "log_study") {
+          const todayISO = now.toISOString().slice(0, 10);
+          await sb.from("study_sessions").insert({ type: "pmp", topic: action.topic, hours: parseFloat(action.hours), notes: action.notes || "", date: todayISO });
+          setAiResponse({ text: `Logged ${action.hours}h of ${action.topic} study.`, type: "success" });
         } else if (action.action === "navigate") {
           setAiResponse({ text: `Opening ${action.page}...`, type: "success" });
           setTimeout(() => onNavigate(action.page), 400);

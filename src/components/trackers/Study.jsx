@@ -7,10 +7,22 @@ export default function Study() {
   const [tab, setTab] = useState("pmp");
 
   // ── PMP ──
-  const EXAM_DATE = new Date("2026-07-07T13:30");
+  const [pmpGoals, setPmpGoals] = useState({
+    examDate: localStorage.getItem("sanctum_pmp_date") || "2026-07-07",
+    weeklyGoal: localStorage.getItem("sanctum_study_goal") || "10",
+    targetHours: localStorage.getItem("sanctum_pmp_target") || "150",
+  });
+
+  const savePmpGoal = (key, val) => {
+    const keys = { examDate: "sanctum_pmp_date", weeklyGoal: "sanctum_study_goal", targetHours: "sanctum_pmp_target" };
+    localStorage.setItem(keys[key], val);
+    setPmpGoals(g => ({ ...g, [key]: val }));
+  };
+
+  const EXAM_DATE = new Date(pmpGoals.examDate + "T13:30");
   const daysLeft = Math.ceil((EXAM_DATE - today) / (1000 * 60 * 60 * 24));
-  const weeklyGoal = 10;
-  const targetHours = 150;
+  const weeklyGoal = parseFloat(pmpGoals.weeklyGoal) || 10;
+  const targetHours = parseFloat(pmpGoals.targetHours) || 150;
 
   const [pmpSessions, setPmpSessions] = useState([]);
   const [showAddPmp, setShowAddPmp] = useState(false);
@@ -153,6 +165,24 @@ export default function Study() {
               </div>
             </Modal>
           )}
+
+          <div style={{ display: "flex", gap: 12, marginBottom: 16, flexWrap: "wrap", alignItems: "center" }}>
+            <div style={{ display: "flex", alignItems: "center", gap: 6 }}>
+              <span style={{ fontSize: 11, color: "var(--t3)", fontWeight: 600, whiteSpace: "nowrap" }}>Exam date</span>
+              <input type="date" className="inp" style={{ padding: "4px 8px", fontSize: 12, width: 140 }}
+                value={pmpGoals.examDate} onChange={e => savePmpGoal("examDate", e.target.value)} />
+            </div>
+            <div style={{ display: "flex", alignItems: "center", gap: 6 }}>
+              <span style={{ fontSize: 11, color: "var(--t3)", fontWeight: 600, whiteSpace: "nowrap" }}>Weekly goal (h)</span>
+              <input type="number" className="inp" style={{ padding: "4px 8px", fontSize: 12, width: 70 }}
+                min="1" max="40" value={pmpGoals.weeklyGoal} onChange={e => savePmpGoal("weeklyGoal", e.target.value)} />
+            </div>
+            <div style={{ display: "flex", alignItems: "center", gap: 6 }}>
+              <span style={{ fontSize: 11, color: "var(--t3)", fontWeight: 600, whiteSpace: "nowrap" }}>Target total (h)</span>
+              <input type="number" className="inp" style={{ padding: "4px 8px", fontSize: 12, width: 80 }}
+                min="1" max="999" value={pmpGoals.targetHours} onChange={e => savePmpGoal("targetHours", e.target.value)} />
+            </div>
+          </div>
 
           <div className="grid-4 mb18">
             <div className="stat">
