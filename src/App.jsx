@@ -5108,7 +5108,7 @@ RESPONSE RULES — choose one format only:
 
       {/* ── Bottom nav (mobile) ── */}
       {/* ── Mobile AI FAB ── */}
-      <button className={`mobile-ai-fab${page==='notes'?' hide-fab':''}`} onClick={() => setMobileAIOpen(v => !v)} title="AI Assistant">
+      <button className={`mobile-ai-fab${!['calendar','trackers','settings'].includes(page)?' hide-fab':''}`} onClick={() => setMobileAIOpen(v => !v)} title="AI Assistant">
         <Icon name="ai" size={20} color="#fff"/>
       </button>
       <div className={`mobile-ai-panel${mobileAIOpen?' open':''}`} onClick={e => e.stopPropagation()}>
