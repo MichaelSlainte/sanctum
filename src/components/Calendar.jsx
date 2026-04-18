@@ -1,10 +1,18 @@
-import { useState, useEffect } from "react";
+import { useState, useEffect, useCallback } from "react";
 import { sb } from "../lib/supabase";
 import { Icon, Modal } from "./shared";
 
-const MONTHS = ["January","February","March","April","May","June","July","August","September","October","November","December"];
-const DAYS_S  = ["Mon","Tue","Wed","Thu","Fri","Sat","Sun"];
-const HOURS   = Array.from({ length: 15 }, (_, i) => i + 8); // 08–22
+const MONTHS       = ["January","February","March","April","May","June","July","August","September","October","November","December"];
+const MONTHS_SHORT = ["Jan","Feb","Mar","Apr","May","Jun","Jul","Aug","Sep","Oct","Nov","Dec"];
+const DAYS_S       = ["Mon","Tue","Wed","Thu","Fri","Sat","Sun"];
+const HOURS        = Array.from({ length: 15 }, (_, i) => i + 8); // 08–22
+
+const VIEWS = [
+  { id: "month", label: "Month", key: "1" },
+  { id: "week",  label: "Week",  key: "2" },
+  { id: "3day",  label: "3 Days",key: "3" },
+  { id: "year",  label: "Year",  key: "4" },
+];
 
 const CATS = [
   { id: "personal", label: "Personal", color: "#3b82f6", bg: "rgba(59,130,246,0.22)"  },
@@ -22,7 +30,6 @@ const TIMEZONES = [
   { id: "America/Sao_Paulo",   label: "São Paulo (BRT)" },
 ];
 
-// All repeat option IDs (used for label lookup in detail modal)
 const REPEATS = [
   { id: "none",    label: "Does not repeat"          },
   { id: "daily",   label: "Daily"                    },
@@ -41,7 +48,6 @@ const REMINDERS = [
   { id: "1day",   label: "1 day before"        },
 ];
 
-// 15-minute interval time options
 const TIME_OPTIONS = [];
 for (let h = 0; h < 24; h++) {
   for (let m = 0; m < 60; m += 15) {
@@ -63,14 +69,12 @@ const TIME_PRESETS = [
   { label: "Night",     time: "20:00" },
 ];
 
-// Add 1 hour to a HH:MM string
 const addOneHour = (t) => {
   if (!t) return "";
   const [h, m] = t.split(":").map(Number);
   return `${String((h + 1) % 24).padStart(2, "0")}:${String(m).padStart(2, "0")}`;
 };
 
-// Dynamic repeat labels that incorporate the selected date
 const getRepeatOptions = (dateStr) => {
   const d = dateStr ? new Date(dateStr + "T00:00:00") : null;
   const dayName  = d ? d.toLocaleDateString("en-IE", { weekday: "long" }) : "day";
@@ -152,7 +156,6 @@ const getEventsForDate = (events, dateStr) => {
     const target = new Date(dateStr + "T00:00:00");
     if (target <= base) continue;
 
-    // Check repeat end
     if (ev.repeatEnd === "until" && ev.repeatEndDate) {
       if (target > new Date(ev.repeatEndDate + "T00:00:00")) continue;
     }
@@ -185,15 +188,17 @@ const getEventsForDate = (events, dateStr) => {
 
 export default function Calendar({ initialDate, refreshKey }) {
   const now = new Date();
-  const [year,         setYear]        = useState(initialDate ? initialDate.getFullYear() : now.getFullYear());
-  const [month,        setMonth]       = useState(initialDate ? initialDate.getMonth()    : now.getMonth());
-  const [events,       setEvents]      = useState([]);
-  const [showAdd,      setShowAdd]     = useState(false);
-  const [editingEvent, setEditingEvent]= useState(null);
-  const [formData,     setFormData]    = useState(makeBlank);
-  const [viewMode,     setViewMode]    = useState("month");
-  const [activeEvent,  setActiveEvent] = useState(null);
-  const [weekOffset,   setWeekOffset]  = useState(0);
+  const [currentDate, setCurrentDate] = useState(initialDate || now);
+  const [calView,     setCalView]     = useState(() => localStorage.getItem("sanctum_cal_view") || "month");
+  const [events,      setEvents]      = useState([]);
+  const [showAdd,     setShowAdd]     = useState(false);
+  const [editingEvent,setEditingEvent]= useState(null);
+  const [formData,    setFormData]    = useState(makeBlank);
+  const [activeEvent, setActiveEvent] = useState(null);
+
+  // Derived
+  const year  = currentDate.getFullYear();
+  const month = currentDate.getMonth();
 
   useEffect(() => { loadEvents(); }, [refreshKey]);
 
@@ -205,6 +210,51 @@ export default function Calendar({ initialDate, refreshKey }) {
       setEvents([]);
     }
   };
+
+  const changeView = (v) => {
+    localStorage.setItem("sanctum_cal_view", v);
+    setCalView(v);
+  };
+
+  const goToPrev = useCallback(() => {
+    setCurrentDate(d => {
+      const nd = new Date(d);
+      if (calView === "month") nd.setMonth(nd.getMonth() - 1);
+      else if (calView === "week") nd.setDate(nd.getDate() - 7);
+      else if (calView === "3day") nd.setDate(nd.getDate() - 3);
+      else if (calView === "year") nd.setFullYear(nd.getFullYear() - 1);
+      return nd;
+    });
+  }, [calView]);
+
+  const goToNext = useCallback(() => {
+    setCurrentDate(d => {
+      const nd = new Date(d);
+      if (calView === "month") nd.setMonth(nd.getMonth() + 1);
+      else if (calView === "week") nd.setDate(nd.getDate() + 7);
+      else if (calView === "3day") nd.setDate(nd.getDate() + 3);
+      else if (calView === "year") nd.setFullYear(nd.getFullYear() + 1);
+      return nd;
+    });
+  }, [calView]);
+
+  const goToToday = useCallback(() => setCurrentDate(new Date()), []);
+
+  useEffect(() => {
+    const handleKey = (e) => {
+      if (e.target.tagName === "INPUT" || e.target.tagName === "TEXTAREA" || e.target.contentEditable === "true") return;
+      if (e.key === "1") changeView("month");
+      else if (e.key === "2") changeView("week");
+      else if (e.key === "3") changeView("3day");
+      else if (e.key === "4") changeView("year");
+      else if (e.key === "ArrowLeft")              goToPrev();
+      else if (e.key === "ArrowRight")             goToNext();
+      else if (e.key === "t" || e.key === "T")     goToToday();
+      else if (e.key === "n" || e.key === "N")     setShowAdd(true);
+    };
+    window.addEventListener("keydown", handleKey);
+    return () => window.removeEventListener("keydown", handleKey);
+  }, [goToPrev, goToNext, goToToday]);
 
   const openAdd = (dateStr, presetTime = "") => {
     setEditingEvent(null);
@@ -303,21 +353,27 @@ export default function Calendar({ initialDate, refreshKey }) {
   const eventsOnDay = (cell) => cell.current ? getEventsForDate(events, fmtDs(cell.day)) : [];
   const isTodayCell = (cell) => cell.current && year === now.getFullYear() && month === now.getMonth() && cell.day === now.getDate();
 
-  const prev = () => month === 0  ? (setMonth(11), setYear(y => y-1)) : setMonth(m => m-1);
-  const next = () => month === 11 ? (setMonth(0),  setYear(y => y+1)) : setMonth(m => m+1);
-
   // ── Week view ──
   const weekStart = (() => {
-    const d = new Date(now);
+    const d = new Date(currentDate);
     const dow = d.getDay() === 0 ? 6 : d.getDay() - 1;
-    d.setDate(d.getDate() - dow + weekOffset * 7);
+    d.setDate(d.getDate() - dow);
     d.setHours(0,0,0,0);
     return d;
   })();
-  const weekDays    = Array.from({ length: 7 }, (_, i) => { const d = new Date(weekStart); d.setDate(weekStart.getDate()+i); return d; });
-  const isWToday    = (date) => date.toDateString() === now.toDateString();
-  const evOnDay     = (date) => getEventsForDate(events, fmtDateStr(date)).sort((a,b) => (a.start_time||"").localeCompare(b.start_time||""));
+  const weekDays  = Array.from({ length: 7 }, (_, i) => { const d = new Date(weekStart); d.setDate(weekStart.getDate()+i); return d; });
+  const isWToday  = (date) => date.toDateString() === now.toDateString();
+  const evOnDay   = (date) => getEventsForDate(events, fmtDateStr(date)).sort((a,b) => (a.start_time||"").localeCompare(b.start_time||""));
 
+  // ── 3-day view ──
+  const threeDays = [-1, 0, 1].map(offset => {
+    const d = new Date(currentDate);
+    d.setDate(d.getDate() + offset);
+    d.setHours(0,0,0,0);
+    return d;
+  });
+
+  // ── Month events list ──
   const monthEvents = (() => {
     const seen = new Set();
     const result = [];
@@ -333,7 +389,6 @@ export default function Calendar({ initialDate, refreshKey }) {
   const repeatSummary = buildRepeatSummary(formData);
   const hasRepeat     = formData.repeat !== "none";
 
-  // Quick date helpers
   const _today = new Date();
   const todayISO    = _today.toISOString().slice(0, 10);
   const _tomorrow   = new Date(_today); _tomorrow.setDate(_today.getDate() + 1);
@@ -352,6 +407,15 @@ export default function Calendar({ initialDate, refreshKey }) {
   const DATE_MONTHS = ["January","February","March","April","May","June","July","August","September","October","November","December"];
   const DATE_YEARS  = [2025, 2026, 2027, 2028];
 
+  // ── Header title by view ──
+  const headerTitle = (() => {
+    if (calView === "month") return `${MONTHS[month]} ${year}`;
+    if (calView === "week")  return `${weekDays[0].toLocaleDateString("en-IE",{day:"numeric",month:"short"})} – ${weekDays[6].toLocaleDateString("en-IE",{day:"numeric",month:"short",year:"numeric"})}`;
+    if (calView === "3day")  return `${threeDays[0].toLocaleDateString("en-IE",{day:"numeric",month:"short"})} – ${threeDays[2].toLocaleDateString("en-IE",{day:"numeric",month:"short",year:"numeric"})}`;
+    if (calView === "year")  return `${year}`;
+    return "";
+  })();
+
   // ── Render ──
   return (
     <div className="page-body page-enter">
@@ -359,7 +423,6 @@ export default function Calendar({ initialDate, refreshKey }) {
       {/* Add / Edit modal */}
       {showAdd && (
         <Modal title={editingEvent ? "Edit event" : "Add event"} onClose={closeModal} wide>
-          {/* Title */}
           <div className="form-row">
             <input className="inp" value={formData.title}
               onChange={e => setF("title", e.target.value)}
@@ -367,10 +430,8 @@ export default function Calendar({ initialDate, refreshKey }) {
               onKeyDown={e => e.key === "Enter" && saveEvent()} />
           </div>
 
-          {/* Date */}
           <div className="form-row">
             <label className="form-label">Date</label>
-            {/* Quick date buttons */}
             <div style={{ display: "flex", gap: 6, marginBottom: 8, flexWrap: "wrap" }}>
               {QUICK_DATES.map(({ label, date }) => (
                 <button key={label}
@@ -387,7 +448,6 @@ export default function Calendar({ initialDate, refreshKey }) {
                 </button>
               ))}
             </div>
-            {/* 3-part dropdown date selector */}
             <div style={{ display: "flex", gap: 8, alignItems: "center" }}>
               <select className="inp" style={{ width: 70 }}
                 value={new Date(formData.date + "T12:00:00").getDate()}
@@ -419,7 +479,6 @@ export default function Calendar({ initialDate, refreshKey }) {
             </div>
           </div>
 
-          {/* Time quick presets */}
           <div className="form-row">
             <label className="form-label">Time</label>
             <div style={{ display: "flex", gap: 6, flexWrap: "wrap", marginBottom: 8 }}>
@@ -451,7 +510,6 @@ export default function Calendar({ initialDate, refreshKey }) {
             </div>
           </div>
 
-          {/* Category | Timezone */}
           <div className="form-row" style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: 10 }}>
             <div>
               <label className="form-label">Category</label>
@@ -467,7 +525,6 @@ export default function Calendar({ initialDate, refreshKey }) {
             </div>
           </div>
 
-          {/* Location */}
           <div className="form-row">
             <label className="form-label">Location</label>
             <div style={{ position: "relative" }}>
@@ -481,7 +538,6 @@ export default function Calendar({ initialDate, refreshKey }) {
             </div>
           </div>
 
-          {/* Repeat | Reminder */}
           <div className="form-row" style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: 10 }}>
             <div>
               <label className="form-label">Repeat</label>
@@ -497,7 +553,6 @@ export default function Calendar({ initialDate, refreshKey }) {
             </div>
           </div>
 
-          {/* Custom repeat interval */}
           {formData.repeat === "custom" && (
             <div className="form-row">
               <label className="form-label">Custom interval</label>
@@ -519,7 +574,6 @@ export default function Calendar({ initialDate, refreshKey }) {
             </div>
           )}
 
-          {/* Repeat end */}
           {hasRepeat && (
             <div className="form-row">
               <label className="form-label">Ends</label>
@@ -560,7 +614,6 @@ export default function Calendar({ initialDate, refreshKey }) {
             </div>
           )}
 
-          {/* Notes */}
           <div className="form-row">
             <label className="form-label">Notes</label>
             <textarea className="inp" value={formData.notes}
@@ -568,7 +621,6 @@ export default function Calendar({ initialDate, refreshKey }) {
               placeholder="Add details..." style={{ minHeight: 72, resize: "vertical" }} />
           </div>
 
-          {/* Share toggle */}
           <div className="form-row">
             <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", background: "rgba(255,255,255,0.03)", borderRadius: 10, padding: "10px 14px", border: "1px solid var(--b1)" }}>
               <div>
@@ -655,27 +707,35 @@ export default function Calendar({ initialDate, refreshKey }) {
       {/* Header */}
       <div className="cal-header">
         <div className="cal-month-nav">
-          {viewMode === "month" ? (
-            <>
-              <button className="btn sm" onClick={prev}><Icon name="chevL" size={14} /></button>
-              <div className="cal-month-title">{MONTHS[month]} {year}</div>
-              <button className="btn sm" onClick={next}><Icon name="chevR" size={14} /></button>
-            </>
-          ) : (
-            <>
-              <button className="btn sm" onClick={() => setWeekOffset(w => w-1)}><Icon name="chevL" size={14} /></button>
-              <div className="cal-month-title" style={{ minWidth: 280 }}>
-                {weekDays[0].toLocaleDateString("en-IE",{day:"numeric",month:"short"})} – {weekDays[6].toLocaleDateString("en-IE",{day:"numeric",month:"short",year:"numeric"})}
-              </div>
-              <button className="btn sm" onClick={() => setWeekOffset(w => w+1)}><Icon name="chevR" size={14} /></button>
-            </>
-          )}
+          <button className="btn sm" onClick={goToPrev}><Icon name="chevL" size={14} /></button>
+          <div className="cal-month-title" style={{ minWidth: calView === "week" || calView === "3day" ? 220 : undefined }}>
+            {headerTitle}
+          </div>
+          <button className="btn sm" onClick={goToNext}><Icon name="chevR" size={14} /></button>
         </div>
-        <div style={{ display: "flex", gap: 8, alignItems: "center" }}>
-          <button className="btn sm" onClick={() => { setYear(now.getFullYear()); setMonth(now.getMonth()); setWeekOffset(0); }}>Today</button>
-          <div style={{ display: "flex", background: "rgba(255,255,255,0.04)", border: "1px solid rgba(255,255,255,0.08)", borderRadius: 9, padding: 2, gap: 2 }}>
-            <button className={`btn xs${viewMode==="month"?" primary":""}`} style={{ borderRadius: 7 }} onClick={() => setViewMode("month")}>Month</button>
-            <button className={`btn xs${viewMode==="week" ?" primary":""}`} style={{ borderRadius: 7 }} onClick={() => setViewMode("week")}>Week</button>
+        <div style={{ display: "flex", gap: 8, alignItems: "center", flexDirection: "column", alignItems: "flex-end" }}>
+          <div style={{ display: "flex", gap: 8, alignItems: "center" }}>
+            <button className="btn sm" onClick={goToToday}>Today</button>
+            <div style={{ display: "flex", background: "var(--bg2)", padding: 4, borderRadius: 10, gap: 2 }}>
+              {VIEWS.map(v => (
+                <button key={v.id}
+                  onClick={() => changeView(v.id)}
+                  style={{
+                    padding: "5px 12px", borderRadius: 7, border: "none",
+                    background: calView === v.id ? "var(--bg1)" : "transparent",
+                    color: calView === v.id ? "var(--t1)" : "var(--t3)",
+                    fontWeight: calView === v.id ? 600 : 400,
+                    fontSize: 13, cursor: "pointer",
+                    boxShadow: calView === v.id ? "0 1px 3px rgba(0,0,0,0.2)" : "none",
+                    transition: "all .15s"
+                  }}>
+                  {v.label}
+                </button>
+              ))}
+            </div>
+          </div>
+          <div style={{ fontSize: 10, color: "var(--t3)" }}>
+            1 Month · 2 Week · 3 Days · 4 Year · ← → Navigate · T Today · N New
           </div>
         </div>
       </div>
@@ -690,7 +750,7 @@ export default function Calendar({ initialDate, refreshKey }) {
       </div>
 
       {/* ── Month view ── */}
-      {viewMode === "month" && (
+      {calView === "month" && (
         <div className="card mb18">
           <div className="cal-grid-header">
             {DAYS_S.map(d => <div key={d} className="cal-day-header">{d}</div>)}
@@ -727,10 +787,9 @@ export default function Calendar({ initialDate, refreshKey }) {
         </div>
       )}
 
-      {/* ── Week view — time grid ── */}
-      {viewMode === "week" && (
+      {/* ── Week view ── */}
+      {calView === "week" && (
         <div className="card mb18" style={{ padding: 0, overflow: "hidden" }}>
-          {/* Day headers */}
           <div className="week-time-grid-header">
             <div className="time-col-spacer" />
             {weekDays.map((d, i) => (
@@ -740,8 +799,6 @@ export default function Calendar({ initialDate, refreshKey }) {
               </div>
             ))}
           </div>
-
-          {/* All-day events row */}
           <div className="week-allday-row">
             <div className="week-allday-label">all day</div>
             {weekDays.map((d, i) => {
@@ -763,11 +820,8 @@ export default function Calendar({ initialDate, refreshKey }) {
               );
             })}
           </div>
-
-          {/* Scrollable time grid */}
           <div className="week-time-grid-scroll">
             <div className="week-time-grid-body">
-              {/* Hour labels */}
               <div className="week-time-col">
                 {HOURS.map(h => (
                   <div key={h} className="week-hour-label">
@@ -775,8 +829,6 @@ export default function Calendar({ initialDate, refreshKey }) {
                   </div>
                 ))}
               </div>
-
-              {/* Day columns */}
               {weekDays.map((d, i) => {
                 const timedEvs = evOnDay(d).filter(ev => ev.start_time || ev.time);
                 return (
@@ -813,8 +865,166 @@ export default function Calendar({ initialDate, refreshKey }) {
         </div>
       )}
 
+      {/* ── 3-day view ── */}
+      {calView === "3day" && (
+        <div className="card mb18" style={{ padding: 0, overflow: "hidden" }}>
+          <div className="week-time-grid-header">
+            <div className="time-col-spacer" />
+            {threeDays.map((d, i) => (
+              <div key={i} className={`week-time-grid-day-head${isWToday(d)?" today":""}`}>
+                <div className="week-col-day">{d.toLocaleDateString("en-IE",{weekday:"short"})}</div>
+                <div className="week-col-num">{d.getDate()}</div>
+              </div>
+            ))}
+          </div>
+          <div className="week-allday-row">
+            <div className="week-allday-label">all day</div>
+            {threeDays.map((d, i) => {
+              const alldayEvs = evOnDay(d).filter(ev => !ev.start_time && !ev.time);
+              return (
+                <div key={i} className="week-allday-col">
+                  {alldayEvs.map(ev => {
+                    const c = catOf(ev);
+                    return (
+                      <div key={ev.id} className="event-chip"
+                        style={{ background: c.bg, color: c.color, width: "100%", maxWidth: "100%" }}
+                        onClick={() => setActiveEvent(ev)}>
+                        {ev.shared && <span className="event-badge-s">S</span>}
+                        <span style={{ overflow: "hidden", textOverflow: "ellipsis", flex: 1, minWidth: 0 }}>{ev.title}</span>
+                      </div>
+                    );
+                  })}
+                </div>
+              );
+            })}
+          </div>
+          <div className="week-time-grid-scroll">
+            <div className="week-time-grid-body">
+              <div className="week-time-col">
+                {HOURS.map(h => (
+                  <div key={h} className="week-hour-label">
+                    {String(h).padStart(2,"0")}:00
+                  </div>
+                ))}
+              </div>
+              {threeDays.map((d, i) => {
+                const timedEvs = evOnDay(d).filter(ev => ev.start_time || ev.time);
+                return (
+                  <div key={i} className={`week-time-day-col${isWToday(d)?" today":""}`}>
+                    {HOURS.map(h => (
+                      <div key={h} className="time-slot"
+                        onClick={() => openAdd(fmtDateStr(d), `${String(h).padStart(2,"0")}:00`)} />
+                    ))}
+                    {timedEvs.map(ev => {
+                      const c   = catOf(ev);
+                      const st  = ev.start_time || ev.time || "";
+                      const top = evTop(st);
+                      if (top >= HOURS.length * 48 || top < -48) return null;
+                      const clampedTop = Math.max(0, top);
+                      const height = evHeight(st, ev.end_time);
+                      return (
+                        <div key={ev.id} className="week-grid-event"
+                          style={{ top: clampedTop, height, background: c.bg, color: c.color, border: `1px solid ${c.color}50` }}
+                          onClick={() => setActiveEvent(ev)}>
+                          <div style={{ fontSize: 9, opacity: .75, fontFamily: "var(--mono)", whiteSpace: "nowrap" }}>
+                            {st}{ev.end_time ? ` – ${ev.end_time}` : ""}
+                          </div>
+                          <div style={{ fontSize: 10, fontWeight: 600, overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }}>
+                            {ev.title}
+                          </div>
+                        </div>
+                      );
+                    })}
+                  </div>
+                );
+              })}
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* ── Year view ── */}
+      {calView === "year" && (
+        <div style={{
+          display: "grid",
+          gridTemplateColumns: "repeat(4, 1fr)",
+          gap: 12,
+          marginBottom: 18,
+        }}
+          className="year-grid">
+          {Array.from({ length: 12 }, (_, i) => {
+            const mDate      = new Date(year, i, 1);
+            const mDaysIn    = new Date(year, i+1, 0).getDate();
+            const mFirstDay  = mDate.getDay();
+            const mOffset    = mFirstDay === 0 ? 6 : mFirstDay - 1;
+            const mCells     = [];
+            for (let x = 0; x < mOffset; x++) mCells.push(null);
+            for (let d = 1; d <= mDaysIn; d++) mCells.push(d);
+            while (mCells.length % 7 !== 0) mCells.push(null);
+            const mEvDates   = new Set(
+              events.filter(ev => ev.date && ev.date.startsWith(`${year}-${String(i+1).padStart(2,"0")}`)).map(ev => parseInt(ev.date.slice(8,10)))
+            );
+            const isThisMonth = i === now.getMonth() && year === now.getFullYear();
+            return (
+              <div key={i}
+                onClick={() => { setCurrentDate(new Date(year, i, 1)); changeView("month"); }}
+                style={{
+                  background: "var(--bg1)",
+                  border: `1px solid ${isThisMonth ? "var(--acc)" : "var(--b1)"}`,
+                  borderRadius: 10,
+                  padding: 12,
+                  cursor: "pointer",
+                  transition: "border-color .15s",
+                }}>
+                <div style={{ fontSize: 12, fontWeight: 600, color: isThisMonth ? "var(--acc)" : "var(--t2)", marginBottom: 8 }}>
+                  {MONTHS_SHORT[i]}
+                </div>
+                <div style={{ display: "grid", gridTemplateColumns: "repeat(7, 1fr)", gap: 1 }}>
+                  {["M","T","W","T","F","S","S"].map((d, di) => (
+                    <div key={di} style={{ fontSize: 7, color: "var(--t3)", textAlign: "center", marginBottom: 2 }}>{d}</div>
+                  ))}
+                  {mCells.map((d, ci) => {
+                    const isToday = d && d === now.getDate() && isThisMonth;
+                    const hasEv   = d && mEvDates.has(d);
+                    return (
+                      <div key={ci} style={{ textAlign: "center", position: "relative" }}>
+                        <span style={{
+                          fontSize: 8,
+                          color: isToday ? "#fff" : d ? "var(--t2)" : "transparent",
+                          background: isToday ? "var(--acc)" : "transparent",
+                          borderRadius: "50%",
+                          width: 14, height: 14,
+                          display: "inline-flex",
+                          alignItems: "center",
+                          justifyContent: "center",
+                          lineHeight: 1,
+                        }}>
+                          {d || ""}
+                        </span>
+                        {hasEv && !isToday && (
+                          <span style={{
+                            position: "absolute",
+                            bottom: 0,
+                            left: "50%",
+                            transform: "translateX(-50%)",
+                            width: 3, height: 3,
+                            borderRadius: "50%",
+                            background: "var(--acc)",
+                            display: "block",
+                          }} />
+                        )}
+                      </div>
+                    );
+                  })}
+                </div>
+              </div>
+            );
+          })}
+        </div>
+      )}
+
       {/* Month events list */}
-      {viewMode === "month" && (
+      {calView === "month" && (
         <div className="card">
           <div className="card-header">
             <div>
@@ -858,6 +1068,12 @@ export default function Calendar({ initialDate, refreshKey }) {
           )}
         </div>
       )}
+
+      <style>{`
+        @media (max-width: 768px) {
+          .year-grid { grid-template-columns: repeat(2, 1fr) !important; }
+        }
+      `}</style>
     </div>
   );
 }
