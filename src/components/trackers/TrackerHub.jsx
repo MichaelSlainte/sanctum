@@ -298,23 +298,31 @@ export default function TrackerHub({ onNavigate }) {
         {activeOrder.map(id => renderCard(id))}
       </div>
 
-      {archivedList.length > 0 && (
-        <div style={{ marginTop: 40 }}>
-          <button
-            className="btn ghost"
-            style={{ fontSize: 13, color: "var(--t3)", padding: "6px 0", gap: 6, display: "flex", alignItems: "center" }}
-            onClick={() => setArchivedOpen(o => !o)}
-          >
-            <Icon name={archivedOpen ? "chevL" : "chevR"} size={12} />
-            {archivedOpen ? "Hide archived" : `Show archived (${archivedList.length})`}
-          </button>
-          {archivedOpen && (
-            <div className="tracker-hub" style={{ marginTop: 16 }}>
-              {archivedList.map(id => renderCard(id, true))}
-            </div>
-          )}
-        </div>
-      )}
+      <div className="archived-section">
+        <button
+          className="btn ghost"
+          style={{ fontSize: 13, color: "var(--t3)", padding: "6px 0", gap: 6, display: "flex", alignItems: "center" }}
+          onClick={() => setArchivedOpen(o => !o)}
+        >
+          {archivedOpen ? "▲" : "▶"} Archived ({archivedList.length})
+        </button>
+        {archivedOpen && (
+          <div className="archived-grid">
+            {archivedList.length === 0 ? (
+              <div style={{ fontSize: 13, color: "var(--t3)" }}>No archived trackers</div>
+            ) : archivedList.map(id => {
+              const t = TRACKERS.find(x => x.id === id);
+              if (!t) return null;
+              return (
+                <div key={t.id} className="archived-card">
+                  <span>{t.name}</span>
+                  <button className="btn sm ghost" onClick={() => toggleArchive(t.id)}>Restore</button>
+                </div>
+              );
+            })}
+          </div>
+        )}
+      </div>
     </div>
   );
 }

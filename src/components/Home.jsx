@@ -419,6 +419,31 @@ export default function Home({ user, onNavigate, onGoToCalendarDay }) {
   const [aiResponse, setAiResponse] = useState(null);
   const aiInputRef = useRef(null);
   const [pmpSessions, setPmpSessions] = useState([]);
+  const [showRingCustomise, setShowRingCustomise] = useState(false);
+
+  const DEFAULT_RINGS = { pmp: true, scotland: true, msc: true, tasks: true, weekly_study: true, italy: false, thm: false };
+  const [dashboardRings, setDashboardRings] = useState(() => {
+    try {
+      const saved = JSON.parse(localStorage.getItem("sanctum_dashboard_rings"));
+      if (saved && typeof saved === "object") return { ...DEFAULT_RINGS, ...saved };
+    } catch {}
+    return DEFAULT_RINGS;
+  });
+  const [studyRingSource, setStudyRingSource] = useState(() =>
+    localStorage.getItem("sanctum_study_ring_source") || "pmp"
+  );
+
+  const toggleRing = (key) => {
+    setDashboardRings(prev => {
+      const next = { ...prev, [key]: !prev[key] };
+      localStorage.setItem("sanctum_dashboard_rings", JSON.stringify(next));
+      return next;
+    });
+  };
+  const setStudySource = (src) => {
+    setStudyRingSource(src);
+    localStorage.setItem("sanctum_study_ring_source", src);
+  };
 
   // Drag-and-drop card ordering
   const CARD_IDS = ["pmp", "scotland", "msc", "tasks"];
@@ -860,64 +885,116 @@ For all other queries respond in plain conversational text, warm but concise, ma
       </div>
 
       {/* Quick stats — ring cards, draggable */}
-      <div className="ring-cards-row grid-4 mb18">
-        {cardOrder.map(id => {
-          const cls = `ring-card${dragging === id ? " is-dragging" : ""}${dragOver === id ? " drag-over" : ""}`;
-          const drag = {
-            'data-card-id': id,
-            draggable: true,
-            onDragStart:  e => onCardDragStart(e, id),
-            onDragOver:   e => onCardDragOver(e, id),
-            onDragLeave:  e => onCardDragLeave(e, id),
-            onDrop:       e => onCardDrop(e, id),
-            onDragEnd:    onCardDragEnd,
-            onTouchStart: e => onCardTouchStart(e, id),
-            onTouchMove:  onCardTouchMove,
-            onTouchEnd:   onCardTouchEnd,
-          };
-          if (id === "pmp") return (
-            <div key="pmp" className={cls} {...drag} style={{ cursor: "pointer" }} onClick={() => onNavigate("study")}>
-              <div className="drag-handle" style={{ position:"absolute", top:8, right:8 }}><Icon name="grab" size={12} /></div>
-              <RingCard label="PMP EXAM" value={`${daysToExam}d`} sub={`${daysToExam}d · ${Math.ceil(daysToExam / 7)}w`}
-                percent={Math.max(0, (420 - daysToExam) / 420)}
-                color={daysToExam < 60 ? "var(--red)" : daysToExam < 120 ? "var(--amber)" : "var(--purple)"} />
+      <div style={{ position: "relative", marginBottom: 18 }}>
+        <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: 10 }}>
+          <div style={{ fontSize: 11, fontWeight: 600, color: "var(--t3)", textTransform: "uppercase", letterSpacing: "1px" }}>Dashboard rings</div>
+          <button
+            className="btn sm ghost"
+            style={{ fontSize: 11, gap: 4, display: "flex", alignItems: "center" }}
+            onClick={() => setShowRingCustomise(v => !v)}
+            title="Customise rings"
+          >
+            ✏ Customise
+          </button>
+        </div>
+
+        {showRingCustomise && (
+          <div className="ring-customise-panel">
+            <div style={{ fontSize: 12, fontWeight: 600, color: "var(--t2)", marginBottom: 12 }}>Choose what to show on your dashboard</div>
+            <div className="ring-customise-list">
+              {[
+                { key: "pmp",          label: "PMP Exam countdown" },
+                { key: "scotland",     label: "Scotland Trip countdown" },
+                { key: "msc",          label: "MSc SETU countdown" },
+                { key: "tasks",        label: "Active Tasks" },
+                { key: "weekly_study", label: "Weekly Study hours" },
+                { key: "italy",        label: "Italy Trip countdown" },
+                { key: "thm",          label: "TryHackMe streak" },
+              ].map(({ key, label }) => (
+                <label key={key} className="ring-customise-item">
+                  <span style={{ fontSize: 13, color: "var(--t2)", flex: 1 }}>{label}</span>
+                  <div
+                    className={`toggle-switch${dashboardRings[key] ? " on" : ""}`}
+                    onClick={() => toggleRing(key)}
+                  />
+                </label>
+              ))}
             </div>
-          );
-          if (id === "scotland") return (
-            <div key="scotland" className={cls} {...drag} style={{ cursor: "pointer" }} onClick={() => onNavigate("travel")}>
-              <div className="drag-handle" style={{ position:"absolute", top:8, right:8 }}><Icon name="grab" size={12} /></div>
-              <RingCard label="SCOTLAND" value={`${daysToScotland}d`} sub="Sep 7"
-                percent={Math.max(0, (420 - daysToScotland) / 420)}
-                color="var(--blue)" />
+            <div style={{ marginTop: 16, borderTop: "1px solid var(--b1)", paddingTop: 14 }}>
+              <div style={{ fontSize: 12, fontWeight: 600, color: "var(--t2)", marginBottom: 8 }}>Weekly study ring source</div>
+              <div style={{ display: "flex", gap: 16 }}>
+                {[["pmp", "PMP Study"], ["thm", "TryHackMe"], ["both", "Both"]].map(([val, lbl]) => (
+                  <label key={val} style={{ display: "flex", alignItems: "center", gap: 6, fontSize: 12, color: "var(--t2)", cursor: "pointer" }}>
+                    <input type="radio" name="study_source" value={val} checked={studyRingSource === val} onChange={() => setStudySource(val)} style={{ accentColor: "var(--blue)" }} />
+                    {lbl}
+                  </label>
+                ))}
+              </div>
             </div>
-          );
-          if (id === "msc") return (
-            <div key="msc" className={cls} {...drag} style={{ cursor: "pointer" }} onClick={() => onNavigate("study")}>
-              <div className="drag-handle" style={{ position:"absolute", top:8, right:8 }}><Icon name="grab" size={12} /></div>
-              <RingCard label="MSC SETU" value={`${daysToMSc}d`} sub="Sep 14"
-                percent={Math.max(0, (420 - daysToMSc) / 420)}
-                color="var(--grn)" />
-            </div>
-          );
-          if (id === "tasks") return (
-            <div key="tasks" className={cls} {...drag} onClick={() => setShowAddTask(true)}>
-              <div className="drag-handle" style={{ position:"absolute", top:8, right:8 }}><Icon name="grab" size={12} /></div>
-              <RingCard label="TASKS" value={activeTasks.length}
-                sub={`${archivedTasks.length} done`}
-                percent={tasks.length ? archivedTasks.length / tasks.length : 0}
-                color="var(--amber)" />
-            </div>
-          );
-          return null;
-        })}
+          </div>
+        )}
+
+        <div className="ring-cards-row grid-4">
+          {cardOrder.filter(id => dashboardRings[id]).map(id => {
+            const cls = `ring-card${dragging === id ? " is-dragging" : ""}${dragOver === id ? " drag-over" : ""}`;
+            const drag = {
+              'data-card-id': id,
+              draggable: true,
+              onDragStart:  e => onCardDragStart(e, id),
+              onDragOver:   e => onCardDragOver(e, id),
+              onDragLeave:  e => onCardDragLeave(e, id),
+              onDrop:       e => onCardDrop(e, id),
+              onDragEnd:    onCardDragEnd,
+              onTouchStart: e => onCardTouchStart(e, id),
+              onTouchMove:  onCardTouchMove,
+              onTouchEnd:   onCardTouchEnd,
+            };
+            if (id === "pmp") return (
+              <div key="pmp" className={cls} {...drag} style={{ cursor: "pointer" }} onClick={() => onNavigate("study")}>
+                <div className="drag-handle" style={{ position:"absolute", top:8, right:8 }}><Icon name="grab" size={12} /></div>
+                <RingCard label="PMP EXAM" value={`${daysToExam}d`} sub={`${daysToExam}d · ${Math.ceil(daysToExam / 7)}w`}
+                  percent={Math.max(0, (420 - daysToExam) / 420)}
+                  color={daysToExam < 60 ? "var(--red)" : daysToExam < 120 ? "var(--amber)" : "var(--purple)"} />
+              </div>
+            );
+            if (id === "scotland") return (
+              <div key="scotland" className={cls} {...drag} style={{ cursor: "pointer" }} onClick={() => onNavigate("travel")}>
+                <div className="drag-handle" style={{ position:"absolute", top:8, right:8 }}><Icon name="grab" size={12} /></div>
+                <RingCard label="SCOTLAND" value={`${daysToScotland}d`} sub="Sep 7"
+                  percent={Math.max(0, (420 - daysToScotland) / 420)}
+                  color="var(--blue)" />
+              </div>
+            );
+            if (id === "msc") return (
+              <div key="msc" className={cls} {...drag} style={{ cursor: "pointer" }} onClick={() => onNavigate("study")}>
+                <div className="drag-handle" style={{ position:"absolute", top:8, right:8 }}><Icon name="grab" size={12} /></div>
+                <RingCard label="MSC SETU" value={`${daysToMSc}d`} sub="Sep 14"
+                  percent={Math.max(0, (420 - daysToMSc) / 420)}
+                  color="var(--grn)" />
+              </div>
+            );
+            if (id === "tasks") return (
+              <div key="tasks" className={cls} {...drag} onClick={() => setShowAddTask(true)}>
+                <div className="drag-handle" style={{ position:"absolute", top:8, right:8 }}><Icon name="grab" size={12} /></div>
+                <RingCard label="TASKS" value={activeTasks.length}
+                  sub={`${archivedTasks.length} done`}
+                  percent={tasks.length ? archivedTasks.length / tasks.length : 0}
+                  color="var(--amber)" />
+              </div>
+            );
+            return null;
+          })}
+        </div>
       </div>
 
       {/* Weekly study completion ring */}
+      {dashboardRings.weekly_study && (
       <div style={{ display: "flex", justifyContent: "center", marginBottom: 18 }}>
         <div style={{ background: "var(--glass-bg)", border: "1px solid var(--glass-border)", borderRadius: 20, padding: "20px 32px", display: "flex", flexDirection: "column", alignItems: "center", gap: 8, backdropFilter: "blur(12px)" }}>
           {(() => {
             const r2 = 60, circ2 = 2 * Math.PI * r2;
             const off2 = circ2 - circ2 * weekPercent;
+            const srcLabel = studyRingSource === "pmp" ? "PMP Study" : studyRingSource === "thm" ? "TryHackMe" : "PMP + TryHackMe";
             return (
               <svg width="140" height="140" viewBox="0 0 140 140">
                 <circle cx="70" cy="70" r={r2} fill="none" style={{ stroke: "var(--b2)" }} strokeWidth="8" />
@@ -927,15 +1004,19 @@ For all other queries respond in plain conversational text, warm but concise, ma
                 <text x="70" y="62" textAnchor="middle" fontSize="26" fontWeight="700"
                   style={{ fill: "var(--t1)", fontFamily: "var(--mono)" }}>{thisWeekHours.toFixed(thisWeekHours % 1 === 0 ? 0 : 1)}h</text>
                 <text x="70" y="82" textAnchor="middle" fontSize="11" style={{ fill: "var(--t3)" }}>{weeklyGoalHours}h goal</text>
+                <title>{srcLabel}</title>
               </svg>
             );
           })()}
-          <div style={{ fontSize: 11, fontWeight: 600, color: "var(--t3)", textTransform: "uppercase", letterSpacing: "1px" }}>This Week · PMP Study</div>
+          <div style={{ fontSize: 11, fontWeight: 600, color: "var(--t3)", textTransform: "uppercase", letterSpacing: "1px" }}>
+            This Week · {studyRingSource === "pmp" ? "PMP Study" : studyRingSource === "thm" ? "TryHackMe" : "PMP + TryHackMe"}
+          </div>
           {weekPercent >= 1 && (
             <div style={{ fontSize: 11, fontWeight: 600, color: "var(--grn)", background: "rgba(34,197,94,0.12)", border: "1px solid rgba(34,197,94,0.3)", borderRadius: 8, padding: "2px 10px" }}>Goal reached</div>
           )}
         </div>
       </div>
+      )}
 
       {/* Weekly PMP study chart */}
       <div className="study-chart-wrap" style={{ marginBottom: 18, padding: "16px 20px", background: "var(--bg1)", border: "1px solid var(--b2)", borderRadius: 16 }}>

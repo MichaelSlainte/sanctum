@@ -1164,6 +1164,11 @@
   .tc-menu-item.danger { color: var(--red, #ef4444); }
   .tc-menu-item.danger:hover { background: rgba(239,68,68,0.1); }
 
+  /* Archived trackers section */
+  .archived-section { margin-top: 32px; border-top: 1px solid var(--b1); padding-top: 16px; }
+  .archived-grid { display: flex; gap: 10px; flex-wrap: wrap; margin-top: 12px; }
+  .archived-card { padding: 10px 16px; background: var(--bg1); border: 1px solid var(--b2); border-radius: 10px; display: flex; align-items: center; gap: 12px; font-size: 13px; color: var(--t3); }
+
   /* Sidebar nav drag states */
   .nav-item[draggable="true"] { cursor: default; }
   .nav-item.is-dragging { opacity: .35; }
@@ -1216,6 +1221,15 @@
   .swc-bar.partial { background: var(--amber); }
   .swc-bar.unmet { background: var(--b3); }
   .swc-label { font-size: 9px; color: var(--t3); font-family: var(--mono); }
+
+  /* ── Dashboard ring customise panel ── */
+  .ring-customise-panel { background: var(--bg1); border: 1px solid var(--b2); border-radius: 16px; padding: 18px 20px; margin-bottom: 16px; }
+  .ring-customise-list { display: flex; flex-direction: column; gap: 10px; }
+  .ring-customise-item { display: flex; align-items: center; gap: 12px; cursor: pointer; }
+  .toggle-switch { width: 36px; height: 20px; border-radius: 10px; background: var(--b2); position: relative; cursor: pointer; transition: background .2s; flex-shrink: 0; }
+  .toggle-switch::after { content: ''; position: absolute; top: 3px; left: 3px; width: 14px; height: 14px; border-radius: 50%; background: var(--t3); transition: transform .2s, background .2s; }
+  .toggle-switch.on { background: var(--blue); }
+  .toggle-switch.on::after { transform: translateX(16px); background: #fff; }
 
   /* ── Tracker hub mini ring ── */
   .tc-ring { position: absolute; top: 12px; right: 12px; }
