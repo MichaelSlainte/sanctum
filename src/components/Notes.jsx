@@ -45,23 +45,50 @@ const mdToHtmlPreview = (text) => {
     .replace(/\*\*(.+?)\*\*/g, '<strong>$1</strong>')
     .replace(/(?<!\*)\*([^*\n]+)\*(?!\*)/g, '<em>$1</em>')
     .replace(/`([^`]+)`/g, '<code>$1</code>')
-    .replace(/\[(.+?)\]\((.+?)\)/g, '<a href="$2" target="_blank" rel="noopener noreferrer">$1</a>');
+    .replace(/\[(.+?)\]\((.+?)\)/g, '<a href="$2" target="_blank" rel="noopener noreferrer">$1</a>')
+    .replace(/<u>(.*?)<\/u>/g, '<span style="text-decoration:underline">$1</span>');
   const lines = text.split('\n');
-  let html = '', inCode = false, codeBuf = [];
+  let html = '', inCode = false, codeBuf = [], tableBuf = [];
+  const flushTable = () => {
+    if (!tableBuf.length) return;
+    const rows = tableBuf.filter(r => !/^\|[\s|:-]+\|$/.test(r.trim()));
+    const parseRow = r => r.replace(/^\||\|$/g, '').split('|').map(c => c.trim());
+    let thtml = '<table style="border-collapse:collapse;width:100%;margin:8px 0"><thead><tr>';
+    parseRow(rows[0]).forEach(c => { thtml += `<th style="border:1px solid var(--b2);padding:6px 10px;font-size:13px;font-weight:600;color:var(--t1)">${inline(c)}</th>`; });
+    thtml += '</tr></thead><tbody>';
+    rows.slice(1).forEach(r => {
+      thtml += '<tr>';
+      parseRow(r).forEach(c => { thtml += `<td style="border:1px solid var(--b2);padding:6px 10px;font-size:13px;color:var(--t2)">${inline(c)}</td>`; });
+      thtml += '</tr>';
+    });
+    thtml += '</tbody></table>';
+    html += thtml;
+    tableBuf = [];
+  };
   for (const line of lines) {
     if (line.trim().startsWith('```')) {
+      flushTable();
       if (inCode) { html += `<pre><code>${esc(codeBuf.join('\n'))}</code></pre>`; codeBuf = []; inCode = false; }
       else { inCode = true; }
       continue;
     }
     if (inCode) { codeBuf.push(line); continue; }
+    if (/^\|.+\|/.test(line)) { tableBuf.push(line); continue; }
+    flushTable();
     const hm = line.match(/^(#{1,3}) (.*)/);
     if (hm) { html += `<h${hm[1].length}>${inline(hm[2]||'')}</h${hm[1].length}>`; continue; }
     if (line.trim() === '---') { html += '<hr>'; continue; }
+    if (/^[-*] \[[x ]\] /i.test(line)) {
+      const checked = /^[-*] \[x\] /i.test(line);
+      const content = line.replace(/^[-*] \[[x ]\] /i, '');
+      html += `<label style="display:block;padding:2px 0;font-size:inherit;color:var(--t2)"><input type="checkbox" disabled${checked?' checked':''}/> ${inline(content)}</label>`;
+      continue;
+    }
     if (/^[-*] /.test(line)) { html += `<ul><li>${inline(line.slice(2))}</li></ul>`; continue; }
     if (line.trim() === '') { html += '<br>'; continue; }
     html += `<p>${inline(line)}</p>`;
   }
+  flushTable();
   if (inCode) html += `<pre><code>${esc(codeBuf.join('\n'))}</code></pre>`;
   return html;
 };
