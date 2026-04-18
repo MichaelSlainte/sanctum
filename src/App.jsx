@@ -129,6 +129,57 @@ const TITLES = {
   settings: "Settings"
 };
 
+// ─── SANCTUM LOGO ────────────────────────────────────────────────────────────
+const SanctumLogo = ({ size = 36, theme = "dark" }) => {
+  const isTamara = theme === "tamara";
+  const treePrimary = isTamara ? "#fbc4d4" : "#e0e0e0";
+  const treeSec     = isTamara ? "#f5a8be" : "#d8d8d8";
+  const treeMid     = isTamara ? "#f099b0" : "#d0d0d0";
+  const treeFaint   = isTamara ? "#e880a0" : "#c8c8c8";
+  const treeDim     = isTamara ? "#d06080" : "#c0c0c0";
+  const treeLight   = isTamara ? "#c05070" : "#b8b8b8";
+  const treeTiny    = isTamara ? "#a04060" : "#a0a0a0";
+  const treeGhost   = isTamara ? "#804050" : "#888";
+  const circleBorder = isTamara ? "#fbc4d4" : "#222";
+  return (
+    <svg width={size} height={size} viewBox="0 0 220 220">
+      <circle cx="110" cy="110" r="105" fill="#080808" stroke={circleBorder} strokeWidth="1.5"/>
+      <circle cx="110" cy="110" r="96" fill="none" stroke="#1a1a1a" strokeWidth="0.5"/>
+      <ellipse cx="110" cy="172" rx="48" ry="5" fill="#111" stroke="#333" strokeWidth="0.5"/>
+      <path d="M110 172 Q106 158 102 145 Q98 132 100 118 Q102 105 108 95 Q114 85 118 72 Q122 58 118 45 Q114 32 110 22" fill="none" stroke={treePrimary} strokeWidth="6" strokeLinecap="round"/>
+      <path d="M107 172 Q103 155 100 140 Q97 125 99 112 Q101 98 107 88" fill="none" stroke={treeMid} strokeWidth="3" strokeLinecap="round"/>
+      <path d="M102 135 Q88 122 72 110 Q60 100 48 88" fill="none" stroke={treeSec} strokeWidth="2.5" strokeLinecap="round"/>
+      <path d="M101 120 Q86 110 70 98 Q58 88 46 76" fill="none" stroke={treeMid} strokeWidth="2" strokeLinecap="round"/>
+      <path d="M104 105 Q90 95 76 84 Q65 74 55 62" fill="none" stroke={treeFaint} strokeWidth="1.8" strokeLinecap="round"/>
+      <path d="M72 110 Q62 98 52 86" fill="none" stroke={treeDim} strokeWidth="1.3" strokeLinecap="round"/>
+      <path d="M72 110 Q66 95 62 82" fill="none" stroke={treeDim} strokeWidth="1.2" strokeLinecap="round"/>
+      <path d="M48 88 Q40 78 35 66" fill="none" stroke={treeTiny} strokeWidth="0.8" strokeLinecap="round"/>
+      <path d="M76 84 Q68 72 62 60" fill="none" stroke={treeLight} strokeWidth="1.2" strokeLinecap="round"/>
+      <path d="M55 62 Q48 52 44 40" fill="none" stroke={treeTiny} strokeWidth="0.8" strokeLinecap="round"/>
+      <path d="M46 76 Q38 66 34 54" fill="none" stroke={treeGhost} strokeWidth="0.6" strokeLinecap="round"/>
+      <path d="M114 88 Q128 76 144 64 Q156 54 168 42" fill="none" stroke={treeSec} strokeWidth="2.5" strokeLinecap="round"/>
+      <path d="M116 75 Q130 64 146 53 Q158 44 170 32" fill="none" stroke={treeMid} strokeWidth="2" strokeLinecap="round"/>
+      <path d="M114 62 Q126 52 140 42 Q152 33 162 22" fill="none" stroke={treeFaint} strokeWidth="1.8" strokeLinecap="round"/>
+      <path d="M144 64 Q154 52 162 40" fill="none" stroke={treeDim} strokeWidth="1.3" strokeLinecap="round"/>
+      <path d="M144 64 Q150 50 154 37" fill="none" stroke={treeDim} strokeWidth="1.2" strokeLinecap="round"/>
+      <path d="M168 42 Q175 30 178 18" fill="none" stroke={treeTiny} strokeWidth="0.8" strokeLinecap="round"/>
+      <path d="M140 42 Q148 30 154 18" fill="none" stroke={treeLight} strokeWidth="1.2" strokeLinecap="round"/>
+      <path d="M162 22 Q168 10 172 2" fill="none" stroke={treeTiny} strokeWidth="0.8" strokeLinecap="round"/>
+      <path d="M110 40 Q100 26 94 12" fill="none" stroke={treeFaint} strokeWidth="1.5" strokeLinecap="round"/>
+      <path d="M110 40 Q120 26 126 12" fill="none" stroke={treeFaint} strokeWidth="1.5" strokeLinecap="round"/>
+      <path d="M94 12 Q88 4 84 0" fill="none" stroke={treeTiny} strokeWidth="0.8" strokeLinecap="round"/>
+      <path d="M126 12 Q132 4 136 0" fill="none" stroke={treeTiny} strokeWidth="0.8" strokeLinecap="round"/>
+      <path d="M107 172 Q94 180 80 190 Q68 198 56 204" fill="none" stroke={treeFaint} strokeWidth="2" strokeLinecap="round"/>
+      <path d="M107 172 Q96 182 86 192 Q76 200 68 208" fill="none" stroke={treeDim} strokeWidth="1.5" strokeLinecap="round"/>
+      <path d="M110 172 Q110 184 110 196" fill="none" stroke={treeDim} strokeWidth="1.5" strokeLinecap="round"/>
+      <path d="M113 172 Q126 180 140 190 Q152 198 164 204" fill="none" stroke={treeFaint} strokeWidth="2" strokeLinecap="round"/>
+      <path d="M113 172 Q124 182 134 192 Q144 200 152 208" fill="none" stroke={treeDim} strokeWidth="1.5" strokeLinecap="round"/>
+      <path d="M80 190 Q70 196 62 204" fill="none" stroke={treeTiny} strokeWidth="1" strokeLinecap="round"/>
+      <path d="M140 190 Q150 196 158 204" fill="none" stroke={treeTiny} strokeWidth="1" strokeLinecap="round"/>
+    </svg>
+  );
+};
+
 // ─── APP ─────────────────────────────────────────────────────────────────────
 export default function App() {
   const [user, setUser] = useState(null);
@@ -386,7 +437,7 @@ RESPONSE RULES — choose one format only:
         {/* ── Sidebar (desktop) ── */}
         <aside className="sidebar">
           <div className="sidebar-logo">
-            <div className="logo-mark">S</div>
+            <SanctumLogo size={36} theme={theme} />
             <div>
               <div className="logo-name">Sanctum</div>
               <div className="logo-sub">{displayName} · Dublin</div>
