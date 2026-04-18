@@ -1071,6 +1071,8 @@
     .cal-cell { min-height: 55px; }
     .cal-grid { padding-bottom: 70px; }
     .ring-card { padding: 14px 10px; }
+    .ring-cards-row { grid-template-columns: repeat(2, 1fr); }
+    .ring-cards-row .ring-card:last-child:nth-child(odd) { grid-column: 1 / -1; }
     .ring-cards-row .ring-card svg { width: 65px; height: 65px; }
     .study-chart-wrap { overflow-x: auto; -webkit-overflow-scrolling: touch; }
     .week-view { grid-template-columns: repeat(7,1fr); gap: 4px; }
@@ -1191,6 +1193,7 @@
   .ring-card.is-dragging { opacity: .3; transform: scale(0.96); transition: opacity .15s, transform .15s; }
   .ring-card.drag-over { border-color: var(--blueb); background: rgba(59,130,246,0.12); transform: translateY(-3px) scale(1.01); box-shadow: 0 8px 28px rgba(59,130,246,0.18); }
   .ring-label { font-size: 11px; font-weight: 600; color: var(--t3); letter-spacing: .5px; text-transform: uppercase; }
+  .ring-cards-row { display: grid; grid-template-columns: repeat(5, 1fr); gap: 12px; margin-bottom: 20px; }
 
   /* ── Weekly ring (Study tracker) ── */
   .weekly-ring-wrap { display: flex; justify-content: center; align-items: center; margin: 16px 0 24px; flex-direction: column; gap: 8px; }

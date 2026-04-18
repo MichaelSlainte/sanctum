@@ -446,13 +446,13 @@ export default function Home({ user, onNavigate, onGoToCalendarDay }) {
   };
 
   // Drag-and-drop card ordering
-  const CARD_IDS = ["pmp", "scotland", "msc", "tasks"];
+  const RING_IDS = ["pmp", "scotland", "msc", "tasks", "weekly_study"];
   const [cardOrder, setCardOrder] = useState(() => {
     try {
-      const s = JSON.parse(localStorage.getItem("sanctum_home_card_order"));
-      if (Array.isArray(s) && s.length === 4 && CARD_IDS.every(id => s.includes(id))) return s;
+      const s = JSON.parse(localStorage.getItem("sanctum_ring_order"));
+      if (Array.isArray(s) && s.length === RING_IDS.length && RING_IDS.every(id => s.includes(id))) return s;
     } catch {}
-    return CARD_IDS;
+    return RING_IDS;
   });
   const [dragOver, setDragOver] = useState(null);
   const [dragging, setDragging] = useState(null);
@@ -481,7 +481,7 @@ export default function Home({ user, onNavigate, onGoToCalendarDay }) {
       if (from === -1 || to === -1) return prev;
       next.splice(from, 1);
       next.splice(to, 0, dragId.current);
-      localStorage.setItem("sanctum_home_card_order", JSON.stringify(next));
+      localStorage.setItem("sanctum_ring_order", JSON.stringify(next));
       return next;
     });
     setDragOver(null);
@@ -517,7 +517,7 @@ export default function Home({ user, onNavigate, onGoToCalendarDay }) {
         const next = [...prev];
         const from = next.indexOf(touchDragCardId.current);
         const to = next.indexOf(tid);
-        if (from !== -1 && to !== -1) { next.splice(from, 1); next.splice(to, 0, touchDragCardId.current); localStorage.setItem("sanctum_home_card_order", JSON.stringify(next)); }
+        if (from !== -1 && to !== -1) { next.splice(from, 1); next.splice(to, 0, touchDragCardId.current); localStorage.setItem("sanctum_ring_order", JSON.stringify(next)); }
         return next;
       });
     }
@@ -919,14 +919,12 @@ For all other queries respond in plain conversational text, warm but concise, ma
       {/* Quick stats — ring cards, draggable */}
       <div style={{ position: "relative", marginBottom: 18 }}>
         <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: 10 }}>
-          <div style={{ fontSize: 11, fontWeight: 600, color: "var(--t3)", textTransform: "uppercase", letterSpacing: "1px" }}>Dashboard rings</div>
+          <div style={{ fontSize: 11, fontWeight: 600, color: "var(--t3)", textTransform: "uppercase", letterSpacing: ".5px" }}>Dashboard</div>
           <button
-            className="btn sm ghost"
-            style={{ fontSize: 11, gap: 4, display: "flex", alignItems: "center" }}
+            className="btn xs"
             onClick={() => setShowRingCustomise(v => !v)}
-            title="Customise rings"
           >
-            ✏ Customise
+            Customise
           </button>
         </div>
 
@@ -966,7 +964,7 @@ For all other queries respond in plain conversational text, warm but concise, ma
           </div>
         )}
 
-        <div className="ring-cards-row grid-4">
+        <div className="ring-cards-row">
           {cardOrder.filter(id => dashboardRings[id]).map(id => {
             const cls = `ring-card${dragging === id ? " is-dragging" : ""}${dragOver === id ? " drag-over" : ""}`;
             const drag = {
@@ -1014,41 +1012,21 @@ For all other queries respond in plain conversational text, warm but concise, ma
                   color="var(--amber)" />
               </div>
             );
+            if (id === "weekly_study") return (
+              <div key="weekly_study" className={cls} {...drag} style={{ cursor: "grab" }}>
+                <div className="drag-handle" style={{ position:"absolute", top:8, right:8 }}><Icon name="grab" size={12} /></div>
+                <RingCard label="THIS WEEK · STUDY"
+                  value={`${thisWeekHours.toFixed(thisWeekHours % 1 === 0 ? 0 : 1)}h`}
+                  sub={`${weeklyGoalHours}h goal`}
+                  percent={weekPercent}
+                  color={weekRingColor} />
+              </div>
+            );
             return null;
           })}
         </div>
       </div>
 
-      {/* Weekly study completion ring */}
-      {dashboardRings.weekly_study && (
-      <div style={{ display: "flex", justifyContent: "center", marginBottom: 18 }}>
-        <div style={{ background: "var(--glass-bg)", border: "1px solid var(--glass-border)", borderRadius: 20, padding: "20px 32px", display: "flex", flexDirection: "column", alignItems: "center", gap: 8, backdropFilter: "blur(12px)" }}>
-          {(() => {
-            const r2 = 60, circ2 = 2 * Math.PI * r2;
-            const off2 = circ2 - circ2 * weekPercent;
-            const srcLabel = studyRingSource === "pmp" ? "PMP Study" : studyRingSource === "thm" ? "TryHackMe" : "PMP + TryHackMe";
-            return (
-              <svg width="140" height="140" viewBox="0 0 140 140">
-                <circle cx="70" cy="70" r={r2} fill="none" style={{ stroke: "var(--b2)" }} strokeWidth="8" />
-                <circle cx="70" cy="70" r={r2} fill="none" style={{ stroke: weekRingColor }}
-                  strokeWidth="8" strokeDasharray={circ2} strokeDashoffset={off2}
-                  strokeLinecap="round" transform="rotate(-90 70 70)" />
-                <text x="70" y="62" textAnchor="middle" fontSize="26" fontWeight="700"
-                  style={{ fill: "var(--t1)", fontFamily: "var(--mono)" }}>{thisWeekHours.toFixed(thisWeekHours % 1 === 0 ? 0 : 1)}h</text>
-                <text x="70" y="82" textAnchor="middle" fontSize="11" style={{ fill: "var(--t3)" }}>{weeklyGoalHours}h goal</text>
-                <title>{srcLabel}</title>
-              </svg>
-            );
-          })()}
-          <div style={{ fontSize: 11, fontWeight: 600, color: "var(--t3)", textTransform: "uppercase", letterSpacing: "1px" }}>
-            This Week · {studyRingSource === "pmp" ? "PMP Study" : studyRingSource === "thm" ? "TryHackMe" : "PMP + TryHackMe"}
-          </div>
-          {weekPercent >= 1 && (
-            <div style={{ fontSize: 11, fontWeight: 600, color: "var(--grn)", background: "rgba(34,197,94,0.12)", border: "1px solid rgba(34,197,94,0.3)", borderRadius: 8, padding: "2px 10px" }}>Goal reached</div>
-          )}
-        </div>
-      </div>
-      )}
 
       {/* Weekly PMP study chart */}
       <div className="study-chart-wrap" style={{ marginBottom: 18, padding: "16px 20px", background: "var(--bg1)", border: "1px solid var(--b2)", borderRadius: 16 }}>
