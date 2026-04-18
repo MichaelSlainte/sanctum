@@ -89,14 +89,23 @@ const htmlToMd = (el) => {
 
 // ─── NOTES ───────────────────────────────────────────────────────────────────
 export default function Notes() {
-  // ── Notebooks (localStorage backed) ──────────────────────────────────
+  // ── Notebooks (Supabase + localStorage backed) ───────────────────────
   const [notebooks, setNotebooks] = useState(() => {
     try { const s = localStorage.getItem('sanctum_notebooks_v2'); if (s) return JSON.parse(s); } catch {}
     return DEFAULT_NOTEBOOKS;
   });
+  useEffect(() => {
+    sb.from('notebooks').select('*').eq('id', 'singleton').then(({ data }) => {
+      if (data?.[0]?.data) {
+        setNotebooks(data[0].data);
+        localStorage.setItem('sanctum_notebooks_v2', JSON.stringify(data[0].data));
+      }
+    });
+  }, []);
   const saveNotebooks = useCallback((nbs) => {
     setNotebooks(nbs);
     localStorage.setItem('sanctum_notebooks_v2', JSON.stringify(nbs));
+    sb.from('notebooks').upsert({ id: 'singleton', data: nbs, updated_at: new Date().toISOString() });
   }, []);
   const [expandedNBs, setExpandedNBs] = useState(() => {
     try { const s = localStorage.getItem('sanctum_expanded_nbs'); if (s) return new Set(JSON.parse(s)); } catch {}
