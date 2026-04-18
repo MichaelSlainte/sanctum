@@ -179,7 +179,7 @@ export default function Study({ user }) {
                   <label className="form-label">Topic</label>
                   <select className="inp" value={newPmp.topic} onChange={e => setNewPmp(n => ({ ...n, topic: e.target.value }))}>
                     <option value="">Select topic...</option>
-                    {TOPICS.map(t => <option key={t.id} value={t.id}>{t.label}</option>)}
+                    {topics.map(t => <option key={t.id} value={t.id}>{t.label}</option>)}
                   </select>
                 </div>
                 <div className="form-row">

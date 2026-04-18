@@ -215,9 +215,7 @@ export default function Calendar({ user, initialDate, refreshKey }) {
     try {
       const data = await sb.from("events").select("*");
       setEvents(Array.isArray(data) ? data : []);
-    } catch {
-      setEvents([]);
-    }
+    } catch {}
   };
 
   const changeView = (v) => {
@@ -319,6 +317,7 @@ export default function Calendar({ user, initialDate, refreshKey }) {
     if (editingEvent) {
       try { await sb.from("events").update(payload, { id: editingEvent.id }); } catch {}
       setEvents(prev => prev.map(e => e.id === editingEvent.id ? { ...e, ...payload, id: editingEvent.id } : e));
+      await loadEvents();
     } else {
       try {
         const res     = await sb.from("events").insert(payload);

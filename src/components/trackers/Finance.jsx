@@ -3,10 +3,11 @@ import { sb } from "../../lib/supabase";
 import { Icon, Modal, CAT_ICONS } from "../shared";
 
 export default function Finance({ user }) {
+  const currentMonth = new Date().toLocaleString("en-IE", { month: "long", year: "numeric" });
   const [entries, setEntries] = useState([]);
   const [loading, setLoading] = useState(true);
   const [showAdd, setShowAdd] = useState(false);
-  const [newEntry, setNewEntry] = useState({ label: "", amount: "", category: "expense", month: "April 2026" });
+  const [newEntry, setNewEntry] = useState({ label: "", amount: "", category: "expense", month: currentMonth });
   const CATS = ["expense", "income", "mortgage", "insurance", "subscription", "savings"];
 
   useEffect(() => { loadFinance(); }, []);
@@ -29,7 +30,7 @@ export default function Finance({ user }) {
       const created = Array.isArray(res) && res[0] ? res[0] : { ...entry, id: Date.now().toString() };
       setEntries(prev => [...prev, created]);
     } catch { setEntries(prev => [...prev, { ...entry, id: Date.now().toString() }]); }
-    setNewEntry({ label: "", amount: "", category: "expense", month: "April 2026" }); setShowAdd(false);
+    setNewEntry({ label: "", amount: "", category: "expense", month: currentMonth }); setShowAdd(false);
   };
 
   const deleteEntry = async (id) => {
