@@ -151,10 +151,10 @@ export default function App() {
   const [font, setFont] = useState(() => localStorage.getItem("sanctum_font") || "default");
 
   const FONT_MAP = {
-    default: "",
-    sans: "system-ui, sans-serif",
-    mono: "'JetBrains Mono', monospace",
-    dyslexic: "'OpenDyslexic', Arial, sans-serif",
+    default: "'Inter', system-ui, sans-serif",
+    sans: "system-ui, -apple-system, sans-serif",
+    mono: "'Courier New', Courier, monospace",
+    dyslexic: "Arial, Verdana, sans-serif",
   };
 
   const applyTheme = (t) => {
@@ -164,8 +164,10 @@ export default function App() {
   };
 
   const applyFont = (f) => {
+    const family = FONT_MAP[f] || FONT_MAP.default;
     localStorage.setItem("sanctum_font", f);
-    document.body.style.fontFamily = FONT_MAP[f] ?? "";
+    document.body.style.fontFamily = family;
+    document.documentElement.style.setProperty("--sans", family);
     setFont(f);
   };
 
@@ -286,7 +288,9 @@ RESPONSE RULES — choose one format only:
   useEffect(() => {
     // Apply saved font immediately on mount
     const savedFont = localStorage.getItem("sanctum_font") || "default";
-    document.body.style.fontFamily = FONT_MAP[savedFont] ?? "";
+    const savedFamily = FONT_MAP[savedFont] || FONT_MAP.default;
+    document.body.style.fontFamily = savedFamily;
+    document.documentElement.style.setProperty("--sans", savedFamily);
 
     const init = async () => {
       let session = auth.getSession();
