@@ -136,20 +136,51 @@ export default function Study({ user }) {
   const [showAddTopicForm, setShowAddTopicForm] = useState(false);
 
   const saveTopics = (t) => { localStorage.setItem("sanctum_pmbok_topics", JSON.stringify(t)); setTopics(t); };
-  const moveTopicUp   = (i) => { if (i === 0) return; const t = [...topics]; [t[i-1], t[i]] = [t[i], t[i-1]]; saveTopics(t); };
-  const moveTopicDown = (i) => { if (i === topics.length-1) return; const t = [...topics]; [t[i+1], t[i]] = [t[i], t[i+1]]; saveTopics(t); };
-  const deleteTopic   = (id) => saveTopics(topics.filter(t => t.id !== id));
-  const addTopic      = () => {
+  const moveTopicUp = (i) => {
+    setTopics(prev => {
+      if (i === 0) return prev;
+      const t = [...prev];
+      const tmp = t[i - 1]; t[i - 1] = t[i]; t[i] = tmp;
+      localStorage.setItem("sanctum_pmbok_topics", JSON.stringify(t));
+      return t;
+    });
+  };
+  const moveTopicDown = (i) => {
+    setTopics(prev => {
+      if (i === prev.length - 1) return prev;
+      const t = [...prev];
+      const tmp = t[i + 1]; t[i + 1] = t[i]; t[i] = tmp;
+      localStorage.setItem("sanctum_pmbok_topics", JSON.stringify(t));
+      return t;
+    });
+  };
+  const deleteTopic = (id) => {
+    setTopics(prev => {
+      const t = prev.filter(x => x.id !== id);
+      localStorage.setItem("sanctum_pmbok_topics", JSON.stringify(t));
+      return t;
+    });
+  };
+  const addTopic = () => {
     const name = addTopicDraft.trim();
     if (!name) { setShowAddTopicForm(false); setAddTopicDraft(""); return; }
     const id = `topic_${Date.now()}`;
-    saveTopics([...topics, { id, label: name, icon: "notes" }]);
+    const newTopics = [...topics, { id, label: name, icon: "notes" }];
+    saveTopics(newTopics);
     setAddTopicDraft("");
     setShowAddTopicForm(false);
   };
-  const saveTopicName = (id) => {
-    if (editTopicText.trim()) saveTopics(topics.map(t => t.id === id ? { ...t, label: editTopicText.trim() } : t));
+  const saveTopicName = (id, text) => {
+    const trimmed = text.trim();
+    if (trimmed) {
+      setTopics(prev => {
+        const t = prev.map(x => x.id === id ? { ...x, label: trimmed } : x);
+        localStorage.setItem("sanctum_pmbok_topics", JSON.stringify(t));
+        return t;
+      });
+    }
     setEditTopicId(null);
+    setEditTopicText("");
   };
 
   // ── TryHackMe ──
@@ -471,37 +502,48 @@ export default function Study({ user }) {
             <div className="card">
               <div className="card-header">
                 <div><div className="card-title">PMBOK Topics</div><div className="card-sub">Click name to rename · ▲▼ to reorder</div></div>
+                {!showAddTopicForm && (
+                  <button type="button" className="btn sm primary" onClick={() => setShowAddTopicForm(true)}>
+                    <Icon name="plus" size={13} /> Add topic
+                  </button>
+                )}
               </div>
               {topicHours.map((t, idx) => (
                 <div key={t.id} style={{ display: "flex", alignItems: "center", gap: 8, marginBottom: 8, paddingBottom: 8, borderBottom: "1px solid var(--b1)" }}>
                   <div style={{ display: "flex", flexDirection: "column", gap: 1 }}>
-                    <button className="btn xs ghost" style={{ padding: "0 5px", fontSize: 9, lineHeight: 1.4 }}
+                    <button type="button" className="btn xs ghost" style={{ padding: "0 5px", fontSize: 9, lineHeight: 1.4 }}
                       onClick={() => moveTopicUp(idx)} disabled={idx === 0}>▲</button>
-                    <button className="btn xs ghost" style={{ padding: "0 5px", fontSize: 9, lineHeight: 1.4 }}
-                      onClick={() => moveTopicDown(idx)} disabled={idx === topics.length - 1}>▼</button>
+                    <button type="button" className="btn xs ghost" style={{ padding: "0 5px", fontSize: 9, lineHeight: 1.4 }}
+                      onClick={() => moveTopicDown(idx)} disabled={idx === topicHours.length - 1}>▼</button>
                   </div>
                   <span style={{ flexShrink: 0, display: "flex", alignItems: "center" }}><Icon name={t.icon || "notes"} size={14} color="var(--t3)" /></span>
                   {editTopicId === t.id ? (
                     <input className="inp" style={{ flex: 1, padding: "3px 8px", fontSize: 12 }}
                       value={editTopicText} autoFocus
                       onChange={e => setEditTopicText(e.target.value)}
-                      onBlur={() => saveTopicName(t.id)}
-                      onKeyDown={e => { if (e.key === "Enter") saveTopicName(t.id); if (e.key === "Escape") setEditTopicId(null); }} />
+                      onBlur={e => saveTopicName(t.id, e.target.value)}
+                      onKeyDown={e => {
+                        if (e.key === "Enter") { e.preventDefault(); saveTopicName(t.id, e.target.value); }
+                        if (e.key === "Escape") { setEditTopicId(null); setEditTopicText(""); }
+                      }} />
                   ) : (
-                    <div onClick={() => { setEditTopicId(t.id); setEditTopicText(t.label); }}
-                      style={{ flex: 1, fontSize: 12, color: "var(--t2)", cursor: "text" }}>{t.label}</div>
+                    <div
+                      onClick={() => { setEditTopicId(t.id); setEditTopicText(t.label); }}
+                      title="Click to rename"
+                      style={{ flex: 1, fontSize: 12, color: "var(--t2)", cursor: "text", padding: "2px 0" }}
+                    >{t.label}</div>
                   )}
                   <span style={{ fontSize: 11, fontFamily: "var(--mono)", color: t.hours > 0 ? "var(--blue)" : "var(--t3)", minWidth: 36, textAlign: "right" }}>
                     {t.hours.toFixed(1)}h
                   </span>
-                  <button className="btn xs danger" style={{ padding: "2px 6px", fontSize: 11 }}
+                  <button type="button" className="btn xs danger" style={{ padding: "2px 6px", fontSize: 11 }}
                     onClick={() => {
                       if (t.hours > 0 && !window.confirm(`"${t.label}" has ${t.hours.toFixed(1)}h logged. Sessions will still exist. Delete topic anyway?`)) return;
                       deleteTopic(t.id);
                     }}>×</button>
                 </div>
               ))}
-              {showAddTopicForm ? (
+              {showAddTopicForm && (
                 <div style={{ display: "flex", gap: 6, marginTop: 8 }}>
                   <input
                     className="inp"
@@ -515,14 +557,9 @@ export default function Study({ user }) {
                       if (e.key === "Escape") { setShowAddTopicForm(false); setAddTopicDraft(""); }
                     }}
                   />
-                  <button className="btn sm primary" onClick={addTopic}>Add</button>
-                  <button className="btn sm" onClick={() => { setShowAddTopicForm(false); setAddTopicDraft(""); }}>Cancel</button>
+                  <button type="button" className="btn sm primary" onClick={addTopic}>Add</button>
+                  <button type="button" className="btn sm" onClick={() => { setShowAddTopicForm(false); setAddTopicDraft(""); }}>Cancel</button>
                 </div>
-              ) : (
-                <button className="btn sm" style={{ marginTop: 8, width: "100%", justifyContent: "center" }}
-                  onClick={() => setShowAddTopicForm(true)}>
-                  + Add topic
-                </button>
               )}
             </div>
 
