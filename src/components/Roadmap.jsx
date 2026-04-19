@@ -8,23 +8,23 @@ const COLORS = [
 ];
 
 const SEED = {
-  name: "Project Phoenix", start_date: "2025-01-01", end_date: "2027-12-31",
+  name: "Project Phoenix", start_date: "2026-01-01", end_date: "2027-12-31",
   tracks: [
     { label: "EU Commission", color: "#388bfd", position: 0, milestones: [
-      { label: "Applied",      date: "2025-01-15", completed: true  },
-      { label: "CBT Test",     date: "2025-05-15", completed: false },
-      { label: "Assessment",   date: "2025-09-15", completed: false },
-      { label: "Reserve List", date: "2025-12-15", completed: false },
+      { label: "Applied",      date: "2026-04-01", completed: true  },
+      { label: "CBT Test",     date: "2026-05-01", completed: false },
+      { label: "Assessment",   date: "2026-09-01", completed: false },
+      { label: "Reserve List", date: "2026-12-01", completed: false },
     ]},
     { label: "PMP Certification", color: "#f59e0b", position: 1, milestones: [
-      { label: "Studying",    date: "2025-10-01", completed: true  },
-      { label: "75h logged",  date: "2026-02-01", completed: false },
-      { label: "150h logged", date: "2026-05-01", completed: false },
+      { label: "Studying",    date: "2026-04-01", completed: true  },
+      { label: "75h logged",  date: "2026-05-01", completed: false },
+      { label: "150h logged", date: "2026-07-01", completed: false },
       { label: "Exam Day",    date: "2026-07-07", completed: false },
-      { label: "Results",     date: "2026-08-01", completed: false },
+      { label: "Results",     date: "2026-09-01", completed: false },
     ]},
     { label: "MSc Cybersecurity", color: "#8b5cf6", position: 2, milestones: [
-      { label: "Enrolled",     date: "2025-12-01", completed: true  },
+      { label: "Enrolled",     date: "2026-04-01", completed: true  },
       { label: "Prep reading", date: "2026-06-01", completed: false },
       { label: "Semester 1",   date: "2026-09-14", completed: false },
       { label: "Semester 2",   date: "2027-01-15", completed: false },
@@ -32,9 +32,9 @@ const SEED = {
       { label: "Graduation",   date: "2027-11-01", completed: false },
     ]},
     { label: "Sanctum", color: "#10b981", position: 3, milestones: [
-      { label: "v1 Live",     date: "2025-12-01", completed: true  },
-      { label: "Tamara beta", date: "2026-02-01", completed: true  },
-      { label: "PWA launch",  date: "2026-05-01", completed: false },
+      { label: "v1 Live",     date: "2026-04-01", completed: true  },
+      { label: "Tamara beta", date: "2026-05-01", completed: false },
+      { label: "PWA launch",  date: "2026-06-01", completed: false },
       { label: "First users", date: "2026-08-01", completed: false },
       { label: "v2 launch",   date: "2026-12-01", completed: false },
     ]},
