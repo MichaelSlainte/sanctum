@@ -610,7 +610,7 @@ export default function Home({ user, archivedTrackers = [], onNavigate, onGoToCa
   const hour = now.getHours();
   const greeting = hour < 12 ? "Good morning" : hour < 17 ? "Good afternoon" : "Good evening";
   const homeUserKey = user?.id ? `sanctum_display_name_${user.id}` : "sanctum_display_name";
-  const displayName = localStorage.getItem(homeUserKey) || localStorage.getItem("sanctum_display_name") || (user?.email?.split("@")[0] || "");
+  const displayName = user?.user_metadata?.display_name || localStorage.getItem(homeUserKey) || localStorage.getItem("sanctum_display_name") || (user?.email?.split("@")[0] || "");
   const dateStr = now.toLocaleDateString("en-IE", { weekday: "long", day: "numeric", month: "long", year: "numeric" });
 
   const EXAM_DATE = new Date("2026-07-07T13:30");
@@ -783,7 +783,7 @@ For all other queries respond in plain conversational text, warm but concise, ma
   const AI_SUGGESTIONS = [
     "How many days until the PMP exam?",
     "Add task: book Scotland accommodation",
-    "Open the finance tracker",
+    "Add a calendar event for next Monday",
     "What should I focus on today?",
   ];
 
@@ -982,7 +982,7 @@ For all other queries respond in plain conversational text, warm but concise, ma
               onTouchEnd:   onCardTouchEnd,
             };
             if (id === "pmp") return (
-              <div key="pmp" className={cls} {...drag} style={{ cursor: "pointer" }} onClick={() => onNavigate("study")}>
+              <div key="pmp" className={cls} {...drag} style={{ cursor: "grab" }}>
                 <div className="drag-handle" style={{ position:"absolute", top:8, right:8 }}><Icon name="grab" size={12} /></div>
                 <RingCard label="PMP EXAM" value={`${daysToExam}d`} sub={`${daysToExam}d · ${Math.ceil(daysToExam / 7)}w`}
                   percent={Math.max(0, (420 - daysToExam) / 420)}
@@ -990,7 +990,7 @@ For all other queries respond in plain conversational text, warm but concise, ma
               </div>
             );
             if (id === "scotland") return (
-              <div key="scotland" className={cls} {...drag} style={{ cursor: "pointer" }} onClick={() => onNavigate("travel")}>
+              <div key="scotland" className={cls} {...drag} style={{ cursor: "pointer" }} onClick={() => onNavigate("calendar")}>
                 <div className="drag-handle" style={{ position:"absolute", top:8, right:8 }}><Icon name="grab" size={12} /></div>
                 <RingCard label="SCOTLAND" value={`${daysToScotland}d`} sub="Sep 7"
                   percent={Math.max(0, (420 - daysToScotland) / 420)}
@@ -998,7 +998,7 @@ For all other queries respond in plain conversational text, warm but concise, ma
               </div>
             );
             if (id === "msc") return (
-              <div key="msc" className={cls} {...drag} style={{ cursor: "pointer" }} onClick={() => onNavigate("study")}>
+              <div key="msc" className={cls} {...drag} style={{ cursor: "grab" }}>
                 <div className="drag-handle" style={{ position:"absolute", top:8, right:8 }}><Icon name="grab" size={12} /></div>
                 <RingCard label="MSC SETU" value={`${daysToMSc}d`} sub="Sep 14"
                   percent={Math.max(0, (420 - daysToMSc) / 420)}

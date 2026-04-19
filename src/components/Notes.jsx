@@ -122,13 +122,10 @@ export default function Notes({ user }) {
   const saveNotebooks = useCallback(async (nbs) => {
     setNotebooks(nbs);
     localStorage.setItem('sanctum_notebooks_v2', JSON.stringify(nbs));
-    const existing = await sb.from('notebooks').select('*');
-    const rows = Array.isArray(existing) ? existing : existing?.data;
-    const exists = Array.isArray(rows) && rows.find(r => r.id === 'singleton');
-    if (exists) {
-      await sb.from('notebooks').update({ data: nbs, updated_at: new Date().toISOString() }, { id: 'singleton' });
-    } else {
-      await sb.from('notebooks').insert({ id: 'singleton', data: nbs, updated_at: new Date().toISOString() });
+    try {
+      await sb.from('notebooks').upsert({ id: 'singleton', data: nbs, updated_at: new Date().toISOString() }, 'id');
+    } catch (err) {
+      console.error('Failed to save notebooks to Supabase:', err);
     }
   }, []);
   const [expandedNBs, setExpandedNBs] = useState(() => {

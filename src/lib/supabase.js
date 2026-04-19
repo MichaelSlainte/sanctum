@@ -57,6 +57,23 @@ export const auth = {
       if (data.access_token) { auth.saveSession(data); return true; }
     } catch { }
     return false;
+  },
+  updateUser: async (metadata) => {
+    const session = auth.getSession();
+    if (!session) return null;
+    try {
+      const res = await fetch(`${SUPABASE_URL}/auth/v1/user`, {
+        method: "PUT",
+        headers: { apikey: SUPABASE_KEY, "Content-Type": "application/json", Authorization: `Bearer ${session.token}` },
+        body: JSON.stringify({ data: metadata })
+      });
+      const updated = await res.json();
+      if (updated.id) {
+        const current = JSON.parse(localStorage.getItem("sanctum_user") || "{}");
+        localStorage.setItem("sanctum_user", JSON.stringify({ ...current, user_metadata: updated.user_metadata }));
+      }
+      return updated;
+    } catch { return null; }
   }
 };
 

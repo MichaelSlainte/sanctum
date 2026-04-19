@@ -1,4 +1,5 @@
 import { useState } from "react";
+import { auth } from "../lib/supabase";
 import { Icon } from "./shared";
 
 const TIMEZONES = [
@@ -13,21 +14,31 @@ export default function Settings({ user, onLogout, theme, onThemeChange, font, o
   const userKey = user?.id ? `sanctum_display_name_${user.id}` : "sanctum_display_name";
   const emailUsername = (user?.email || "").split("@")[0];
   const [displayName, setDisplayName] = useState(() =>
+    user?.user_metadata?.display_name ||
     localStorage.getItem(userKey) ||
     emailUsername
   );
   const [timezone, setTimezone] = useState(() =>
+    user?.user_metadata?.timezone ||
     localStorage.getItem("sanctum_timezone") || "Europe/Dublin"
   );
   const [saved, setSaved] = useState(false);
+  const [saveError, setSaveError] = useState(false);
   const [showDeleteConfirm, setShowDeleteConfirm] = useState(false);
   const [deleteConfirmText, setDeleteConfirmText] = useState('');
 
-  const save = () => {
-    localStorage.setItem(userKey, displayName);
-    localStorage.setItem("sanctum_timezone", timezone);
-    setSaved(true);
-    setTimeout(() => setSaved(false), 2000);
+  const save = async () => {
+    setSaved(false); setSaveError(false);
+    const result = await auth.updateUser({ display_name: displayName, timezone });
+    if (result?.id) {
+      localStorage.setItem(userKey, displayName);
+      localStorage.setItem("sanctum_timezone", timezone);
+      setSaved(true);
+      setTimeout(() => setSaved(false), 2500);
+    } else {
+      setSaveError(true);
+      setTimeout(() => setSaveError(false), 3000);
+    }
   };
 
   const exportAllData = async () => {
@@ -50,21 +61,19 @@ export default function Settings({ user, onLogout, theme, onThemeChange, font, o
         exported_at: new Date().toISOString(),
         user: user?.email,
         data: {
-          notes: notes.data,
-          tasks: tasks.data,
-          events: events.data,
-          study_sessions: sessions.data,
-          applications: applications.data,
-          finance: finance.data,
-          trips: trips.data,
-          notebooks: notebooks.data,
-          ozzy_profile: JSON.parse(localStorage.getItem('sanctum_ozzy_profile') || '{}'),
-          custom_trackers: JSON.parse(localStorage.getItem('sanctum_custom_trackers') || '[]'),
+          notes,
+          tasks,
+          events,
+          study_sessions: sessions,
+          applications,
+          finance,
+          trips,
+          notebooks,
           settings: {
             theme: localStorage.getItem('sanctum_theme'),
-            accent: localStorage.getItem('sanctum_accent'),
             font: localStorage.getItem('sanctum_font'),
-            display_name: localStorage.getItem(`sanctum_display_name_${user?.id}`),
+            display_name: user?.user_metadata?.display_name || localStorage.getItem(`sanctum_display_name_${user?.id}`),
+            timezone: user?.user_metadata?.timezone || localStorage.getItem('sanctum_timezone'),
           }
         }
       };
@@ -193,7 +202,9 @@ export default function Settings({ user, onLogout, theme, onThemeChange, font, o
               {TIMEZONES.map(tz => <option key={tz.id} value={tz.id}>{tz.label}</option>)}
             </select>
           </div>
-          <button className="btn primary" onClick={save} style={{ marginTop: 8 }}>{saved ? "✓ Saved" : "Save changes"}</button>
+          <button className="btn primary" onClick={save} style={{ marginTop: 8 }}>
+            {saved ? "✓ Saved" : saveError ? "Save failed — try again" : "Save changes"}
+          </button>
         </div>
 
         <div className="card">
