@@ -61,11 +61,12 @@ function PMPRoadmapTimeline() {
                 }}>{ms.label}</div>
                 <div style={{
                   position: "absolute", top: "50%", left: "50%",
-                  width: 9, height: 9,
-                  transform: "translate(-50%, -50%) rotate(45deg)",
-                  background: ms.completed ? trackColor : "var(--bg1)",
+                  width: 11, height: 11,
+                  borderRadius: "50%",
+                  transform: "translate(-50%, -50%)",
+                  background: ms.completed ? trackColor : "var(--bg)",
                   border: `2px solid ${trackColor}`,
-                  borderRadius: 1,
+                  boxSizing: "border-box",
                 }} />
               </div>
             );

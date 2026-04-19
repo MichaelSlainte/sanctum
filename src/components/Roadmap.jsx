@@ -90,7 +90,7 @@ function Timeline({ project, tracks, milestones, onToggle, onAddMs }) {
   }
 
   const sortedTracks = [...tracks].sort((a, b) => a.position - b.position);
-  const LW = 118;
+  const LW = 128;
 
   return (
     <div style={{ overflowX: "auto" }}>
@@ -108,6 +108,12 @@ function Timeline({ project, tracks, milestones, onToggle, onAddMs }) {
                 </div>
               </span>
             ))}
+            {/* Today marker in header */}
+            {todayPct >= 0 && todayPct <= 100 && (
+              <div style={{ position: "absolute", left: `${todayPct}%`, top: 0, bottom: 0, width: 1,
+                backgroundImage: "repeating-linear-gradient(to bottom,#ef4444 0,#ef4444 4px,transparent 4px,transparent 8px)",
+                opacity: 0.6, zIndex: 2 }} />
+            )}
           </div>
         </div>
 
@@ -120,26 +126,27 @@ function Timeline({ project, tracks, milestones, onToggle, onAddMs }) {
           return (
             <div key={track.id} style={{ display: "flex", borderBottom: "1px solid var(--b1)" }}>
               {/* Label column */}
-              <div style={{ width: LW, flexShrink: 0, display: "flex", alignItems: "center", gap: 7, padding: "0 10px 0 4px", height: 52 }}>
-                <div style={{ width: 8, height: 8, background: track.color, transform: "rotate(45deg)", flexShrink: 0, borderRadius: 1 }} />
-                <span style={{ fontSize: 11, color: "var(--t2)", fontWeight: 500, whiteSpace: "nowrap", overflow: "hidden", textOverflow: "ellipsis" }}>
+              <div style={{ width: LW, flexShrink: 0, display: "flex", alignItems: "center", padding: "0 10px 0 4px", height: 56 }}>
+                <span style={{ fontSize: 11, color: track.color, fontWeight: 600, whiteSpace: "nowrap", overflow: "hidden", textOverflow: "ellipsis" }}>
                   {track.label}
                 </span>
               </div>
 
               {/* Timeline area */}
-              <div style={{ flex: 1, position: "relative", height: 52, overflow: "visible" }}>
+              <div style={{ flex: 1, position: "relative", height: 56, overflow: "visible" }}>
                 {/* Grid lines */}
                 {months.map(({ p }, i) => (
                   <div key={i} style={{ position: "absolute", left: `${p}%`, top: 0, bottom: 0, width: 1, background: "var(--b1)", opacity: 0.2 }} />
                 ))}
 
                 {/* Track bar */}
-                <div style={{ position: "absolute", top: "calc(50% - 1px)", left: 0, right: 0, height: 2, background: `${track.color}20` }} />
+                <div style={{ position: "absolute", top: "calc(50% - 1px)", left: 0, right: 0, height: 2, background: `${track.color}30` }} />
 
-                {/* Today line */}
+                {/* Today dashed line */}
                 {todayPct >= 0 && todayPct <= 100 && (
-                  <div style={{ position: "absolute", left: `${todayPct}%`, top: 0, bottom: 0, width: 1, background: "#ef4444", opacity: 0.45, zIndex: 1 }} />
+                  <div style={{ position: "absolute", left: `${todayPct}%`, top: 0, bottom: 0, width: 1,
+                    backgroundImage: "repeating-linear-gradient(to bottom,#ef4444 0,#ef4444 4px,transparent 4px,transparent 8px)",
+                    opacity: 0.6, zIndex: 1 }} />
                 )}
 
                 {/* Milestones */}
@@ -152,7 +159,7 @@ function Timeline({ project, tracks, milestones, onToggle, onAddMs }) {
                       <div style={{
                         position: "absolute",
                         left: "50%",
-                        ...(above ? { top: 2 } : { bottom: 2 }),
+                        ...(above ? { top: 3 } : { bottom: 3 }),
                         transform: "translateX(-50%)",
                         fontSize: 9,
                         color: ms.completed ? track.color : "var(--t3)",
@@ -170,16 +177,18 @@ function Timeline({ project, tracks, milestones, onToggle, onAddMs }) {
                         style={{
                           position: "absolute",
                           top: "50%", left: "50%",
-                          width: 9, height: 9,
-                          transform: "translate(-50%, -50%) rotate(45deg)",
-                          background: ms.completed ? track.color : "var(--bg1)",
+                          width: 11, height: 11,
+                          borderRadius: "50%",
+                          transform: "translate(-50%, -50%)",
+                          background: ms.completed ? track.color : "var(--bg)",
                           border: `2px solid ${track.color}`,
                           cursor: "pointer",
                           zIndex: 6,
                           transition: "transform 0.12s",
+                          boxSizing: "border-box",
                         }}
-                        onMouseEnter={e => { e.currentTarget.style.transform = "translate(-50%, -50%) rotate(45deg) scale(1.4)"; }}
-                        onMouseLeave={e => { e.currentTarget.style.transform = "translate(-50%, -50%) rotate(45deg) scale(1)"; }}
+                        onMouseEnter={e => { e.currentTarget.style.transform = "translate(-50%, -50%) scale(1.5)"; }}
+                        onMouseLeave={e => { e.currentTarget.style.transform = "translate(-50%, -50%) scale(1)"; }}
                       />
                     </div>
                   );
@@ -210,6 +219,20 @@ function Timeline({ project, tracks, milestones, onToggle, onAddMs }) {
             </div>
           </div>
         )}
+
+        {/* Legend */}
+        <div style={{ display: "flex", width: "100%", flexWrap: "wrap", gap: "6px 16px", marginTop: 12, paddingTop: 10, borderTop: "1px solid var(--b1)" }}>
+          {sortedTracks.map(track => (
+            <div key={track.id} style={{ display: "flex", alignItems: "center", gap: 5 }}>
+              <div style={{ width: 10, height: 10, borderRadius: "50%", background: track.color, flexShrink: 0 }} />
+              <span style={{ fontSize: 10, color: "var(--t2)", fontFamily: "var(--mono)" }}>{track.label}</span>
+            </div>
+          ))}
+          <div style={{ display: "flex", alignItems: "center", gap: 5 }}>
+            <div style={{ width: 10, height: 10, borderRadius: 1, flexShrink: 0, background: "repeating-linear-gradient(to right,#ef4444 0,#ef4444 3px,transparent 3px,transparent 6px)" }} />
+            <span style={{ fontSize: 10, color: "var(--t3)", fontFamily: "var(--mono)" }}>Today</span>
+          </div>
+        </div>
       </div>
     </div>
   );
@@ -245,7 +268,7 @@ export default function Roadmap() {
       let projs = Array.isArray(data) ? data : [];
 
       // Auto-clean stale test/empty projects
-      const stale = projs.filter(p => !p.name || p.name === "MM" || p.name.trim() === "");
+      const stale = projs.filter(p => !p.name || ["MM", "asca"].includes(p.name) || p.name.trim() === "");
       for (const p of stale) {
         const tData = await sb.from("roadmap_tracks").select("*", `&project_id=eq.${p.id}`);
         const ts = Array.isArray(tData) ? tData : [];
@@ -253,7 +276,7 @@ export default function Roadmap() {
         await sb.from("roadmap_tracks").delete({ project_id: p.id });
         await sb.from("roadmap_projects").delete({ id: p.id });
       }
-      projs = projs.filter(p => p.name && p.name !== "MM" && p.name.trim() !== "");
+      projs = projs.filter(p => p.name && !["MM", "asca"].includes(p.name) && p.name.trim() !== "");
 
       // Check if tracks exist — project row alone doesn't mean data is complete
       let needsSeed = projs.length === 0;

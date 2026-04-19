@@ -755,6 +755,7 @@ For all other queries respond in plain conversational text, warm but concise, ma
             user_id: user?.id,
           });
           await loadEvents();
+          await loadStudy();
           setAiResponse({ text: `Logged ${action.hours}h — ${action.topic} ✓\nAdded to calendar`, type: "success" });
         } else if (action.action === "add_event") {
           await sb.from("events").insert({
@@ -810,7 +811,7 @@ For all other queries respond in plain conversational text, warm but concise, ma
   const maxWkHours = Math.max(...weeklyStudyData.map(w => w.hours), weeklyGoalHours * 0.3, 1);
 
   const weekStart = new Date(now);
-  weekStart.setDate(now.getDate() - now.getDay() + 1);
+  weekStart.setDate(now.getDate() - (now.getDay() === 0 ? 6 : now.getDay() - 1));
   weekStart.setHours(0, 0, 0, 0);
   const thisWeekHours = pmpSessions
     .filter(s => new Date(s.date) >= weekStart)
