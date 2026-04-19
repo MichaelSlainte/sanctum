@@ -116,6 +116,8 @@ export const sb = {
       if (session) headers.Authorization = `Bearer ${session.token}`;
       const params = Object.entries(match).map(([k, v]) => `${k}=eq.${v}`).join("&");
       const res = await fetch(`${SUPABASE_URL}/rest/v1/${table}?${params}`, { method: "PATCH", headers, body: JSON.stringify(data) });
+      if (res.status === 204 || res.status === 200 && res.headers.get('content-length') === '0') return [];
+      if (!res.ok) return null;
       return res.json();
     },
     delete: async (match) => {

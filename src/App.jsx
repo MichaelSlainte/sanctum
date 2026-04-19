@@ -184,7 +184,7 @@ const SanctumLogo = ({ size = 36, theme = "dark" }) => {
 
 // ─── APP ─────────────────────────────────────────────────────────────────────
 export default function App() {
-  const { setKey: setCryptoKey } = useCrypto();
+  const { setKey: setCryptoKey, setKeyLoading } = useCrypto();
   const [user, setUser] = useState(null);
   const [checking, setChecking] = useState(true);
   const [profileName, setProfileName] = useState("");
@@ -444,16 +444,24 @@ RESPONSE RULES — choose one format only:
         setProfileName(profile[0].display_name);
       }
       if (password) {
+        setKeyLoading(true);
         let salt = Array.isArray(profile) && profile[0]?.encryption_salt;
         if (!salt) {
           salt = await generateSalt();
-          await sb.from("profiles").update({ encryption_salt: salt }, { id: u.id });
+          // Fire-and-forget: don't let a failed save block key derivation
+          sb.from("profiles").update({ encryption_salt: salt }, { id: u.id }).catch(() => {});
         }
-        const key = await deriveKey(password, salt);
-        setCryptoKey(key);
+        try {
+          const key = await deriveKey(password, salt);
+          setCryptoKey(key);
+        } catch (keyErr) {
+          console.error('[handleLogin] key derivation failed:', keyErr);
+        } finally {
+          setKeyLoading(false);
+        }
       }
     } catch (err) {
-      console.error('[handleLogin] crypto setup error:', err);
+      console.error('[handleLogin] profile fetch error:', err);
     }
   };
   const handleLogout = () => { auth.signOut(); setUser(null); setProfileName(""); setPage("home"); localStorage.removeItem("sanctum_page"); };

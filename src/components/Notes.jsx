@@ -106,7 +106,7 @@ const htmlToMd = (el) => {
 
 // ─── NOTES ───────────────────────────────────────────────────────────────────
 export default function Notes({ user }) {
-  const { key: cryptoKey } = useCrypto();
+  const { key: cryptoKey, keyLoading } = useCrypto();
   const cryptoKeyRef = useRef(cryptoKey);
   useEffect(() => { cryptoKeyRef.current = cryptoKey; }, [cryptoKey]);
   // ── Notebooks (Supabase + localStorage backed) ───────────────────────
@@ -252,6 +252,8 @@ export default function Notes({ user }) {
       if (isEncrypted(body)) {
         if (cryptoKey) {
           try { body = await decrypt(body, cryptoKey); } catch { /* fallback to raw */ }
+        } else if (keyLoading) {
+          body = '<div class="we-line" style="color:var(--t3);font-style:italic">Decrypting...</div>';
         } else {
           body = '<div class="we-line" style="color:var(--t3);font-style:italic">🔒 This note is encrypted. Log in with your password to decrypt.</div>';
         }
@@ -262,7 +264,7 @@ export default function Notes({ user }) {
       setEditBody(htmlToMd(editorRef.current));
     }
     loadBody();
-  }, [activeNote, cryptoKey]); // eslint-disable-line react-hooks/exhaustive-deps
+  }, [activeNote, cryptoKey, keyLoading]); // eslint-disable-line react-hooks/exhaustive-deps
 
   // ── Reset PIN state on note switch ────────────────────────────────────
   useEffect(() => {
