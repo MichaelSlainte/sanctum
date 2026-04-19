@@ -1,6 +1,8 @@
 import { useState, useEffect, useRef } from "react";
 import "./styles/base.css";
 import { auth, sb } from "./lib/supabase";
+import { useCrypto } from "./lib/CryptoContext.jsx";
+import { deriveKey, generateSalt } from "./lib/crypto.js";
 import { Icon } from "./components/shared";
 import Home from "./components/Home";
 import Notes from "./components/Notes";
@@ -41,7 +43,7 @@ function Login({ onLogin }) {
       if (data.access_token) {
         attempts.current = 0;
         auth.saveSession(data);
-        onLogin(data.user);
+        onLogin(data.user, password);
       } else if (data.id && mode === "signup") {
         setError("Account created. Check your email to confirm, then sign in.");
         setMode("login");
@@ -182,6 +184,7 @@ const SanctumLogo = ({ size = 36, theme = "dark" }) => {
 
 // ─── APP ─────────────────────────────────────────────────────────────────────
 export default function App() {
+  const { setKey: setCryptoKey } = useCrypto();
   const [user, setUser] = useState(null);
   const [checking, setChecking] = useState(true);
   const [profileName, setProfileName] = useState("");
@@ -432,15 +435,26 @@ RESPONSE RULES — choose one format only:
     if (!checking && !user) localStorage.removeItem("sanctum_page");
   }, [user, checking]);
 
-  const handleLogin = async (u) => {
+  const handleLogin = async (u, password) => {
     setUser(u);
     try {
-      const profile = await sb.from("profiles").select("display_name,timezone", `&id=eq.${u.id}`, "");
+      const profile = await sb.from("profiles").select("display_name,timezone,encryption_salt", `&id=eq.${u.id}`, "");
       if (Array.isArray(profile) && profile[0]?.display_name) {
         localStorage.setItem(`sanctum_display_name_${u.id}`, profile[0].display_name);
         setProfileName(profile[0].display_name);
       }
-    } catch {}
+      if (password) {
+        let salt = Array.isArray(profile) && profile[0]?.encryption_salt;
+        if (!salt) {
+          salt = await generateSalt();
+          await sb.from("profiles").update({ encryption_salt: salt }, { id: u.id });
+        }
+        const key = await deriveKey(password, salt);
+        setCryptoKey(key);
+      }
+    } catch (err) {
+      console.error('[handleLogin] crypto setup error:', err);
+    }
   };
   const handleLogout = () => { auth.signOut(); setUser(null); setProfileName(""); setPage("home"); localStorage.removeItem("sanctum_page"); };
 

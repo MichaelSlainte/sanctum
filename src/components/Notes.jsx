@@ -1,6 +1,8 @@
 import { useState, useEffect, useRef, useCallback } from "react";
 import { sb } from "../lib/supabase";
 import { Icon, Modal, DEFAULT_NOTEBOOKS } from "./shared";
+import { useCrypto } from "../lib/CryptoContext.jsx";
+import { encrypt, decrypt, isEncrypted } from "../lib/crypto.js";
 
 const sanitizeHtml = (html) => {
   const div = document.createElement('div');
@@ -104,6 +106,9 @@ const htmlToMd = (el) => {
 
 // ─── NOTES ───────────────────────────────────────────────────────────────────
 export default function Notes({ user }) {
+  const { key: cryptoKey } = useCrypto();
+  const cryptoKeyRef = useRef(cryptoKey);
+  useEffect(() => { cryptoKeyRef.current = cryptoKey; }, [cryptoKey]);
   // ── Notebooks (Supabase + localStorage backed) ───────────────────────
   const [notebooks, setNotebooks] = useState(() => {
     try { const s = localStorage.getItem('sanctum_notebooks_v2'); if (s) return JSON.parse(s); } catch {}
@@ -153,6 +158,8 @@ export default function Notes({ user }) {
   const [editTags,   setEditTags]   = useState('');
   const [loading,    setLoading]    = useState(false);
   const [saveStatus, setSaveStatus] = useState('idle');
+  const [migrating,  setMigrating]  = useState(false);
+  const migratedRef = useRef(false);
   const saveTimer   = useRef(null);
   const dirtyRef    = useRef(false);
   const pendingSave = useRef({ id: null, title: '', body: '', tags: '' });
@@ -235,16 +242,27 @@ export default function Notes({ user }) {
     return () => window.removeEventListener('resize', h);
   }, []);
 
-  // ── Load note body into editor when active note changes ──────────────
+  // ── Load note body into editor when active note or key changes ──────────
   useEffect(() => {
     if (!activeNote || !editorRef.current) return;
     const note = allNotes.find(n => n.id === activeNote);
     if (!note) return;
-    const body = note.body || '';
-    editorRef.current.innerHTML = body.trimStart().startsWith('<') ? body : mdToHtmlWysiwyg(body);
-    addCollapseButtons();
-    setEditBody(htmlToMd(editorRef.current));
-  }, [activeNote]); // eslint-disable-line react-hooks/exhaustive-deps
+    async function loadBody() {
+      let body = note.body || '';
+      if (isEncrypted(body)) {
+        if (cryptoKey) {
+          try { body = await decrypt(body, cryptoKey); } catch { /* fallback to raw */ }
+        } else {
+          body = '<div class="we-line" style="color:var(--t3);font-style:italic">🔒 This note is encrypted. Log in with your password to decrypt.</div>';
+        }
+      }
+      if (!editorRef.current) return;
+      editorRef.current.innerHTML = body.trimStart().startsWith('<') ? body : mdToHtmlWysiwyg(body);
+      addCollapseButtons();
+      setEditBody(htmlToMd(editorRef.current));
+    }
+    loadBody();
+  }, [activeNote, cryptoKey]); // eslint-disable-line react-hooks/exhaustive-deps
 
   // ── Reset PIN state on note switch ────────────────────────────────────
   useEffect(() => {
@@ -305,6 +323,26 @@ export default function Notes({ user }) {
     setLoading(false);
   };
 
+  // ── Background migration: encrypt plaintext notes on first login with key ──
+  useEffect(() => {
+    if (!cryptoKey || migratedRef.current || loading) return;
+    const plainNotes = allNotes.filter(n => n.body && !isEncrypted(n.body));
+    if (plainNotes.length === 0) { migratedRef.current = true; return; }
+    migratedRef.current = true;
+    const runMigration = async () => {
+      setMigrating(true);
+      for (const note of plainNotes) {
+        try {
+          const encrypted = await encrypt(note.body, cryptoKey);
+          await sb.from("notes").update({ body: encrypted }, { id: note.id });
+          setAllNotes(prev => prev.map(n => n.id === note.id ? { ...n, body: encrypted } : n));
+        } catch {}
+      }
+      setMigrating(false);
+    };
+    runMigration();
+  }, [cryptoKey, loading]); // eslint-disable-line react-hooks/exhaustive-deps
+
   // ── Auto-save (700ms debounce) ────────────────────────────────────────
   const flushSave = useCallback(async () => {
     if (!dirtyRef.current) return;
@@ -313,8 +351,12 @@ export default function Notes({ user }) {
     if (!id) return;
     setSaveStatus('saving');
     const updated = new Date().toISOString();
-    setAllNotes(prev => prev.map(n => n.id === id ? { ...n, title, body, tags, updated_at: updated } : n));
-    try { await sb.from("notes").update({ title, body, tags, updated_at: updated }, { id }); } catch(e) { console.error('flushSave error:', e); }
+    let bodyToSave = body;
+    if (cryptoKeyRef.current) {
+      try { bodyToSave = await encrypt(body, cryptoKeyRef.current); } catch(e) { console.error('flushSave encrypt error:', e); }
+    }
+    setAllNotes(prev => prev.map(n => n.id === id ? { ...n, title, body: bodyToSave, tags, updated_at: updated } : n));
+    try { await sb.from("notes").update({ title, body: bodyToSave, tags, updated_at: updated }, { id }); } catch(e) { console.error('flushSave error:', e); }
     dirtyRef.current = false;
     setSaveStatus('saved');
     setTimeout(() => setSaveStatus(s => s === 'saved' ? 'idle' : s), 1500);
@@ -330,8 +372,12 @@ export default function Notes({ user }) {
       setSaveStatus('saving');
       const updated = new Date().toISOString();
       const { id: sid, title: stitle, body: sbody, tags: stags } = pendingSave.current;
-      setAllNotes(prev => prev.map(n => n.id === sid ? { ...n, title: stitle, body: sbody, tags: stags, updated_at: updated } : n));
-      try { await sb.from("notes").update({ title: stitle, body: sbody, tags: stags, updated_at: updated }, { id: sid }); } catch(e) { console.error('autoSave error:', e); }
+      let bodyToSave = sbody;
+      if (cryptoKeyRef.current) {
+        try { bodyToSave = await encrypt(sbody, cryptoKeyRef.current); } catch(e) { console.error('autoSave encrypt error:', e); }
+      }
+      setAllNotes(prev => prev.map(n => n.id === sid ? { ...n, title: stitle, body: bodyToSave, tags: stags, updated_at: updated } : n));
+      try { await sb.from("notes").update({ title: stitle, body: bodyToSave, tags: stags, updated_at: updated }, { id: sid }); } catch(e) { console.error('autoSave error:', e); }
       dirtyRef.current = false;
       setSaveStatus('saved');
       setTimeout(() => setSaveStatus(s => s === 'saved' ? 'idle' : s), 1500);
@@ -698,6 +744,12 @@ export default function Notes({ user }) {
   return (
     <div className="notes-shell" data-mobile-panel={mobilePanel} onClick={() => { setNbMenu(null); setNoteMenu(null); }}>
 
+      {migrating && (
+        <div style={{position:'fixed',bottom:80,left:'50%',transform:'translateX(-50%)',background:'var(--bg2)',border:'1px solid var(--b2)',borderRadius:8,padding:'8px 16px',fontSize:12,color:'var(--t2)',zIndex:999,display:'flex',alignItems:'center',gap:6}}>
+          🔒 Securing your notes...
+        </div>
+      )}
+
       {/* ── Notebooks sidebar ── */}
       <div className={`notes-sidebar${sidebarCollapsed?' collapsed':''}`} onClick={e => e.stopPropagation()}>
         <div className="notes-sidebar-header">
@@ -1040,8 +1092,9 @@ export default function Notes({ user }) {
                   <Icon name="tag" size={11} color="var(--t3)"/>
                   {editTags.split(',').filter(t=>t.trim()).map(t=><span key={t} className="nli-tag">{t.trim()}</span>)}
                   <input className="note-tags-input" placeholder="Add tags: work, idea, ..." value={editTags} onChange={e=>onTagsChange(e.target.value)}/>
-                  {saveStatus==='saving' && <span key="saving" className="save-ind saving" style={{marginLeft:'auto',flexShrink:0}}>saving...</span>}
-                  {saveStatus==='saved'  && <span key="saved"  className="save-ind saved"  style={{marginLeft:'auto',flexShrink:0}}>saved ✓</span>}
+                  {cryptoKey && <span style={{marginLeft:'auto',flexShrink:0,fontSize:10,color:'var(--grn)',opacity:.7}}>🔒 encrypted</span>}
+                  {saveStatus==='saving' && <span key="saving" className="save-ind saving" style={{flexShrink:0}}>saving...</span>}
+                  {saveStatus==='saved'  && <span key="saved"  className="save-ind saved"  style={{flexShrink:0}}>saved ✓</span>}
                 </div>
               </>
             )}

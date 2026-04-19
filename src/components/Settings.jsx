@@ -244,7 +244,7 @@ export default function Settings({ user, onLogout, theme, onThemeChange, font, o
             { label: "Email", value: user?.email },
             { label: "Account created", value: user?.created_at?.slice(0, 10) || "—" },
             { label: "Data location", value: "EU — Stockholm" },
-            { label: "Encryption", value: "End-to-end" },
+            { label: "Encryption", value: "End-to-end ✓" },
             { label: "Plan", value: "Personal" },
           ].map(item => (
             <div key={item.label} className="fin-row">
