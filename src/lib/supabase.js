@@ -79,6 +79,17 @@ export const auth = {
   }
 };
 
+export const storage = {
+  upload: async (bucket, path, file) => {
+    const session = auth.getSession();
+    const headers = { apikey: SUPABASE_KEY, "Content-Type": file.type || "application/octet-stream", "x-upsert": "true" };
+    if (session) headers.Authorization = `Bearer ${session.token}`;
+    const res = await fetch(`${SUPABASE_URL}/storage/v1/object/${bucket}/${path}`, { method: "POST", headers, body: file });
+    return res.json();
+  },
+  getPublicUrl: (bucket, path) => `${SUPABASE_URL}/storage/v1/object/public/${bucket}/${path}`,
+};
+
 export const sb = {
   from: (table) => ({
     select: async (cols = "*", filters = "", order = "created_at.desc") => {

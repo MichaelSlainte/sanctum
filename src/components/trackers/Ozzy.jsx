@@ -1,5 +1,5 @@
 import { useState, useEffect, useRef } from "react";
-import { sb } from "../../lib/supabase";
+import { sb, storage } from "../../lib/supabase";
 import { Icon, Modal } from "../shared";
 
 const DEFAULT_PROFILE = {
@@ -33,7 +33,7 @@ const VET_TYPES = ["Annual checkup", "Vaccination", "Grooming", "Dental", "Emerg
 export default function Ozzy({ user }) {
   const [activeTab, setActiveTab] = useState("overview");
 
-  const [ozzyPhoto, setOzzyPhoto] = useState(() => localStorage.getItem("sanctum_ozzy_photo") || null);
+  const [ozzyPhoto, setOzzyPhoto] = useState(null);
   const photoInputRef = useRef(null);
 
   const [profile, setProfile] = useState(() => {
@@ -94,7 +94,9 @@ export default function Ozzy({ user }) {
       const merged = { ...DEFAULT_PROFILE };
       const custom = [];
       data.forEach(row => {
-        if (row.key === "diet") {
+        if (row.key === "photo_url") {
+          setOzzyPhoto(row.value);
+        } else if (row.key === "diet") {
           try { setDiet(JSON.parse(row.value)); } catch {}
         } else if (row.key in DEFAULT_PROFILE) {
           merged[row.key] = row.value;
@@ -295,16 +297,16 @@ export default function Ozzy({ user }) {
               type="file"
               accept="image/*"
               style={{ display: "none" }}
-              onChange={e => {
+              onChange={async e => {
                 const file = e.target.files[0];
                 if (!file) return;
-                const reader = new FileReader();
-                reader.onload = () => {
-                  const b64 = reader.result;
-                  setOzzyPhoto(b64);
-                  localStorage.setItem("sanctum_ozzy_photo", b64);
-                };
-                reader.readAsDataURL(file);
+                try {
+                  const path = `${user?.id || "shared"}/ozzy_photo`;
+                  await storage.upload("pets", path, file);
+                  const url = storage.getPublicUrl("pets", path) + `?t=${Date.now()}`;
+                  setOzzyPhoto(url);
+                  await sb.from("ozzy_profile").upsert({ key: "photo_url", value: url }, "key");
+                } catch {}
               }}
             />
           </div>
