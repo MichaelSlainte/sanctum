@@ -1,7 +1,6 @@
 import { useState, useEffect, useRef } from "react";
 import { sb } from "../lib/supabase";
 import { Icon, Modal, EVENT_COLORS, SanctumLogo } from "./shared";
-import PhoenixTimeline from "./PhoenixTimeline";
 
 function Dashboard({ onNavigate, onGoToCalendarDay }) {
   const [tasks, setTasks] = useState([]);
@@ -301,7 +300,7 @@ When the user asks to add a task, delete a task, log study hours, or navigate, r
 - Add task: {"action":"add_task","text":"task text","tag":"optional tag"}
 - Delete task: {"action":"delete_task","text":"partial task name to match"}
 - Log study: {"action":"log_study","topic":"topic_id","hours":1.5,"notes":"optional"}
-- Navigate: {"action":"navigate","page":"home|notes|calendar|trackers|career|study|finance|travel|pet|settings"}
+- Navigate: {"action":"navigate","page":"home|notes|calendar|settings"}
 Topic IDs: integration, scope, schedule, cost, quality, resource, communications, risk, procurement, stakeholder, agile, ethics
 For everything else respond naturally in plain text. Be warm, concise, and personal. You know Michael well.`;
 
@@ -409,7 +408,6 @@ For everything else respond naturally in plain text. Be warm, concise, and perso
 export default function Home({ user, archivedTrackers = [], onNavigate, onGoToCalendarDay, refreshKey }) {
   const [tasks, setTasks] = useState([]);
   const [tasksLoading, setTasksLoading] = useState(true);
-  const [customTrackers, setCustomTrackers] = useState([]);
   const [showAddTask, setShowAddTask] = useState(false);
   const [newTask, setNewTask] = useState({ text: "", tag: "" });
   const [editingId, setEditingId] = useState(null);
@@ -529,11 +527,11 @@ export default function Home({ user, archivedTrackers = [], onNavigate, onGoToCa
   };
 
   // Widget (card) ordering
-  const WIDGET_IDS = ["tasks", "week", "trackers"];
+  const WIDGET_IDS = ["tasks", "week"];
   const [widgetOrder, setWidgetOrder] = useState(() => {
     try {
       const s = JSON.parse(localStorage.getItem("sanctum_home_widget_order"));
-      if (Array.isArray(s) && s.length === 3 && WIDGET_IDS.every(id => s.includes(id))) return s;
+      if (Array.isArray(s) && s.length === 2 && WIDGET_IDS.every(id => s.includes(id))) return s;
     } catch {}
     return WIDGET_IDS;
   });
@@ -624,9 +622,7 @@ export default function Home({ user, archivedTrackers = [], onNavigate, onGoToCa
   const todayDow = now.getDay() === 0 ? 6 : now.getDay() - 1;
   const weekDates = DAYS.map((_, i) => { const d = new Date(now); d.setDate(now.getDate() - todayDow + i); return d; });
 
-  useEffect(() => { loadTasks(); loadEvents(); loadStudy(); loadCustomTrackers(); }, []);
-
-  useEffect(() => { loadCustomTrackers(); }, [refreshKey]);
+  useEffect(() => { loadTasks(); loadEvents(); loadStudy(); }, []);
 
   const loadTasks = async () => {
     setTasksLoading(true);
@@ -638,16 +634,6 @@ export default function Home({ user, archivedTrackers = [], onNavigate, onGoToCa
   const loadEvents = async () => {
     try { const d = await sb.from("events").select("*"); if (Array.isArray(d)) setEvents(d); }
     catch {}
-  };
-
-  const loadCustomTrackers = async () => {
-    try {
-      const data = await sb.from("custom_trackers").select("*");
-      if (Array.isArray(data)) setCustomTrackers(data.filter(t => !t.archived));
-    } catch {
-      const local = JSON.parse(localStorage.getItem("sanctum_custom_trackers") || "[]");
-      setCustomTrackers(local.filter(t => !t.archived));
-    }
   };
 
   const loadStudy = async () => {
@@ -722,7 +708,7 @@ When the user asks to add a task, delete a task, log study hours, add a calendar
 - Add task: {"action":"add_task","text":"task text","tag":"optional tag"}
 - Delete task: {"action":"delete_task","text":"partial task name to match"}
 - Log study: {"action":"log_study","hours":2,"topic":"integration","notes":"optional"}
-- Navigate: {"action":"navigate","page":"home|notes|calendar|trackers|career|study|finance|travel|pet|settings"}
+- Navigate: {"action":"navigate","page":"home|notes|calendar|settings"}
 - Add calendar event: {"action":"add_event","title":"Event title","date":"${todayISO}","start_time":"09:00","end_time":"10:00","category":"personal","notes":"optional notes"}
   category must be one of: personal, career, travel, study, family
 Topic IDs for study: integration, scope, schedule, cost, quality, resource, communications, risk, procurement, stakeholder, agile, ethics
@@ -1064,14 +1050,10 @@ For all other queries respond in plain conversational text, warm but concise, ma
         </div>
       </div>
 
-      {/* Project Phoenix roadmap */}
-      <PhoenixTimeline />
-
-      {/* Tasks + Week + Trackers (drag to reorder) */}
+      {/* Tasks + Week (drag to reorder) */}
       {(() => {
-        const tasksCls  = `card${wDragging==="tasks"    ? " is-dragging" : ""}${wDragOver==="tasks"    ? " drag-over" : ""}`;
-        const weekCls   = `card${wDragging==="week"     ? " is-dragging" : ""}${wDragOver==="week"     ? " drag-over" : ""}`;
-        const trackersCls=`card${wDragging==="trackers" ? " is-dragging" : ""}${wDragOver==="trackers" ? " drag-over" : ""}`;
+        const tasksCls  = `card${wDragging==="tasks" ? " is-dragging" : ""}${wDragOver==="tasks" ? " drag-over" : ""}`;
+        const weekCls   = `card${wDragging==="week"  ? " is-dragging" : ""}${wDragOver==="week"  ? " drag-over" : ""}`;
 
         const tasksCard = (
           <div key="tasks" className={tasksCls} {...wDrag("tasks")}>
@@ -1170,56 +1152,11 @@ For all other queries respond in plain conversational text, warm but concise, ma
           </div>
         );
 
-        const trackersCard = (
-          <div key="trackers" className={trackersCls} {...wDrag("trackers")}>
-            <div className="card-header">
-              <div className="card-title">Trackers</div>
-              <div style={{ display:"flex", alignItems:"center", gap:8 }}>
-                <div className="drag-handle"><Icon name="grab" size={14} /></div>
-                <button className="btn sm" onMouseDown={e=>e.stopPropagation()} onClick={() => onNavigate("trackers")}>See all</button>
-              </div>
-            </div>
-            <div className="grid-2" style={{ gap:10 }}>
-              {[
-                { id:"study",   icon:"study",   color:"var(--purple)", label:"Study",   sub:"PMP progress" },
-                { id:"career",  icon:"career",  color:"var(--amber)",  label:"Career",  sub:"Applications" },
-                { id:"finance", icon:"finance", color:"var(--grn)",    label:"Finance", sub:"Monthly budget" },
-                { id:"travel",  icon:"travel",  color:"var(--blue)",   label:"Travel",  sub:"Trips" },
-                { id:"pet",     icon:"pet",     color:"var(--pink)",   label:"Ozzy",    sub:"Golden Retriever" },
-              ].filter(item => !archivedTrackers.includes(item.id)).map(item => (
-                <div key={item.id} onMouseDown={e=>e.stopPropagation()} onClick={() => onNavigate(item.id)}
-                  style={{ background:"rgba(255,255,255,0.03)", border:"1px solid rgba(255,255,255,0.06)", borderRadius:12, padding:"14px 16px", cursor:"pointer", transition:"all .2s" }}
-                  onMouseEnter={e=>{ e.currentTarget.style.borderColor="rgba(59,130,246,0.4)"; e.currentTarget.style.background="rgba(59,130,246,0.06)"; }}
-                  onMouseLeave={e=>{ e.currentTarget.style.borderColor="rgba(255,255,255,0.06)"; e.currentTarget.style.background="rgba(255,255,255,0.03)"; }}>
-                  <div style={{ marginBottom:8 }}><Icon name={item.icon} size={20} color={item.color} /></div>
-                  <div style={{ fontSize:13, fontWeight:600, color:"var(--t1)", marginBottom:2 }}>{item.label}</div>
-                  <div style={{ fontSize:11, color:"var(--t3)" }}>{item.sub}</div>
-                </div>
-              ))}
-              {customTrackers.map(t => (
-                <div key={t.id} onMouseDown={e=>e.stopPropagation()} onClick={() => onNavigate("trackers")}
-                  style={{ background:"rgba(255,255,255,0.03)", border:"1px solid rgba(255,255,255,0.06)", borderLeft:`3px solid ${t.color || "var(--acc)"}`, borderRadius:12, padding:"14px 16px", cursor:"pointer", transition:"all .2s" }}
-                  onMouseEnter={e=>{ e.currentTarget.style.borderColor=t.color||"var(--acc)"; e.currentTarget.style.background="rgba(255,255,255,0.06)"; }}
-                  onMouseLeave={e=>{ e.currentTarget.style.borderColor="rgba(255,255,255,0.06)"; e.currentTarget.style.background="rgba(255,255,255,0.03)"; }}>
-                  <div style={{ marginBottom:8, width:20, height:20, borderRadius:6, background:(t.color||"#10b981")+"22", display:"flex", alignItems:"center", justifyContent:"center" }}>
-                    <Icon name="trackers" size={14} color={t.color||"#10b981"} />
-                  </div>
-                  <div style={{ fontSize:13, fontWeight:600, color:"var(--t1)", marginBottom:2 }}>{t.label}</div>
-                  <div style={{ fontSize:11, color:"var(--t3)" }}>{t.description || ""}</div>
-                </div>
-              ))}
-            </div>
-          </div>
-        );
-
-        const widgetMap = { tasks: tasksCard, week: weekCard, trackers: trackersCard };
+        const widgetMap = { tasks: tasksCard, week: weekCard };
         return (
           <div className="grid-2">
             {widgetMap[widgetOrder[0]]}
-            <div style={{ display:"flex", flexDirection:"column", gap:18 }}>
-              {widgetMap[widgetOrder[1]]}
-              {widgetMap[widgetOrder[2]]}
-            </div>
+            {widgetMap[widgetOrder[1]]}
           </div>
         );
       })()}

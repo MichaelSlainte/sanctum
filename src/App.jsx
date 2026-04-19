@@ -6,12 +6,6 @@ import Home from "./components/Home";
 import Notes from "./components/Notes";
 import Calendar from "./components/Calendar";
 import Settings from "./components/Settings";
-import TrackerHub, { TrackerBackBar, CustomTrackerDetail } from "./components/trackers/TrackerHub";
-import Study from "./components/trackers/Study";
-import Career from "./components/trackers/Career";
-import Finance from "./components/trackers/Finance";
-import Travel from "./components/trackers/Travel";
-import Ozzy from "./components/trackers/Ozzy";
 
 // ─── LOGIN ───────────────────────────────────────────────────────────────────
 function Login({ onLogin }) {
@@ -120,14 +114,10 @@ const NAV = [
   { id: "home",     label: "Home",     icon: "home" },
   { id: "notes",    label: "Notes",    icon: "notes" },
   { id: "calendar", label: "Calendar", icon: "calendar" },
-  { id: "trackers", label: "Trackers", icon: "trackers" },
   { id: "settings", label: "Settings", icon: "settings" },
 ];
-const TRACKER_PAGES = ["career", "study", "finance", "travel", "pet"];
 const TITLES = {
-  home: "Home", notes: "Notes", calendar: "Calendar", trackers: "Trackers",
-  career: "Career", study: "Study & PMP", finance: "Finance", travel: "Travel", pet: "Ozzy",
-  settings: "Settings"
+  home: "Home", notes: "Notes", calendar: "Calendar", settings: "Settings"
 };
 
 // ─── SANCTUM LOGO ────────────────────────────────────────────────────────────
@@ -192,11 +182,6 @@ export default function App() {
   const globalAIRef = useRef(null);
   const [mobileAIOpen, setMobileAIOpen] = useState(false);
   const [calendarRefreshKey, setCalendarRefreshKey] = useState(0);
-  const [trackersRefreshKey, setTrackersRefreshKey] = useState(0);
-  const [customTrackers, setCustomTrackers] = useState(() => {
-    try { return JSON.parse(localStorage.getItem('sanctum_custom_trackers') || '[]').filter(t => !t.archived); }
-    catch { return []; }
-  });
   const [globalAIHistory, setGlobalAIHistory] = useState([]);
 
   // Draggable AI FAB position
@@ -238,35 +223,16 @@ export default function App() {
     setGlobalAIResponse({ text: 'Thinking...', type: 'loading' });
     try {
       const todayISO = new Date().toISOString().slice(0, 10);
-      const trackerCreationInstructions = page === 'trackers' ? `
-TRACKER CREATION FLOW:
-When user wants to create any tracker, follow these steps:
-
-Step 1 - Ask: What would you like to call this tracker?
-Step 2 - Ask: What is your weekly goal? (number + what you are tracking, e.g. '3 gym sessions' or '5km runs')
-Step 3 - Ask: What days and time? (e.g. Mon/Wed/Fri at 7am)
-Step 4 - Confirm everything, then output EXACTLY this JSON and nothing else:
-
-{"action":"create_tracker","name":"TRACKER_NAME","description":"DESCRIPTION","color":"COLOR_HEX","weekly_goal":NUMBER,"unit":"UNIT","schedule_days":["monday","wednesday"],"schedule_time":"07:00","add_to_calendar":true}
-
-Color guide:
-- Fitness/gym: #10b981
-- Running: #06b6d4
-- Learning: #8b5cf6
-- Personal: #388bfd
-- Creative: #ec4899
-
-IMPORTANT: When outputting the final JSON, output ONLY the JSON. No other text.` : '';
       const sys = `You are Sanctum AI, a personal assistant embedded in a private life organiser app.
 Today is ${todayISO}. User: Michael, Dublin, Ireland.
 When user mentions dates, always convert to ISO format YYYY-MM-DD in your JSON response.
 Examples: "tomorrow" = ${new Date(Date.now()+86400000).toISOString().slice(0,10)}, "next week" = ${new Date(Date.now()+7*86400000).toISOString().slice(0,10)}.
 For "next Monday", "this Friday" etc., compute the actual upcoming date.
 RESPONSE RULES — choose one format only:
-- Navigate → reply ONLY with valid JSON, no markdown: {"action":"navigate","page":"home|notes|calendar|trackers|career|study|finance|travel|pet|settings"}
+- Navigate → reply ONLY with valid JSON, no markdown: {"action":"navigate","page":"home|notes|calendar|settings"}
 - Log study session → reply ONLY with valid JSON, no markdown: {"action":"log_study","hours":2,"topic":"Integration Management","notes":"optional"}
 - Add calendar event → reply ONLY with valid JSON, no markdown: {"action":"add_event","title":"Event title","date":"${todayISO}","start_time":"09:00","end_time":"10:00","category":"personal","notes":"optional notes"}
-  category must be one of: personal, career, travel, study, family${trackerCreationInstructions}
+  category must be one of: personal, career, travel, study, family
 - All other queries → plain conversational text, warm but concise, max 2 sentences. No JSON.`;
       const newHistory = [...globalAIHistory, { role: 'user', content: userMsg }];
       const res = await fetch('/api/chat', { method: 'POST', headers: { 'Content-Type': 'application/json' },
@@ -322,78 +288,6 @@ RESPONSE RULES — choose one format only:
           });
           setCalendarRefreshKey(k => k + 1);
           setGlobalAIResponse({ text: `Added to calendar: "${action.title}" on ${parseDate(action.date)}`, type: 'success' });
-        } else if (action.action === 'create_tracker') {
-          console.log('=== CREATE TRACKER START ===');
-          console.log('Action received:', JSON.stringify(action));
-          setGlobalAIHistory([]);
-          const newId = 'custom_' + Date.now();
-          const tracker = {
-            id: newId,
-            label: action.name || 'Custom Tracker',
-            description: action.description || '',
-            icon: 'trackers',
-            color: action.color || '#10b981',
-            fields: [],
-            has_ring: true,
-            weekly_goal: parseInt(action.weekly_goal) || 3,
-            unit: action.unit || 'sessions',
-            archived: false,
-            created_at: new Date().toISOString(),
-            user_id: user?.id,
-          };
-          console.log('Tracker object:', tracker);
-          // Save to localStorage immediately as source of truth
-          const existing = JSON.parse(localStorage.getItem('sanctum_custom_trackers') || '[]');
-          const updated = [...existing, tracker];
-          localStorage.setItem('sanctum_custom_trackers', JSON.stringify(updated));
-          console.log('localStorage updated:', updated.length, 'trackers');
-          // Try Supabase (fails gracefully if table missing)
-          try {
-            const insertResult = await sb.from('custom_trackers').insert({
-              id: tracker.id,
-              label: tracker.label,
-              description: tracker.description,
-              icon: tracker.icon,
-              color: tracker.color,
-              fields: '[]',
-              has_ring: true,
-              weekly_goal: tracker.weekly_goal,
-              unit: tracker.unit,
-              archived: false,
-              user_id: user?.id,
-            });
-            console.log('Supabase insert result:', insertResult);
-          } catch (e) {
-            console.warn('custom_trackers Supabase insert failed (localStorage used):', e);
-          }
-          if (action.add_to_calendar && action.schedule_days?.length) {
-            const dayMap = { monday:1, tuesday:2, wednesday:3, thursday:4, friday:5, saturday:6, sunday:0 };
-            for (const day of action.schedule_days) {
-              for (let week = 0; week < 8; week++) {
-                const d = new Date();
-                const targetDay = dayMap[day.toLowerCase()];
-                const currentDay = d.getDay();
-                const daysUntil = (targetDay - currentDay + 7) % 7 || 7;
-                d.setDate(d.getDate() + daysUntil + (week * 7));
-                try {
-                  await sb.from('events').insert({
-                    title: tracker.label,
-                    date: d.toISOString().slice(0, 10),
-                    start_time: action.schedule_time || '07:00',
-                    end_time: null,
-                    category: 'personal',
-                    color: tracker.color,
-                    notes: '',
-                    user_id: user?.id,
-                  });
-                } catch {}
-              }
-            }
-            setCalendarRefreshKey(k => k + 1);
-          }
-          setTrackersRefreshKey(k => k + 1);
-          console.log('Refresh key incremented');
-          setGlobalAIResponse({ text: `Created "${tracker.label}" tracker${action.add_to_calendar ? ' and added 8 weeks of events to calendar' : ''}! Go to Trackers to see it.`, type: 'success' });
         } else {
           setGlobalAIHistory([...newHistory, { role: 'assistant', content: reply }]);
           setGlobalAIResponse({ text: cleaned, type: 'text' });
@@ -408,37 +302,13 @@ RESPONSE RULES — choose one format only:
     setGlobalAILoading(false);
   };
 
-  // Page & tracker state — map legacy page names on restore
+  // Page state — map legacy page names on restore
   const [page, setPage] = useState(() => {
     const saved = localStorage.getItem("sanctum_page");
     if (!saved || ["dashboard", "ai"].includes(saved)) return "home";
-    if (TRACKER_PAGES.includes(saved)) return "trackers";
-    if (["home","notes","calendar","trackers","settings"].includes(saved)) return saved;
+    if (["home","notes","calendar","settings"].includes(saved)) return saved;
     return "home";
   });
-  const [trackerPage, setTrackerPage] = useState(() => {
-    const saved = localStorage.getItem("sanctum_page");
-    return (TRACKER_PAGES.includes(saved) || (saved && saved.startsWith('custom_'))) ? saved : null;
-  });
-
-  const [archivedTrackers, setArchivedTrackers] = useState(() => {
-    try { return JSON.parse(localStorage.getItem("sanctum_archived_trackers") || "[]"); }
-    catch { return []; }
-  });
-  const archiveTracker = (id) => {
-    setArchivedTrackers(prev => {
-      const next = [...prev, id];
-      localStorage.setItem("sanctum_archived_trackers", JSON.stringify(next));
-      return next;
-    });
-  };
-  const unarchiveTracker = (id) => {
-    setArchivedTrackers(prev => {
-      const next = prev.filter(x => x !== id);
-      localStorage.setItem("sanctum_archived_trackers", JSON.stringify(next));
-      return next;
-    });
-  };
 
   // Sidebar nav ordering
   const NAV_IDS = NAV.map(n => n.id);
@@ -479,40 +349,14 @@ RESPONSE RULES — choose one format only:
   const onNavDragEnd = () => { setNavDragOver(null); setNavDragging(null); navDragId.current = null; };
 
   const navigate = (p) => {
-    if (TRACKER_PAGES.includes(p) || p.startsWith('custom_')) {
-      setPage("trackers");
-      setTrackerPage(p);
-      localStorage.setItem("sanctum_page", p);
-    } else {
-      setPage(p);
-      setTrackerPage(null);
-      localStorage.setItem("sanctum_page", p);
-    }
+    setPage(p);
+    localStorage.setItem("sanctum_page", p);
   };
 
   const goToCalendarDay = (date) => {
     setCalDate(date);
     navigate("calendar");
   };
-
-  useEffect(() => {
-    const loadCustomTrackers = async () => {
-      try {
-        const data = await sb.from('custom_trackers').select('*');
-        if (Array.isArray(data) && data.length > 0) {
-          const active = data.filter(t => !t.archived);
-          setCustomTrackers(active);
-          localStorage.setItem('sanctum_custom_trackers', JSON.stringify(active));
-          return;
-        }
-      } catch {}
-      try {
-        const local = JSON.parse(localStorage.getItem('sanctum_custom_trackers') || '[]');
-        setCustomTrackers(local.filter(t => !t.archived));
-      } catch { setCustomTrackers([]); }
-    };
-    loadCustomTrackers();
-  }, [trackersRefreshKey]);
 
   useEffect(() => {
     // Apply saved font immediately on mount
@@ -545,7 +389,7 @@ RESPONSE RULES — choose one format only:
   }, [user, checking]);
 
   const handleLogin = (u) => setUser(u);
-  const handleLogout = () => { auth.signOut(); setUser(null); setPage("home"); setTrackerPage(null); localStorage.removeItem("sanctum_page"); };
+  const handleLogout = () => { auth.signOut(); setUser(null); setPage("home"); localStorage.removeItem("sanctum_page"); };
 
   const onFabTouchStart = (e) => {
     const t = e.touches[0];
@@ -582,49 +426,19 @@ RESPONSE RULES — choose one format only:
 
   const renderPage = () => {
     if (!user) return null;
-    if (page === "home") return <Home user={user} archivedTrackers={archivedTrackers} onNavigate={navigate} onGoToCalendarDay={goToCalendarDay} refreshKey={trackersRefreshKey} />;
+    if (page === "home") return <Home user={user} onNavigate={navigate} onGoToCalendarDay={goToCalendarDay} />;
     if (page === "notes") return <Notes user={user} />;
     if (page === "calendar") return <Calendar user={user} initialDate={calDate} refreshKey={calendarRefreshKey} />;
-    if (page === "trackers") {
-      if (trackerPage && archivedTrackers.includes(trackerPage)) { setTrackerPage(null); localStorage.setItem("sanctum_page", "trackers"); }
-      if (trackerPage === "career")  return <><TrackerBackBar name="Career" onBack={() => { setTrackerPage(null); localStorage.setItem("sanctum_page","trackers"); }} /><Career user={user} /></>;
-      if (trackerPage === "study")   return <><TrackerBackBar name="Study & PMP" onBack={() => { setTrackerPage(null); localStorage.setItem("sanctum_page","trackers"); }} /><Study user={user} /></>;
-      if (trackerPage === "finance") return <><TrackerBackBar name="Finance" onBack={() => { setTrackerPage(null); localStorage.setItem("sanctum_page","trackers"); }} /><Finance user={user} /></>;
-      if (trackerPage === "travel")  return <><TrackerBackBar name="Travel" onBack={() => { setTrackerPage(null); localStorage.setItem("sanctum_page","trackers"); }} /><Travel user={user} /></>;
-      if (trackerPage === "pet")     return <><TrackerBackBar name="Ozzy" onBack={() => { setTrackerPage(null); localStorage.setItem("sanctum_page","trackers"); }} /><Ozzy user={user} /></>;
-      if (trackerPage && trackerPage.startsWith('custom_')) {
-        const activeCustomTracker = customTrackers.find(t => t.id === trackerPage);
-        if (activeCustomTracker) {
-          const backToTrackers = () => { setTrackerPage(null); localStorage.setItem("sanctum_page","trackers"); };
-          return (
-            <>
-              <TrackerBackBar name={activeCustomTracker.label} onBack={backToTrackers} />
-              <CustomTrackerDetail
-                tracker={activeCustomTracker}
-                onClose={backToTrackers}
-                user={user}
-                onUpdate={(updated) => {
-                  setCustomTrackers(prev => prev.map(t => t.id === updated.id ? updated : t));
-                }}
-              />
-            </>
-          );
-        }
-        setTrackerPage(null); localStorage.setItem("sanctum_page","trackers");
-      }
-      return <TrackerHub archivedTrackers={archivedTrackers} onArchive={archiveTracker} onUnarchive={unarchiveTracker} onNavigate={navigate} user={user} refreshKey={trackersRefreshKey} />;
-    }
     if (page === "settings") return <Settings user={user} onLogout={handleLogout} theme={theme} onThemeChange={applyTheme} font={font} onFontChange={applyFont} sb={sb} />;
   };
 
   const today = new Date().toLocaleDateString("en-IE", { weekday: "short", day: "numeric", month: "short", year: "numeric" });
-  const pageTitle = page === "trackers" && trackerPage ? TITLES[trackerPage] : TITLES[page];
+  const pageTitle = TITLES[page];
 
   const BOTTOM_NAV = [
     { id: "home",     label: "Home",     icon: "home" },
     { id: "notes",    label: "Notes",    icon: "notes" },
     { id: "calendar", label: "Calendar", icon: "calendar" },
-    { id: "trackers", label: "Trackers", icon: "trackers" },
     { id: "settings", label: "Settings", icon: "settings" },
   ];
 
@@ -701,7 +515,7 @@ RESPONSE RULES — choose one format only:
               <div className="user-avatar" title={email} onClick={() => navigate('settings')}>{initials}</div>
             </div>
           </div>
-          {['calendar','trackers','settings'].includes(page) && (
+          {['calendar','settings'].includes(page) && (
             <div className="global-ai-bar-wrap" style={{padding:'12px 24px 0'}}>
               <div className="ai-bar">
                 <div style={{width:32,height:32,borderRadius:'50%',background:'#080808',border:'1px solid #333',display:'flex',alignItems:'center',justifyContent:'center',flexShrink:0,overflow:'hidden'}}><SanctumLogo size={28}/></div>
@@ -746,7 +560,7 @@ RESPONSE RULES — choose one format only:
       {/* ── Bottom nav (mobile) ── */}
       {/* ── Mobile AI FAB ── */}
       <button
-        className={`mobile-ai-fab${!['home','calendar','trackers','settings'].includes(page)?' hide-fab':''}`}
+        className={`mobile-ai-fab${!['home','calendar','settings'].includes(page)?' hide-fab':''}`}
         style={{ bottom: fabPos.bottom + 'px', left: fabPos.left + 'px' }}
         onTouchStart={onFabTouchStart}
         onTouchMove={onFabTouchMove}
