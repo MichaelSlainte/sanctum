@@ -1,5 +1,5 @@
 import { useState, useEffect } from "react";
-import { sb } from "../lib/supabase";
+import { sb, auth } from "../lib/supabase";
 import { Icon, Modal } from "./shared";
 
 const COLORS = [
@@ -41,33 +41,45 @@ const SEED = {
   ],
 };
 
-async function seedPhoenix() {
-  const proj = await sb.from("roadmap_projects").insert({
-    name: SEED.name, start_date: SEED.start_date, end_date: SEED.end_date,
-  });
+async function seedPhoenix(userId) {
+  console.log("[seedPhoenix] Starting — userId:", userId);
+
+  const projPayload = { name: SEED.name, start_date: SEED.start_date, end_date: SEED.end_date, user_id: userId };
+  console.log("[seedPhoenix] INSERT roadmap_projects payload:", projPayload);
+  const proj = await sb.from("roadmap_projects").insert(projPayload);
+  console.log("[seedPhoenix] INSERT roadmap_projects response:", proj);
+
   if (!Array.isArray(proj) || !proj[0]) {
-    console.error("[seedPhoenix] Failed to insert project — response:", proj);
+    console.error("[seedPhoenix] FAILED to insert project:", proj);
     return null;
   }
   const projId = proj[0].id;
+  console.log("[seedPhoenix] Project created, id:", projId);
+
   for (const t of SEED.tracks) {
-    const tr = await sb.from("roadmap_tracks").insert({
-      project_id: projId, label: t.label, color: t.color, position: t.position,
-    });
+    const trackPayload = { project_id: projId, label: t.label, color: t.color, position: t.position, user_id: userId };
+    console.log(`[seedPhoenix] INSERT roadmap_tracks "${t.label}" payload:`, trackPayload);
+    const tr = await sb.from("roadmap_tracks").insert(trackPayload);
+    console.log(`[seedPhoenix] INSERT roadmap_tracks "${t.label}" response:`, tr);
+
     if (!Array.isArray(tr) || !tr[0]) {
-      console.error(`[seedPhoenix] Failed to insert track "${t.label}" — response:`, tr);
+      console.error(`[seedPhoenix] FAILED to insert track "${t.label}":`, tr);
       continue;
     }
     const trackId = tr[0].id;
+    console.log(`[seedPhoenix] Track "${t.label}" created, id:`, trackId);
+
     for (const ms of t.milestones) {
-      const mRes = await sb.from("roadmap_milestones").insert({
-        track_id: trackId, label: ms.label, date: ms.date, completed: ms.completed,
-      });
+      const msPayload = { track_id: trackId, label: ms.label, date: ms.date, completed: ms.completed, user_id: userId };
+      console.log(`[seedPhoenix] INSERT roadmap_milestones "${ms.label}" payload:`, msPayload);
+      const mRes = await sb.from("roadmap_milestones").insert(msPayload);
+      console.log(`[seedPhoenix] INSERT roadmap_milestones "${ms.label}" response:`, mRes);
       if (!Array.isArray(mRes) || !mRes[0]) {
-        console.error(`[seedPhoenix] Failed to insert milestone "${ms.label}" — response:`, mRes);
+        console.error(`[seedPhoenix] FAILED to insert milestone "${ms.label}":`, mRes);
       }
     }
   }
+  console.log("[seedPhoenix] Done.");
   return projId;
 }
 
@@ -245,6 +257,7 @@ export default function Roadmap() {
   const [activeId,   setActiveId]   = useState(null);
   const [loading,    setLoading]    = useState(true);
   const [seeding,    setSeeding]    = useState(false);
+  const [user]                      = useState(() => auth.getSession()?.user || null);
 
   const [collapsed, setCollapsed] = useState(() => {
     try { return JSON.parse(localStorage.getItem("sanctum_roadmap_collapsed") || "{}"); }
@@ -293,7 +306,7 @@ export default function Roadmap() {
           await sb.from("roadmap_projects").delete({ id: existing.id });
         }
         setSeeding(true);
-        await seedPhoenix();
+        await seedPhoenix(auth.getSession()?.user?.id);
         setSeeding(false);
         const fresh = await sb.from("roadmap_projects").select("*");
         const freshProjs = Array.isArray(fresh) ? fresh : [];
@@ -591,6 +604,24 @@ export default function Roadmap() {
                 {tracks.length === 0 ? (
                   <div style={{ color: "var(--t3)", fontSize: 13, textAlign: "center", padding: "20px 0" }}>
                     No tracks yet — add your first track below
+                    <div style={{ marginTop: 10 }}>
+                      <button
+                        className="btn xs"
+                        style={{ fontSize: 10, color: "var(--t3)", background: "var(--bg2)", border: "1px solid var(--b2)" }}
+                        disabled={seeding}
+                        onClick={async () => {
+                          setSeeding(true);
+                          const userId = user?.id || auth.getSession()?.user?.id;
+                          console.log("[SeedBtn] Triggering seedPhoenix with userId:", userId);
+                          const projId = await seedPhoenix(userId);
+                          console.log("[SeedBtn] seedPhoenix returned projId:", projId);
+                          setSeeding(false);
+                          if (projId) await init();
+                        }}
+                      >
+                        {seeding ? "Seeding…" : "Debug: Seed Phoenix"}
+                      </button>
+                    </div>
                   </div>
                 ) : (
                   <Timeline
