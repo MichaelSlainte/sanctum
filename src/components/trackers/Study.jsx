@@ -2,6 +2,85 @@ import { useState, useEffect } from "react";
 import { sb } from "../../lib/supabase";
 import { Icon, Modal } from "../shared";
 
+function PMPRoadmapTimeline() {
+  const [milestones, setMilestones] = useState([]);
+  const [trackColor, setTrackColor] = useState("#f59e0b");
+
+  useEffect(() => {
+    (async () => {
+      try {
+        const projs = await sb.from("roadmap_projects").select("*");
+        if (!Array.isArray(projs) || projs.length === 0) return;
+        const proj = projs.find(p => p.name === "Project Phoenix") || projs[projs.length - 1];
+        if (!proj) return;
+        const tracks = await sb.from("roadmap_tracks").select("*", `&project_id=eq.${proj.id}`);
+        if (!Array.isArray(tracks)) return;
+        const pmpTrack = tracks.find(t => t.label === "PMP Certification");
+        if (!pmpTrack) return;
+        setTrackColor(pmpTrack.color || "#f59e0b");
+        const ms = await sb.from("roadmap_milestones").select("*", `&track_id=eq.${pmpTrack.id}`);
+        if (Array.isArray(ms)) setMilestones(ms.sort((a, b) => a.date.localeCompare(b.date)));
+      } catch {}
+    })();
+  }, []);
+
+  if (milestones.length === 0) return null;
+
+  const today = new Date().toISOString().slice(0, 10);
+  const startD = new Date(milestones[0].date + "T00:00:00");
+  const endD   = new Date(milestones[milestones.length - 1].date + "T00:00:00");
+  const span   = endD - startD || 1;
+  const toPct  = (ds) => ((new Date(ds + "T00:00:00") - startD) / span) * 100;
+  const todayPct = toPct(today);
+
+  return (
+    <div style={{ background: "rgba(245,158,11,0.06)", border: "1px solid rgba(245,158,11,0.2)", borderRadius: 14, padding: "14px 18px", marginBottom: 18 }}>
+      <div style={{ fontSize: 11, fontWeight: 600, color: "var(--t3)", textTransform: "uppercase", letterSpacing: ".5px", marginBottom: 12 }}>
+        PMP Certification · Exam Timeline
+      </div>
+      <div style={{ position: "relative", height: 52, overflowX: "auto" }}>
+        <div style={{ minWidth: 320, position: "relative", height: 52 }}>
+          <div style={{ position: "absolute", top: "50%", left: 0, right: 0, height: 2, background: `${trackColor}30`, transform: "translateY(-50%)" }} />
+          {todayPct >= 0 && todayPct <= 100 && (
+            <div style={{ position: "absolute", left: `${todayPct}%`, top: 0, bottom: 0, width: 1, background: "#ef4444", opacity: 0.5 }} />
+          )}
+          {milestones.map((ms, idx) => {
+            const x = toPct(ms.date);
+            if (x < 0 || x > 101) return null;
+            const above = idx % 2 === 0;
+            return (
+              <div key={ms.id} style={{ position: "absolute", left: `${x}%`, top: 0, bottom: 0, zIndex: 2 }}>
+                <div style={{
+                  position: "absolute", left: "50%",
+                  ...(above ? { top: 2 } : { bottom: 2 }),
+                  transform: "translateX(-50%)",
+                  fontSize: 9, color: ms.completed ? trackColor : "var(--t3)",
+                  whiteSpace: "nowrap", fontFamily: "var(--mono)",
+                  fontWeight: ms.completed ? 700 : 400,
+                  textShadow: "0 0 4px var(--bg)",
+                }}>{ms.label}</div>
+                <div style={{
+                  position: "absolute", top: "50%", left: "50%",
+                  width: 9, height: 9,
+                  transform: "translate(-50%, -50%) rotate(45deg)",
+                  background: ms.completed ? trackColor : "var(--bg1)",
+                  border: `2px solid ${trackColor}`,
+                  borderRadius: 1,
+                }} />
+              </div>
+            );
+          })}
+        </div>
+      </div>
+      <div style={{ display: "flex", justifyContent: "space-between", marginTop: 4, fontSize: 9, color: "var(--t3)", fontFamily: "var(--mono)" }}>
+        <span>{milestones[0]?.date?.slice(0, 7)}</span>
+        <span style={{ color: "#ef4444" }}>today</span>
+        <span>{milestones[milestones.length - 1]?.date?.slice(0, 7)}</span>
+      </div>
+    </div>
+  );
+}
+
 export default function Study({ user }) {
   const today = new Date();
   const [tab, setTab] = useState("pmp");
@@ -222,6 +301,8 @@ export default function Study({ user }) {
                 min="1" max="999" value={pmpGoals.targetHours} onChange={e => savePmpGoal("targetHours", e.target.value)} />
             </div>
           </div>
+
+          <PMPRoadmapTimeline />
 
           <div className="grid-4 mb18">
             <div className="stat">
