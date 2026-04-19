@@ -119,6 +119,9 @@ const NAV = [
   { id: "home",     label: "Home",     icon: "home" },
   { id: "notes",    label: "Notes",    icon: "notes" },
   { id: "calendar", label: "Calendar", icon: "calendar" },
+  { id: "study",    label: "Study",    icon: "study" },
+  { id: "pet",      label: "Ozzy",     icon: "pet" },
+  { id: "travel",   label: "Travel",   icon: "travel" },
   { id: "settings", label: "Settings", icon: "settings" },
 ];
 const TITLES = {

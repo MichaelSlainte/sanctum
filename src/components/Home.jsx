@@ -983,7 +983,7 @@ For all other queries respond in plain conversational text, warm but concise, ma
               onTouchEnd:   onCardTouchEnd,
             };
             if (id === "pmp") return (
-              <div key="pmp" className={cls} {...drag} style={{ cursor: "grab" }}>
+              <div key="pmp" className={cls} {...drag} style={{ cursor: "pointer" }} onClick={() => onNavigate("study")}>
                 <div className="drag-handle" style={{ position:"absolute", top:8, right:8 }}><Icon name="grab" size={12} /></div>
                 <RingCard label="PMP EXAM" value={`${daysToExam}d`} sub={`${daysToExam}d · ${Math.ceil(daysToExam / 7)}w`}
                   percent={Math.max(0, (420 - daysToExam) / 420)}
@@ -1052,31 +1052,6 @@ For all other queries respond in plain conversational text, warm but concise, ma
       </div>
 
       <Roadmap />
-
-      {/* Tracker cards */}
-      <div className="card" style={{ marginBottom: 18 }}>
-        <div className="card-header">
-          <div><div className="card-title">Trackers</div></div>
-        </div>
-        <div className="grid-3" style={{ gap: 12 }}>
-          {[
-            { label: "Study", emoji: "📚", page: "study", sub: "PMP & TryHackMe progress", color: "var(--purple)", bg: "rgba(139,92,246,0.12)" },
-            { label: "Ozzy", emoji: "🐾", page: "pet", sub: "Golden Retriever · Nov 2025", color: "var(--amber)", bg: "rgba(245,158,11,0.12)" },
-            { label: "Travel", emoji: "✈️", page: "travel", sub: "Trips & packing lists", color: "var(--blue)", bg: "rgba(59,130,246,0.12)" },
-          ].map(item => (
-            <div key={item.page} style={{ background: "var(--bg2)", border: "1px solid var(--b1)", borderRadius: 12, padding: 16 }}>
-              <div style={{ display: "flex", alignItems: "center", gap: 10, marginBottom: 10 }}>
-                <div style={{ width: 36, height: 36, borderRadius: 10, background: item.bg, display: "flex", alignItems: "center", justifyContent: "center", fontSize: 18 }}>{item.emoji}</div>
-                <div>
-                  <div style={{ fontSize: 14, fontWeight: 600, color: "var(--t1)" }}>{item.label}</div>
-                  <div style={{ fontSize: 11, color: "var(--t3)" }}>{item.sub}</div>
-                </div>
-              </div>
-              <button className="btn sm primary" style={{ width: "100%", justifyContent: "center" }} onClick={() => onNavigate(item.page)}>View</button>
-            </div>
-          ))}
-        </div>
-      </div>
 
       {/* Tasks + Week (drag to reorder) */}
       {(() => {
