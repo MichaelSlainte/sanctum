@@ -407,7 +407,7 @@ RESPONSE RULES — choose one format only:
         setUser(session.user);
         // Fetch display_name from profiles table — takes priority over user_metadata
         try {
-          const profile = await sb.from("profiles").select("display_name,timezone", `&user_id=eq.${session.user.id}`, "");
+          const profile = await sb.from("profiles").select("display_name,timezone", `&id=eq.${session.user.id}`, "");
           if (Array.isArray(profile) && profile[0]?.display_name) {
             const key = `sanctum_display_name_${session.user.id}`;
             localStorage.setItem(key, profile[0].display_name);
@@ -434,7 +434,7 @@ RESPONSE RULES — choose one format only:
   const handleLogin = async (u) => {
     setUser(u);
     try {
-      const profile = await sb.from("profiles").select("display_name,timezone", `&user_id=eq.${u.id}`, "");
+      const profile = await sb.from("profiles").select("display_name,timezone", `&id=eq.${u.id}`, "");
       if (Array.isArray(profile) && profile[0]?.display_name) {
         localStorage.setItem(`sanctum_display_name_${u.id}`, profile[0].display_name);
         setProfileName(profile[0].display_name);
