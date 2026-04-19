@@ -184,6 +184,7 @@ const SanctumLogo = ({ size = 36, theme = "dark" }) => {
 export default function App() {
   const [user, setUser] = useState(null);
   const [checking, setChecking] = useState(true);
+  const [profileName, setProfileName] = useState("");
   const [calDate, setCalDate] = useState(null);
   const [globalAIInput, setGlobalAIInput] = useState('');
   const [globalAILoading, setGlobalAILoading] = useState(false);
@@ -404,12 +405,13 @@ RESPONSE RULES — choose one format only:
       }
       if (session) {
         setUser(session.user);
-        // Fetch display_name from profiles table and cache locally
+        // Fetch display_name from profiles table — takes priority over user_metadata
         try {
           const profile = await sb.from("profiles").select("display_name,timezone", `&user_id=eq.${session.user.id}`, "");
           if (Array.isArray(profile) && profile[0]?.display_name) {
             const key = `sanctum_display_name_${session.user.id}`;
             localStorage.setItem(key, profile[0].display_name);
+            setProfileName(profile[0].display_name);
           }
         } catch {}
       }
@@ -490,7 +492,7 @@ RESPONSE RULES — choose one format only:
   ];
 
   const userDisplayKey = user?.id ? `sanctum_display_name_${user.id}` : "sanctum_display_name";
-  const displayName = user?.user_metadata?.display_name || localStorage.getItem(userDisplayKey) || user?.email?.split('@')[0]?.split('.')[0] || 'You';
+  const displayName = profileName || localStorage.getItem(userDisplayKey) || user?.email?.split('@')[0]?.split('.')[0] || 'You';
   const initials = displayName.split(' ').length > 1
     ? displayName.split(' ').map(w => w[0]).join('').toUpperCase().slice(0, 2)
     : displayName.slice(0, 2).toUpperCase();

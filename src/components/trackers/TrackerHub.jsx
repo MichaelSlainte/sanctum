@@ -729,7 +729,7 @@ export default function TrackerHub({ archivedTrackers = [], onArchive, onUnarchi
     return known;
   });
 
-  const [archivedOpen, setArchivedOpen] = useState(false);
+  const [archivedOpen, setArchivedOpen] = useState(archivedTrackers.length > 0);
   const [dragOver, setDragOver] = useState(null);
   const [dragging, setDragging] = useState(null);
   const dragId = useRef(null);
@@ -775,15 +775,17 @@ export default function TrackerHub({ archivedTrackers = [], onArchive, onUnarchi
         <div className="drag-handle" style={{ position: "absolute", top: 12, left: 14 }}>
           <Icon name="grab" size={12} />
         </div>
-        <button className="tracker-archive-btn" title="Archive tracker"
-          onClick={e => { e.stopPropagation(); onArchive(t.id); }}>
-          <svg width="14" height="14" viewBox="0 0 24 24" fill="none"
-            stroke="currentColor" strokeWidth="2" strokeLinecap="round">
-            <polyline points="21 8 21 21 3 21 3 8"/>
-            <rect x="1" y="3" width="22" height="5"/>
-            <line x1="10" y1="12" x2="14" y2="12"/>
-          </svg>
-        </button>
+        {!DEFAULT_IDS.includes(t.id) && (
+          <button className="tracker-archive-btn" title="Archive tracker"
+            onClick={e => { e.stopPropagation(); onArchive(t.id); }}>
+            <svg width="14" height="14" viewBox="0 0 24 24" fill="none"
+              stroke="currentColor" strokeWidth="2" strokeLinecap="round">
+              <polyline points="21 8 21 21 3 21 3 8"/>
+              <rect x="1" y="3" width="22" height="5"/>
+              <line x1="10" y1="12" x2="14" y2="12"/>
+            </svg>
+          </button>
+        )}
         <div className="tc-ring"><MiniRing percent={ring.percent} color={ring.color} /></div>
         <div className="tc-icon"><Icon name={t.icon} size={22} color="var(--t2)" /></div>
         <div className="tc-name">{t.name}</div>
