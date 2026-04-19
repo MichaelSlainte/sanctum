@@ -6,7 +6,7 @@ import Home from "./components/Home";
 import Notes from "./components/Notes";
 import Calendar from "./components/Calendar";
 import Settings from "./components/Settings";
-import TrackerHub, { TrackerBackBar } from "./components/trackers/TrackerHub";
+import TrackerHub, { TrackerBackBar, CustomTrackerDetail } from "./components/trackers/TrackerHub";
 import Study from "./components/trackers/Study";
 import Career from "./components/trackers/Career";
 import Finance from "./components/trackers/Finance";
@@ -193,6 +193,10 @@ export default function App() {
   const [mobileAIOpen, setMobileAIOpen] = useState(false);
   const [calendarRefreshKey, setCalendarRefreshKey] = useState(0);
   const [trackersRefreshKey, setTrackersRefreshKey] = useState(0);
+  const [customTrackers, setCustomTrackers] = useState(() => {
+    try { return JSON.parse(localStorage.getItem('sanctum_custom_trackers') || '[]').filter(t => !t.archived); }
+    catch { return []; }
+  });
   const [globalAIHistory, setGlobalAIHistory] = useState([]);
 
   // Draggable AI FAB position
@@ -414,7 +418,7 @@ RESPONSE RULES — choose one format only:
   });
   const [trackerPage, setTrackerPage] = useState(() => {
     const saved = localStorage.getItem("sanctum_page");
-    return TRACKER_PAGES.includes(saved) ? saved : null;
+    return (TRACKER_PAGES.includes(saved) || (saved && saved.startsWith('custom_'))) ? saved : null;
   });
 
   const [archivedTrackers, setArchivedTrackers] = useState(() => {
@@ -475,7 +479,7 @@ RESPONSE RULES — choose one format only:
   const onNavDragEnd = () => { setNavDragOver(null); setNavDragging(null); navDragId.current = null; };
 
   const navigate = (p) => {
-    if (TRACKER_PAGES.includes(p)) {
+    if (TRACKER_PAGES.includes(p) || p.startsWith('custom_')) {
       setPage("trackers");
       setTrackerPage(p);
       localStorage.setItem("sanctum_page", p);
@@ -490,6 +494,25 @@ RESPONSE RULES — choose one format only:
     setCalDate(date);
     navigate("calendar");
   };
+
+  useEffect(() => {
+    const loadCustomTrackers = async () => {
+      try {
+        const data = await sb.from('custom_trackers').select('*');
+        if (Array.isArray(data) && data.length > 0) {
+          const active = data.filter(t => !t.archived);
+          setCustomTrackers(active);
+          localStorage.setItem('sanctum_custom_trackers', JSON.stringify(active));
+          return;
+        }
+      } catch {}
+      try {
+        const local = JSON.parse(localStorage.getItem('sanctum_custom_trackers') || '[]');
+        setCustomTrackers(local.filter(t => !t.archived));
+      } catch { setCustomTrackers([]); }
+    };
+    loadCustomTrackers();
+  }, [trackersRefreshKey]);
 
   useEffect(() => {
     // Apply saved font immediately on mount
@@ -569,6 +592,26 @@ RESPONSE RULES — choose one format only:
       if (trackerPage === "finance") return <><TrackerBackBar name="Finance" onBack={() => { setTrackerPage(null); localStorage.setItem("sanctum_page","trackers"); }} /><Finance user={user} /></>;
       if (trackerPage === "travel")  return <><TrackerBackBar name="Travel" onBack={() => { setTrackerPage(null); localStorage.setItem("sanctum_page","trackers"); }} /><Travel user={user} /></>;
       if (trackerPage === "pet")     return <><TrackerBackBar name="Ozzy" onBack={() => { setTrackerPage(null); localStorage.setItem("sanctum_page","trackers"); }} /><Ozzy user={user} /></>;
+      if (trackerPage && trackerPage.startsWith('custom_')) {
+        const activeCustomTracker = customTrackers.find(t => t.id === trackerPage);
+        if (activeCustomTracker) {
+          const backToTrackers = () => { setTrackerPage(null); localStorage.setItem("sanctum_page","trackers"); };
+          return (
+            <>
+              <TrackerBackBar name={activeCustomTracker.label} onBack={backToTrackers} />
+              <CustomTrackerDetail
+                tracker={activeCustomTracker}
+                onClose={backToTrackers}
+                user={user}
+                onUpdate={(updated) => {
+                  setCustomTrackers(prev => prev.map(t => t.id === updated.id ? updated : t));
+                }}
+              />
+            </>
+          );
+        }
+        setTrackerPage(null); localStorage.setItem("sanctum_page","trackers");
+      }
       return <TrackerHub archivedTrackers={archivedTrackers} onArchive={archiveTracker} onUnarchive={unarchiveTracker} onNavigate={navigate} user={user} refreshKey={trackersRefreshKey} />;
     }
     if (page === "settings") return <Settings user={user} onLogout={handleLogout} theme={theme} onThemeChange={applyTheme} font={font} onFontChange={applyFont} sb={sb} />;

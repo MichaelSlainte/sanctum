@@ -111,7 +111,7 @@ const getActivityPresets = (label) => {
 };
 
 // ── Custom Tracker Detail — full page ────────────────────────────────────────
-function CustomTrackerDetail({ tracker: initialTracker, onClose, user, onUpdate }) {
+export function CustomTrackerDetail({ tracker: initialTracker, onClose, user, onUpdate }) {
   const [tracker, setTracker] = useState(initialTracker);
   const [entries, setEntries] = useState([]);
   const [loadingEntries, setLoadingEntries] = useState(true);
@@ -625,7 +625,6 @@ export default function TrackerHub({ archivedTrackers = [], onArchive, onUnarchi
   });
 
   const [trackerEntries, setTrackerEntries] = useState([]);
-  const [detailTracker, setDetailTracker] = useState(null);
 
   const loadCustomTrackers = async () => {
     console.log('Loading custom trackers, key:', refreshKey);
@@ -760,23 +759,6 @@ export default function TrackerHub({ archivedTrackers = [], onArchive, onUnarchi
     try { await sb.from('custom_trackers').update({ archived: true }, { id }); } catch {}
   };
 
-  const handleTrackerUpdate = (updated) => {
-    setCustomTrackers(prev => prev.map(t => t.id === updated.id ? updated : t));
-    setDetailTracker(updated);
-  };
-
-  // When a custom tracker is open, render detail full page
-  if (detailTracker) {
-    return (
-      <CustomTrackerDetail
-        tracker={detailTracker}
-        onClose={() => setDetailTracker(null)}
-        user={user}
-        onUpdate={handleTrackerUpdate}
-      />
-    );
-  }
-
   const renderCard = (id) => {
     const t = TRACKERS.find(x => x.id === id);
     if (!t) return null;
@@ -816,7 +798,7 @@ export default function TrackerHub({ archivedTrackers = [], onArchive, onUnarchi
     return (
       <div
         key={t.id}
-        onClick={() => setDetailTracker(t)}
+        onClick={() => onNavigate(t.id)}
         style={{
           background: 'var(--bg1)',
           border: '1px solid var(--b2)',
