@@ -283,7 +283,7 @@ export default function Roadmap() {
       // Auto-clean stale test/empty projects
       const stale = projs.filter(p => !p.name || ["MM", "asca"].includes(p.name) || p.name.trim() === "");
       for (const p of stale) {
-        const tData = await sb.from("roadmap_tracks").select("*", `&project_id=eq.${p.id}`);
+        const tData = await sb.from("roadmap_tracks").select("*", `&project_id=eq.${p.id}`, "");
         const ts = Array.isArray(tData) ? tData : [];
         for (const t of ts) await sb.from("roadmap_milestones").delete({ track_id: t.id });
         await sb.from("roadmap_tracks").delete({ project_id: p.id });
@@ -295,7 +295,7 @@ export default function Roadmap() {
       let needsSeed = projs.length === 0;
       if (!needsSeed && projs.length > 0) {
         const projId = projs[projs.length - 1].id;
-        const tCheck = await sb.from("roadmap_tracks").select("*", `&project_id=eq.${projId}`);
+        const tCheck = await sb.from("roadmap_tracks").select("*", `&project_id=eq.${projId}`, "");
         if (!Array.isArray(tCheck) || tCheck.length === 0) needsSeed = true;
       }
 
@@ -328,12 +328,12 @@ export default function Roadmap() {
 
   const loadProjectData = async (projId) => {
     try {
-      const tData = await sb.from("roadmap_tracks").select("*", `&project_id=eq.${projId}`);
+      const tData = await sb.from("roadmap_tracks").select("*", `&project_id=eq.${projId}`, "position.asc");
       const ts = Array.isArray(tData) ? tData : [];
       setTracks(ts);
       if (ts.length === 0) { setMilestones([]); return; }
       const ids = ts.map(t => t.id).join(",");
-      const mData = await sb.from("roadmap_milestones").select("*", `&track_id=in.(${ids})`);
+      const mData = await sb.from("roadmap_milestones").select("*", `&track_id=in.(${ids})`, "date.asc");
       setMilestones(Array.isArray(mData) ? mData : []);
     } catch { setTracks([]); setMilestones([]); }
   };
@@ -364,7 +364,7 @@ export default function Roadmap() {
     e.stopPropagation();
     if (!window.confirm(`Delete "${projName}"? This will permanently remove all its tracks and milestones.`)) return;
     try {
-      const tData = await sb.from("roadmap_tracks").select("*", `&project_id=eq.${projId}`);
+      const tData = await sb.from("roadmap_tracks").select("*", `&project_id=eq.${projId}`, "");
       const ts = Array.isArray(tData) ? tData : [];
       for (const t of ts) {
         await sb.from("roadmap_milestones").delete({ track_id: t.id });
@@ -604,24 +604,6 @@ export default function Roadmap() {
                 {tracks.length === 0 ? (
                   <div style={{ color: "var(--t3)", fontSize: 13, textAlign: "center", padding: "20px 0" }}>
                     No tracks yet — add your first track below
-                    <div style={{ marginTop: 10 }}>
-                      <button
-                        className="btn xs"
-                        style={{ fontSize: 10, color: "var(--t3)", background: "var(--bg2)", border: "1px solid var(--b2)" }}
-                        disabled={seeding}
-                        onClick={async () => {
-                          setSeeding(true);
-                          const userId = user?.id || auth.getSession()?.user?.id;
-                          console.log("[SeedBtn] Triggering seedPhoenix with userId:", userId);
-                          const projId = await seedPhoenix(userId);
-                          console.log("[SeedBtn] seedPhoenix returned projId:", projId);
-                          setSeeding(false);
-                          if (projId) await init();
-                        }}
-                      >
-                        {seeding ? "Seeding…" : "Debug: Seed Phoenix"}
-                      </button>
-                    </div>
                   </div>
                 ) : (
                   <Timeline

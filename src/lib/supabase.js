@@ -81,11 +81,12 @@ export const auth = {
 
 export const sb = {
   from: (table) => ({
-    select: async (cols = "*", filters = "") => {
+    select: async (cols = "*", filters = "", order = "created_at.desc") => {
       const session = auth.getSession();
       const headers = { apikey: SUPABASE_KEY, "Content-Type": "application/json" };
       if (session) headers.Authorization = `Bearer ${session.token}`;
-      const res = await fetch(`${SUPABASE_URL}/rest/v1/${table}?select=${cols}&order=created_at.desc${filters}`, { headers });
+      const orderParam = order ? `&order=${order}` : "";
+      const res = await fetch(`${SUPABASE_URL}/rest/v1/${table}?select=${cols}${orderParam}${filters}`, { headers });
       if (!res.ok) return [];
       const data = await res.json();
       return Array.isArray(data) ? data : [];
