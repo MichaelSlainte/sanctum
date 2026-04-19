@@ -191,6 +191,7 @@ export default function App() {
   const [globalAIResponse, setGlobalAIResponse] = useState(null);
   const globalAIRef = useRef(null);
   const [mobileAIOpen, setMobileAIOpen] = useState(false);
+  const panelSwipe = useRef({ startY: 0 });
   const [calendarRefreshKey, setCalendarRefreshKey] = useState(0);
   const [globalAIHistory, setGlobalAIHistory] = useState([]);
 
@@ -630,8 +631,17 @@ RESPONSE RULES — choose one format only:
       >
         <Icon name="ai" size={20} color="#fff"/>
       </button>
-      <div className={`mobile-ai-panel${mobileAIOpen?' open':''}`} onClick={e => e.stopPropagation()}>
-        <div className="mobile-ai-panel-handle"/>
+      {mobileAIOpen && <div className="mobile-ai-backdrop" onClick={() => setMobileAIOpen(false)}/>}
+      <div
+        className={`mobile-ai-panel${mobileAIOpen?' open':''}`}
+        onClick={e => e.stopPropagation()}
+        onTouchStart={e => { panelSwipe.current.startY = e.touches[0].clientY; }}
+        onTouchEnd={e => { if (e.changedTouches[0].clientY - panelSwipe.current.startY > 80) setMobileAIOpen(false); }}
+      >
+        <div className="mobile-ai-panel-header">
+          <div className="mobile-ai-panel-handle"/>
+          <button className="mobile-ai-close-btn" onClick={() => setMobileAIOpen(false)} aria-label="Close">×</button>
+        </div>
         <div className="ai-bar">
           <div style={{width:32,height:32,borderRadius:'50%',background:'#080808',border:'1px solid #333',display:'flex',alignItems:'center',justifyContent:'center',flexShrink:0,overflow:'hidden'}}><SanctumLogo size={28}/></div>
           <input
@@ -650,7 +660,6 @@ RESPONSE RULES — choose one format only:
           </button>
         </div>
       </div>
-      {mobileAIOpen && <div style={{position:'fixed',inset:0,zIndex:199}} onClick={() => setMobileAIOpen(false)}/>}
 
       <nav className="bottom-nav">
         <div className="bottom-nav-inner">
