@@ -1,4 +1,4 @@
-import { useState } from "react";
+import { useState, useEffect } from "react";
 import { auth } from "../lib/supabase";
 import { Icon } from "./shared";
 
@@ -22,6 +22,21 @@ export default function Settings({ user, onLogout, theme, onThemeChange, font, o
     user?.user_metadata?.timezone ||
     localStorage.getItem("sanctum_timezone") || "Europe/Dublin"
   );
+  useEffect(() => {
+    (async () => {
+      try {
+        const profile = await sb.from("profiles").select("display_name,timezone", `&user_id=eq.${user?.id}`, "");
+        if (Array.isArray(profile) && profile[0]) {
+          if (profile[0].display_name) {
+            setDisplayName(profile[0].display_name);
+            localStorage.setItem(userKey, profile[0].display_name);
+          }
+          if (profile[0].timezone) setTimezone(profile[0].timezone);
+        }
+      } catch {}
+    })();
+  }, []);
+
   const [saved, setSaved] = useState(false);
   const [saveError, setSaveError] = useState(false);
   const [showDeleteConfirm, setShowDeleteConfirm] = useState(false);

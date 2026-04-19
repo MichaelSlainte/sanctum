@@ -402,7 +402,17 @@ RESPONSE RULES — choose one format only:
         const refreshed = await auth.refreshSession();
         if (refreshed) session = auth.getSession();
       }
-      if (session) setUser(session.user);
+      if (session) {
+        setUser(session.user);
+        // Fetch display_name from profiles table and cache locally
+        try {
+          const profile = await sb.from("profiles").select("display_name,timezone", `&user_id=eq.${session.user.id}`, "");
+          if (Array.isArray(profile) && profile[0]?.display_name) {
+            const key = `sanctum_display_name_${session.user.id}`;
+            localStorage.setItem(key, profile[0].display_name);
+          }
+        } catch {}
+      }
       setChecking(false);
     };
     init();
