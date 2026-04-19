@@ -57,7 +57,7 @@ async function seedPhoenix(userId) {
   return projId;
 }
 
-function Timeline({ project, tracks, milestones, onToggle, onAddMs }) {
+function Timeline({ project, tracks, milestones, onEditMs, onAddMs }) {
   const startD = new Date(project.start_date + "T00:00:00");
   const endD   = new Date(project.end_date   + "T00:00:00");
   const span   = endD - startD;
@@ -142,24 +142,26 @@ function Timeline({ project, tracks, milestones, onToggle, onAddMs }) {
                   const above = idx % 2 === 0;
                   return (
                     <div key={ms.id} style={{ position: "absolute", left: `${x}%`, top: 0, bottom: 0, zIndex: 5 }}>
-                      <div style={{
-                        position: "absolute",
-                        left: "50%",
-                        ...(above ? { top: 3 } : { bottom: 3 }),
-                        transform: "translateX(-50%)",
-                        fontSize: 9,
-                        color: ms.completed ? track.color : "var(--t3)",
-                        whiteSpace: "nowrap",
-                        fontFamily: "var(--mono)",
-                        fontWeight: ms.completed ? 600 : 400,
-                        pointerEvents: "none",
-                        lineHeight: 1,
-                        textShadow: "0 0 4px var(--bg)",
-                      }} title={`${ms.label} · ${ms.date}`}>{ms.label}</div>
+                      <div
+                        onClick={() => onEditMs(ms)}
+                        style={{
+                          position: "absolute",
+                          left: "50%",
+                          ...(above ? { top: 3 } : { bottom: 3 }),
+                          transform: "translateX(-50%)",
+                          fontSize: 9,
+                          color: ms.completed ? track.color : "var(--t3)",
+                          whiteSpace: "nowrap",
+                          fontFamily: "var(--mono)",
+                          fontWeight: ms.completed ? 600 : 400,
+                          lineHeight: 1,
+                          textShadow: "0 0 4px var(--bg)",
+                          cursor: "pointer",
+                        }} title={`${ms.label} · ${ms.date} — click to edit`}>{ms.label}</div>
 
                       <div
-                        title={`${ms.label} · ${ms.date}${ms.completed ? " ✓" : ""}\nClick to toggle`}
-                        onClick={() => onToggle(ms)}
+                        title={`${ms.label} · ${ms.date}${ms.completed ? " ✓" : ""} — click to edit`}
+                        onClick={() => onEditMs(ms)}
                         style={{
                           position: "absolute",
                           top: "50%", left: "50%",
@@ -245,6 +247,9 @@ export default function Roadmap() {
   const [newProjForm,  setNewProjForm]  = useState({ name: "", start_date: "", end_date: "" });
   const [newTrackForm, setNewTrackForm] = useState({ label: "", color: COLORS[0] });
   const [newMsForm,    setNewMsForm]    = useState({ label: "", date: "" });
+
+  const [editMs,     setEditMs]     = useState(null);
+  const [editMsForm, setEditMsForm] = useState({ label: "", date: "", completed: false });
 
   useEffect(() => { init(); }, []);
 
@@ -341,6 +346,28 @@ export default function Roadmap() {
     setMilestones(prev => prev.map(m => m.id === ms.id ? updated : m));
     try { await sb.from("roadmap_milestones").update({ completed: updated.completed }, { id: ms.id }); }
     catch { setMilestones(prev => prev.map(m => m.id === ms.id ? ms : m)); }
+  };
+
+  const openEditMs = (ms) => {
+    setEditMs(ms);
+    setEditMsForm({ label: ms.label, date: ms.date, completed: ms.completed });
+  };
+
+  const saveEditMs = async () => {
+    if (!editMs || !editMsForm.label.trim() || !editMsForm.date) return;
+    const updated = { ...editMs, label: editMsForm.label.trim(), date: editMsForm.date, completed: editMsForm.completed };
+    setMilestones(prev => prev.map(m => m.id === editMs.id ? updated : m));
+    setEditMs(null);
+    try { await sb.from("roadmap_milestones").update({ label: updated.label, date: updated.date, completed: updated.completed }, { id: editMs.id }); }
+    catch {}
+  };
+
+  const deleteMs = async () => {
+    if (!editMs) return;
+    if (!window.confirm(`Delete milestone "${editMs.label}"?`)) return;
+    setMilestones(prev => prev.filter(m => m.id !== editMs.id));
+    setEditMs(null);
+    try { await sb.from("roadmap_milestones").delete({ id: editMs.id }); } catch {}
   };
 
   const deleteProject = async (projId, projName, e) => {
@@ -514,6 +541,40 @@ export default function Roadmap() {
         </Modal>
       )}
 
+      {/* Edit Milestone modal */}
+      {editMs && (
+        <Modal title="Edit milestone" onClose={() => setEditMs(null)}>
+          <div className="form-row">
+            <label className="form-label">Label</label>
+            <input className="inp" value={editMsForm.label} autoFocus
+              onChange={e => setEditMsForm(f => ({ ...f, label: e.target.value }))}
+              onKeyDown={e => e.key === "Enter" && saveEditMs()}
+              placeholder="Milestone label" />
+          </div>
+          <div className="form-row">
+            <label className="form-label">Date</label>
+            <input className="inp" type="date" value={editMsForm.date}
+              onChange={e => setEditMsForm(f => ({ ...f, date: e.target.value }))} />
+          </div>
+          <div className="form-row">
+            <label className="form-label">Completed</label>
+            <div style={{ display: "flex", gap: 12, paddingTop: 6 }}>
+              {[true, false].map(v => (
+                <label key={String(v)} style={{ display: "flex", alignItems: "center", gap: 6, cursor: "pointer", fontSize: 13, color: "var(--t2)" }}>
+                  <input type="radio" checked={editMsForm.completed === v} onChange={() => setEditMsForm(f => ({ ...f, completed: v }))} />
+                  {v ? "Yes" : "No"}
+                </label>
+              ))}
+            </div>
+          </div>
+          <div className="modal-actions">
+            <button className="btn danger" onClick={deleteMs}>Delete</button>
+            <button className="btn" onClick={() => setEditMs(null)}>Cancel</button>
+            <button className="btn primary" onClick={saveEditMs}>Save</button>
+          </div>
+        </Modal>
+      )}
+
       <div style={{ marginBottom: 18 }}>
         {/* Section header with project tabs */}
         <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", marginBottom: 10 }}>
@@ -593,7 +654,7 @@ export default function Roadmap() {
                     project={activeProject}
                     tracks={tracks}
                     milestones={milestones}
-                    onToggle={toggleMilestone}
+                    onEditMs={openEditMs}
                     onAddMs={(trackId) => { setNewMsTrackId(trackId); setNewMsForm({ label: "", date: "" }); }}
                   />
                 )}
