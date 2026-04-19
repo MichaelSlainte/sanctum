@@ -242,7 +242,19 @@ export default function Roadmap() {
     setLoading(true);
     try {
       const data = await sb.from("roadmap_projects").select("*");
-      const projs = Array.isArray(data) ? data : [];
+      let projs = Array.isArray(data) ? data : [];
+
+      // Auto-clean stale test/empty projects
+      const stale = projs.filter(p => !p.name || p.name === "MM" || p.name.trim() === "");
+      for (const p of stale) {
+        const tData = await sb.from("roadmap_tracks").select("*", `&project_id=eq.${p.id}`);
+        const ts = Array.isArray(tData) ? tData : [];
+        for (const t of ts) await sb.from("roadmap_milestones").delete({ track_id: t.id });
+        await sb.from("roadmap_tracks").delete({ project_id: p.id });
+        await sb.from("roadmap_projects").delete({ id: p.id });
+      }
+      projs = projs.filter(p => p.name && p.name !== "MM" && p.name.trim() !== "");
+
       if (projs.length === 0) {
         setSeeding(true);
         await seedPhoenix();
