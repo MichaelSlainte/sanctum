@@ -42,44 +42,18 @@ const SEED = {
 };
 
 async function seedPhoenix(userId) {
-  console.log("[seedPhoenix] Starting — userId:", userId);
-
-  const projPayload = { name: SEED.name, start_date: SEED.start_date, end_date: SEED.end_date, user_id: userId };
-  console.log("[seedPhoenix] INSERT roadmap_projects payload:", projPayload);
-  const proj = await sb.from("roadmap_projects").insert(projPayload);
-  console.log("[seedPhoenix] INSERT roadmap_projects response:", proj);
-
-  if (!Array.isArray(proj) || !proj[0]) {
-    console.error("[seedPhoenix] FAILED to insert project:", proj);
-    return null;
-  }
+  const proj = await sb.from("roadmap_projects").insert({ name: SEED.name, start_date: SEED.start_date, end_date: SEED.end_date, user_id: userId });
+  if (!Array.isArray(proj) || !proj[0]) return null;
   const projId = proj[0].id;
-  console.log("[seedPhoenix] Project created, id:", projId);
 
   for (const t of SEED.tracks) {
-    const trackPayload = { project_id: projId, label: t.label, color: t.color, position: t.position, user_id: userId };
-    console.log(`[seedPhoenix] INSERT roadmap_tracks "${t.label}" payload:`, trackPayload);
-    const tr = await sb.from("roadmap_tracks").insert(trackPayload);
-    console.log(`[seedPhoenix] INSERT roadmap_tracks "${t.label}" response:`, tr);
-
-    if (!Array.isArray(tr) || !tr[0]) {
-      console.error(`[seedPhoenix] FAILED to insert track "${t.label}":`, tr);
-      continue;
-    }
+    const tr = await sb.from("roadmap_tracks").insert({ project_id: projId, label: t.label, color: t.color, position: t.position, user_id: userId });
+    if (!Array.isArray(tr) || !tr[0]) continue;
     const trackId = tr[0].id;
-    console.log(`[seedPhoenix] Track "${t.label}" created, id:`, trackId);
-
     for (const ms of t.milestones) {
-      const msPayload = { track_id: trackId, label: ms.label, date: ms.date, completed: ms.completed, user_id: userId };
-      console.log(`[seedPhoenix] INSERT roadmap_milestones "${ms.label}" payload:`, msPayload);
-      const mRes = await sb.from("roadmap_milestones").insert(msPayload);
-      console.log(`[seedPhoenix] INSERT roadmap_milestones "${ms.label}" response:`, mRes);
-      if (!Array.isArray(mRes) || !mRes[0]) {
-        console.error(`[seedPhoenix] FAILED to insert milestone "${ms.label}":`, mRes);
-      }
+      await sb.from("roadmap_milestones").insert({ track_id: trackId, label: ms.label, date: ms.date, completed: ms.completed, user_id: userId });
     }
   }
-  console.log("[seedPhoenix] Done.");
   return projId;
 }
 
@@ -329,7 +303,16 @@ export default function Roadmap() {
   const loadProjectData = async (projId) => {
     try {
       const tData = await sb.from("roadmap_tracks").select("*", `&project_id=eq.${projId}`, "position.asc");
-      const ts = Array.isArray(tData) ? tData : [];
+      let ts = Array.isArray(tData) ? tData : [];
+
+      // Silently delete test or empty-label tracks
+      const badTracks = ts.filter(t => !t.label || t.label.trim() === "" || t.label.toLowerCase() === "test");
+      for (const t of badTracks) {
+        await sb.from("roadmap_milestones").delete({ track_id: t.id });
+        await sb.from("roadmap_tracks").delete({ id: t.id });
+      }
+      ts = ts.filter(t => t.label && t.label.trim() !== "" && t.label.toLowerCase() !== "test");
+
       setTracks(ts);
       if (ts.length === 0) { setMilestones([]); return; }
       const ids = ts.map(t => t.id).join(",");
