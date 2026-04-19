@@ -102,6 +102,7 @@ export default function Settings({ user, onLogout, theme, onThemeChange, font, o
     if (deleteConfirmText !== 'DELETE') return;
 
     try {
+      // Delete all user data from every table
       await Promise.all([
         sb.from('notes').delete({ user_id: user.id }),
         sb.from('tasks').delete({ user_id: user.id }),
@@ -113,7 +114,15 @@ export default function Settings({ user, onLogout, theme, onThemeChange, font, o
         sb.from('custom_trackers').delete({ user_id: user.id }),
         sb.from('tracker_entries').delete({ user_id: user.id }),
         sb.from('vet_visits').delete({ user_id: user.id }),
+        sb.from('notebooks').delete({ user_id: user.id }),
+        sb.from('profiles').delete({ id: user.id }),
       ]);
+
+      // NOTE: Deleting the auth user (auth.admin.deleteUser) requires the
+      // Supabase service role key, which must never be exposed client-side.
+      // The user's auth account remains in Supabase auth but all their data
+      // is gone. To fully remove the auth record, add a Supabase Edge Function
+      // or Vercel API route that calls admin.deleteUser server-side.
 
       localStorage.clear();
       await onLogout();
