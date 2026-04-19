@@ -141,7 +141,7 @@ export default function Study({ user }) {
   const deleteTopic   = (id) => saveTopics(topics.filter(t => t.id !== id));
   const addTopic      = () => {
     const name = addTopicDraft.trim();
-    if (!name) return;
+    if (!name) { setShowAddTopicForm(false); setAddTopicDraft(""); return; }
     const id = `topic_${Date.now()}`;
     saveTopics([...topics, { id, label: name, icon: "notes" }]);
     setAddTopicDraft("");
