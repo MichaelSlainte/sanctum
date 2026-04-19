@@ -628,14 +628,23 @@ export default function TrackerHub({ archivedTrackers = [], onArchive, onUnarchi
   const [detailTracker, setDetailTracker] = useState(null);
 
   const loadCustomTrackers = async () => {
-    const data = await sb.from('custom_trackers').select('*');
-    if (Array.isArray(data) && data.length > 0) {
-      const active = data.filter(t => !t.archived);
-      setCustomTrackers(active);
-      localStorage.setItem('sanctum_custom_trackers', JSON.stringify(active));
-    } else {
-      try { setCustomTrackers(JSON.parse(localStorage.getItem('sanctum_custom_trackers') || '[]')); }
-      catch { setCustomTrackers([]); }
+    try {
+      const data = await sb.from('custom_trackers').select('*');
+      if (Array.isArray(data) && data.length > 0) {
+        const active = data.filter(t => !t.archived);
+        setCustomTrackers(active);
+        localStorage.setItem('sanctum_custom_trackers', JSON.stringify(active));
+        return;
+      }
+    } catch (e) {
+      console.warn('custom_trackers load failed, using localStorage:', e);
+    }
+    // Fallback: localStorage (also used when Supabase table is empty or missing)
+    try {
+      const local = JSON.parse(localStorage.getItem('sanctum_custom_trackers') || '[]');
+      setCustomTrackers(local.filter(t => !t.archived));
+    } catch {
+      setCustomTrackers([]);
     }
   };
 
@@ -793,8 +802,11 @@ export default function TrackerHub({ archivedTrackers = [], onArchive, onUnarchi
     const ws = getWeekStart();
     const thisWeekCount = trackerEntries.filter(e => e.tracker_id === tracker.id && new Date(e.date) >= ws).length;
     const percent = thisWeekCount / (tracker.weekly_goal || 3);
+    const color = tracker.color || '#10b981';
     return (
-      <div key={tracker.id} className="tracker-card" onClick={() => setDetailTracker(tracker)}>
+      <div key={tracker.id} className="tracker-card"
+        style={{ borderTop: `3px solid ${color}`, cursor: 'pointer' }}
+        onClick={() => setDetailTracker(tracker)}>
         <button className="tracker-archive-btn" title="Delete tracker"
           onClick={e => { e.stopPropagation(); if (confirm(`Delete "${tracker.label}" tracker?`)) deleteCustomTracker(tracker.id); }}>
           <svg width="14" height="14" viewBox="0 0 24 24" fill="none"
@@ -802,16 +814,16 @@ export default function TrackerHub({ archivedTrackers = [], onArchive, onUnarchi
             <line x1="18" y1="6" x2="6" y2="18"/><line x1="6" y1="6" x2="18" y2="18"/>
           </svg>
         </button>
-        <div className="tc-ring"><MiniRing percent={percent} color={tracker.color} /></div>
+        <div className="tc-ring"><MiniRing percent={percent} color={color} /></div>
         <div className="tc-icon">
-          <div style={{ width: 36, height: 36, borderRadius: 10, background: tracker.color + '22', display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
-            <Icon name={tracker.icon || 'trackers'} size={18} color={tracker.color} />
+          <div style={{ width: 36, height: 36, borderRadius: 10, background: color + '22', display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
+            <Icon name="trackers" size={18} color={color} />
           </div>
         </div>
         <div className="tc-name">{tracker.label}</div>
         {tracker.description && <div className="tc-sub">{tracker.description}</div>}
         <div className="tc-sub" style={{ marginTop: tracker.description ? 2 : 0 }}>
-          {thisWeekCount} of {tracker.weekly_goal} {tracker.unit || 'sessions'} this week
+          {thisWeekCount} of {tracker.weekly_goal || 3} {tracker.unit || 'sessions'} this week
         </div>
       </div>
     );

@@ -306,26 +306,43 @@ RESPONSE RULES — choose one format only:
           setCalendarRefreshKey(k => k + 1);
           setGlobalAIResponse({ text: `Added to calendar: "${action.title}" on ${parseDate(action.date)}`, type: 'success' });
         } else if (action.action === 'create_tracker') {
-          console.log('Creating tracker:', action);
           setGlobalAIHistory([]);
+          const newId = 'custom_' + Date.now();
           const tracker = {
-            id: 'custom_' + Date.now(),
-            label: action.name,
+            id: newId,
+            label: action.name || 'Custom Tracker',
             description: action.description || '',
-            icon: action.icon || 'trackers',
+            icon: 'trackers',
             color: action.color || '#10b981',
-            fields: JSON.stringify(action.fields || []),
-            has_ring: action.has_ring !== false,
-            ring_target: action.ring_target_field || null,
+            fields: action.fields || [],
+            has_ring: true,
             weekly_goal: action.weekly_goal || 3,
             unit: action.unit || 'sessions',
             archived: false,
             created_at: new Date().toISOString(),
+            user_id: user?.id,
           };
+          // Save to localStorage immediately as source of truth
           const existing = JSON.parse(localStorage.getItem('sanctum_custom_trackers') || '[]');
           localStorage.setItem('sanctum_custom_trackers', JSON.stringify([...existing, tracker]));
-          const insertResult = await sb.from('custom_trackers').insert({ ...tracker, user_id: user?.id });
-          console.log('Insert result:', insertResult);
+          // Try Supabase (fails gracefully if table missing)
+          try {
+            await sb.from('custom_trackers').insert({
+              id: tracker.id,
+              label: tracker.label,
+              description: tracker.description,
+              icon: tracker.icon,
+              color: tracker.color,
+              fields: tracker.fields,
+              has_ring: tracker.has_ring,
+              weekly_goal: tracker.weekly_goal,
+              unit: tracker.unit,
+              archived: false,
+              user_id: user?.id,
+            });
+          } catch (e) {
+            console.warn('custom_trackers Supabase insert failed (localStorage used):', e);
+          }
           if (action.add_to_calendar && action.schedule_days?.length) {
             const dayMap = { monday:1, tuesday:2, wednesday:3, thursday:4, friday:5, saturday:6, sunday:0 };
             for (const day of action.schedule_days) {
@@ -337,12 +354,12 @@ RESPONSE RULES — choose one format only:
                 d.setDate(d.getDate() + daysUntil + (week * 7));
                 try {
                   await sb.from('events').insert({
-                    title: action.name,
+                    title: tracker.label,
                     date: d.toISOString().slice(0, 10),
                     start_time: action.schedule_time || '07:00',
                     end_time: null,
                     category: 'personal',
-                    color: action.color || '#10b981',
+                    color: tracker.color,
                     notes: '',
                     user_id: user?.id,
                   });
@@ -351,8 +368,8 @@ RESPONSE RULES — choose one format only:
             }
             setCalendarRefreshKey(k => k + 1);
           }
-          setGlobalAIResponse({ text: `Created "${action.name}" tracker${action.add_to_calendar ? ' and added 8 weeks of events to calendar' : ''}! Check your Trackers hub.`, type: 'success' });
           setTrackersRefreshKey(k => k + 1);
+          setGlobalAIResponse({ text: `Created "${tracker.label}" tracker${action.add_to_calendar ? ' and added 8 weeks of events to calendar' : ''}! Go to Trackers to see it.`, type: 'success' });
         } else {
           setGlobalAIHistory([...newHistory, { role: 'assistant', content: reply }]);
           setGlobalAIResponse({ text: cleaned, type: 'text' });
