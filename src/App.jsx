@@ -6,6 +6,11 @@ import Home from "./components/Home";
 import Notes from "./components/Notes";
 import Calendar from "./components/Calendar";
 import Settings from "./components/Settings";
+import Study from "./components/trackers/Study";
+import Ozzy from "./components/trackers/Ozzy";
+import Travel from "./components/trackers/Travel";
+import Career from "./components/trackers/Career";
+import Finance from "./components/trackers/Finance";
 
 // ─── LOGIN ───────────────────────────────────────────────────────────────────
 function Login({ onLogin }) {
@@ -117,7 +122,8 @@ const NAV = [
   { id: "settings", label: "Settings", icon: "settings" },
 ];
 const TITLES = {
-  home: "Home", notes: "Notes", calendar: "Calendar", settings: "Settings"
+  home: "Home", notes: "Notes", calendar: "Calendar", settings: "Settings",
+  study: "Study", pet: "Ozzy", travel: "Travel", career: "Career", finance: "Finance",
 };
 
 // ─── SANCTUM LOGO ────────────────────────────────────────────────────────────
@@ -306,7 +312,7 @@ RESPONSE RULES — choose one format only:
   const [page, setPage] = useState(() => {
     const saved = localStorage.getItem("sanctum_page");
     if (!saved || ["dashboard", "ai"].includes(saved)) return "home";
-    if (["home","notes","calendar","settings"].includes(saved)) return saved;
+    if (["home","notes","calendar","settings","study","pet","travel","career","finance"].includes(saved)) return saved;
     return "home";
   });
 
@@ -437,6 +443,11 @@ RESPONSE RULES — choose one format only:
     if (page === "notes") return <Notes user={user} />;
     if (page === "calendar") return <Calendar user={user} initialDate={calDate} refreshKey={calendarRefreshKey} />;
     if (page === "settings") return <Settings user={user} onLogout={handleLogout} theme={theme} onThemeChange={applyTheme} font={font} onFontChange={applyFont} sb={sb} />;
+    if (page === "study") return <Study user={user} />;
+    if (page === "pet") return <Ozzy user={user} />;
+    if (page === "travel") return <Travel user={user} />;
+    if (page === "career") return <Career user={user} />;
+    if (page === "finance") return <Finance user={user} />;
   };
 
   const today = new Date().toLocaleDateString("en-IE", { weekday: "short", day: "numeric", month: "short", year: "numeric" });
