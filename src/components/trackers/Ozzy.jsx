@@ -34,6 +34,7 @@ export default function Ozzy({ user }) {
   const [activeTab, setActiveTab] = useState("overview");
 
   const [ozzyPhoto, setOzzyPhoto] = useState(null);
+  const [photoUploading, setPhotoUploading] = useState(false);
   const photoInputRef = useRef(null);
 
   const [profile, setProfile] = useState(() => {
@@ -270,12 +271,14 @@ export default function Ozzy({ user }) {
                 display: "flex", alignItems: "center", justifyContent: "center",
                 cursor: "pointer", overflow: "hidden",
               }}>
-              {ozzyPhoto
-                ? <img src={ozzyPhoto} style={{ width: "100%", height: "100%", objectFit: "cover" }} alt="Ozzy" />
-                : <svg width="28" height="28" viewBox="0 0 24 24" fill="none" stroke="var(--t3)" strokeWidth="1.5">
-                    <path d="M20 21v-2a4 4 0 0 0-4-4H8a4 4 0 0 0-4 4v2" />
-                    <circle cx="12" cy="7" r="4" />
-                  </svg>
+              {photoUploading
+                ? <div style={{ fontSize: 10, color: "var(--t3)" }}>…</div>
+                : ozzyPhoto
+                  ? <img src={ozzyPhoto} style={{ width: "100%", height: "100%", objectFit: "cover" }} alt="Ozzy" />
+                  : <svg width="28" height="28" viewBox="0 0 24 24" fill="none" stroke="var(--t3)" strokeWidth="1.5">
+                      <path d="M20 21v-2a4 4 0 0 0-4-4H8a4 4 0 0 0-4 4v2" />
+                      <circle cx="12" cy="7" r="4" />
+                    </svg>
               }
             </div>
             <div
@@ -300,13 +303,19 @@ export default function Ozzy({ user }) {
               onChange={async e => {
                 const file = e.target.files[0];
                 if (!file) return;
+                setPhotoUploading(true);
                 try {
-                  const path = `${user?.id || "shared"}/ozzy_photo`;
+                  const path = `${user?.id || "shared"}/ozzy.jpg`;
                   await storage.upload("pets", path, file);
                   const url = storage.getPublicUrl("pets", path) + `?t=${Date.now()}`;
                   setOzzyPhoto(url);
                   await sb.from("ozzy_profile").upsert({ key: "photo_url", value: url }, "key");
-                } catch {}
+                } catch (err) {
+                  console.error("[Ozzy] photo upload failed:", err);
+                } finally {
+                  setPhotoUploading(false);
+                }
+                e.target.value = "";
               }}
             />
           </div>

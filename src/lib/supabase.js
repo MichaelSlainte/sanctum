@@ -130,7 +130,8 @@ export const sb = {
       const session = auth.getSession();
       const headers = { apikey: SUPABASE_KEY, "Content-Type": "application/json", Prefer: "resolution=merge-duplicates,return=representation" };
       if (session) headers.Authorization = `Bearer ${session.token}`;
-      const res = await fetch(`${SUPABASE_URL}/rest/v1/${table}?on_conflict=${conflictCol}`, { method: "POST", headers, body: JSON.stringify(data) });
+      const payload = session ? { ...data, user_id: session.user.id } : data;
+      const res = await fetch(`${SUPABASE_URL}/rest/v1/${table}?on_conflict=${conflictCol}`, { method: "POST", headers, body: JSON.stringify(payload) });
       return res.json();
     }
   })
