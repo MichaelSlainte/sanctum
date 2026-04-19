@@ -1,6 +1,7 @@
 import { useState, useRef, useEffect } from "react";
 import { Icon } from "../shared";
 import { sb } from "../../lib/supabase";
+import TrackerCreator from "./TrackerCreator";
 
 const MiniRing = ({ percent, color }) => {
   const r = 16, circ = 2 * Math.PI * r;
@@ -611,6 +612,8 @@ export function CustomTrackerDetail({ tracker: initialTracker, onClose, user, on
 }
 
 export default function TrackerHub({ archivedTrackers = [], onArchive, onUnarchive, onNavigate, user, refreshKey = 0 }) {
+  const [selectedCustom, setSelectedCustom] = useState(null);
+
   const [ringData, setRingData] = useState({
     studyHours: 0, studyTarget: 150,
     activeApps: 0,
@@ -798,7 +801,7 @@ export default function TrackerHub({ archivedTrackers = [], onArchive, onUnarchi
     return (
       <div
         key={t.id}
-        onClick={() => onNavigate(t.id)}
+        onClick={() => setSelectedCustom(t)}
         style={{
           background: 'var(--bg1)',
           border: '1px solid var(--b2)',
@@ -864,11 +867,34 @@ export default function TrackerHub({ archivedTrackers = [], onArchive, onUnarchi
     );
   };
 
+  if (selectedCustom) {
+    return (
+      <CustomTrackerDetail
+        tracker={selectedCustom}
+        onClose={() => setSelectedCustom(null)}
+        user={user}
+        onUpdate={(updated) => {
+          setCustomTrackers(prev => prev.map(t => t.id === updated.id ? updated : t));
+          setSelectedCustom(updated);
+        }}
+      />
+    );
+  }
+
   return (
     <div className="page-body page-enter">
-      <div style={{ marginBottom: 32 }}>
-        <div style={{ fontSize: 22, fontWeight: 700, color: "var(--t1)", marginBottom: 6, letterSpacing: "-.4px" }}>Your Trackers</div>
-        <div style={{ fontSize: 13, color: "var(--t3)" }}>Select a tracker to view · drag to reorder · ask AI to create a custom tracker</div>
+      <div style={{ marginBottom: 32, display: "flex", alignItems: "flex-end", justifyContent: "space-between", flexWrap: "wrap", gap: 12 }}>
+        <div>
+          <div style={{ fontSize: 22, fontWeight: 700, color: "var(--t1)", marginBottom: 6, letterSpacing: "-.4px" }}>Your Trackers</div>
+          <div style={{ fontSize: 13, color: "var(--t3)" }}>Select a tracker to view · drag to reorder</div>
+        </div>
+        <TrackerCreator user={user} onCreated={(tracker) => {
+          setCustomTrackers(prev => {
+            const exists = prev.find(t => t.id === tracker.id);
+            return exists ? prev : [...prev, tracker];
+          });
+          setSelectedCustom(tracker);
+        }} />
       </div>
 
       <div className="tracker-hub">
