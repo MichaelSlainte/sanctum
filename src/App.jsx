@@ -662,17 +662,33 @@ RESPONSE RULES — choose one format only:
             className="ai-bar-input"
             value={globalAIInput}
             onChange={e => setGlobalAIInput(e.target.value)}
-            onKeyDown={e => { if (e.key==='Enter' && !e.shiftKey) { sendGlobalAI(); setMobileAIOpen(false); } }}
+            onKeyDown={e => { if (e.key==='Enter' && !e.shiftKey) sendGlobalAI(); }}
             placeholder="Ask anything…"
             disabled={globalAILoading}
             autoFocus={mobileAIOpen}
           />
-          <button className="ai-bar-btn" onClick={() => { sendGlobalAI(); setMobileAIOpen(false); }} disabled={globalAILoading || !globalAIInput.trim()}>
+          <button className="ai-bar-btn" onClick={sendGlobalAI} disabled={globalAILoading || !globalAIInput.trim()}>
             {globalAILoading
               ? <><span className="ai-dot"/><span className="ai-dot"/><span className="ai-dot"/></>
               : <Icon name="chevR" size={16} color="#fff"/>}
           </button>
         </div>
+        {globalAIResponse && (
+          <div className={`ai-response${globalAIResponse.type==='error'?' ai-response-err':globalAIResponse.type==='success'?' ai-response-ok':''}`} style={{marginTop:10}}>
+            <div className="ai-response-body">
+              <div className="ai-response-icon">
+                {globalAIResponse.type==='success' && <Icon name="check" size={14} color="var(--grn)"/>}
+                {globalAIResponse.type==='error'   && <Icon name="x"     size={14} color="var(--red)"/>}
+                {globalAIResponse.type==='loading' && <span style={{display:'flex',gap:3}}><span className="ai-dot"/><span className="ai-dot"/><span className="ai-dot"/></span>}
+                {globalAIResponse.type==='text'    && <Icon name="ai"    size={14} color="var(--blue)"/>}
+              </div>
+              <span>{globalAIResponse.text}</span>
+            </div>
+            {globalAIResponse.type !== 'loading' && (
+              <button style={{background:'none',border:'none',color:'var(--t3)',cursor:'pointer',fontSize:16,lineHeight:1,padding:'0 2px',flexShrink:0}} onClick={() => setGlobalAIResponse(null)}>×</button>
+            )}
+          </div>
+        )}
       </div>
 
       <nav className="bottom-nav">
