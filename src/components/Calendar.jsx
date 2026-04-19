@@ -11,7 +11,8 @@ const VIEWS = [
   { id: "month", label: "Month", key: "1" },
   { id: "week",  label: "Week",  key: "2" },
   { id: "3day",  label: "3 Days",key: "3" },
-  { id: "year",  label: "Year",  key: "4" },
+  { id: "day",   label: "Day",   key: "4" },
+  { id: "year",  label: "Year",  key: "5" },
 ];
 
 const CATS = [
@@ -228,6 +229,7 @@ export default function Calendar({ user, initialDate, refreshKey }) {
       if (calView === "month") nd.setMonth(nd.getMonth() - 1);
       else if (calView === "week") nd.setDate(nd.getDate() - 7);
       else if (calView === "3day") nd.setDate(nd.getDate() - 3);
+      else if (calView === "day") nd.setDate(nd.getDate() - 1);
       else if (calView === "year") nd.setFullYear(nd.getFullYear() - 1);
       return nd;
     });
@@ -239,6 +241,7 @@ export default function Calendar({ user, initialDate, refreshKey }) {
       if (calView === "month") nd.setMonth(nd.getMonth() + 1);
       else if (calView === "week") nd.setDate(nd.getDate() + 7);
       else if (calView === "3day") nd.setDate(nd.getDate() + 3);
+      else if (calView === "day") nd.setDate(nd.getDate() + 1);
       else if (calView === "year") nd.setFullYear(nd.getFullYear() + 1);
       return nd;
     });
@@ -252,7 +255,8 @@ export default function Calendar({ user, initialDate, refreshKey }) {
       if (e.key === "1") changeView("month");
       else if (e.key === "2") changeView("week");
       else if (e.key === "3") changeView("3day");
-      else if (e.key === "4") changeView("year");
+      else if (e.key === "4") changeView("day");
+      else if (e.key === "5") changeView("year");
       else if (e.key === "ArrowLeft")              goToPrev();
       else if (e.key === "ArrowRight")             goToNext();
       else if (e.key === "t" || e.key === "T")     goToToday();
@@ -421,6 +425,9 @@ export default function Calendar({ user, initialDate, refreshKey }) {
       });
       return result.sort((a, b) => a.date.localeCompare(b.date));
     }
+    if (calView === "day") {
+      return getEventsForDate(events, fmtDateStr(currentDate)).sort((a, b) => (a.start_time||"").localeCompare(b.start_time||""));
+    }
     if (calView === "year") {
       return events
         .filter(ev => ev.date && ev.date.startsWith(`${year}-`))
@@ -435,6 +442,7 @@ export default function Calendar({ user, initialDate, refreshKey }) {
     if (calView === "month") return { heading: `Events — ${MONTHS[month]} ${year}`, sub: `${n} event${s}` };
     if (calView === "week")  return { heading: "This week", sub: `${n} event${s}` };
     if (calView === "3day")  return { heading: "Next 3 days", sub: `${n} event${s}` };
+    if (calView === "day")   return { heading: currentDate.toLocaleDateString("en-IE", { weekday: "long", day: "numeric", month: "long" }), sub: `${n} event${s}` };
     if (calView === "year")  return { heading: `Events — ${year}`, sub: `${n} event${s}` };
     return { heading: "", sub: "" };
   })();
@@ -466,6 +474,7 @@ export default function Calendar({ user, initialDate, refreshKey }) {
     if (calView === "month") return `${MONTHS[month]} ${year}`;
     if (calView === "week")  return `${weekDays[0].toLocaleDateString("en-IE",{day:"numeric",month:"short"})} – ${weekDays[6].toLocaleDateString("en-IE",{day:"numeric",month:"short",year:"numeric"})}`;
     if (calView === "3day")  return `${threeDays[0].toLocaleDateString("en-IE",{day:"numeric",month:"short"})} – ${threeDays[2].toLocaleDateString("en-IE",{day:"numeric",month:"short",year:"numeric"})}`;
+    if (calView === "day")   return currentDate.toLocaleDateString("en-IE", { weekday: "long", day: "numeric", month: "long", year: "numeric" });
     if (calView === "year")  return `${year}`;
     return "";
   })();
@@ -789,7 +798,7 @@ export default function Calendar({ user, initialDate, refreshKey }) {
             </div>
           </div>
           <div style={{ fontSize: 10, color: "var(--t3)" }}>
-            1 Month · 2 Week · 3 Days · 4 Year · ← → Navigate · T Today · N New
+            1 Month · 2 Week · 3 Days · 4 Day · 5 Year · ← → Navigate · T Today · N New
           </div>
         </div>
       </div>
@@ -815,7 +824,7 @@ export default function Calendar({ user, initialDate, refreshKey }) {
               return (
                 <div key={i}
                   className={`cal-cell${!cell.current?" other-month":""}${isTodayCell(cell)?" today":""}`}
-                  onClick={() => { if (cell.current) openAdd(fmtDs(cell.day)); }}>
+                  onClick={() => { if (cell.current) { setCurrentDate(new Date(year, month, cell.day)); changeView("day"); } }}>
                   <div className="cal-day-num">{cell.day}</div>
                   <div className="cal-events">
                     {dayEvs.slice(0,3).map(ev => {
@@ -992,6 +1001,70 @@ export default function Calendar({ user, initialDate, refreshKey }) {
                   </div>
                 );
               })}
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* ── Day view ── */}
+      {calView === "day" && (
+        <div className="card mb18" style={{ padding: 0, overflow: "hidden" }}>
+          <div className="week-time-grid-header">
+            <div className="time-col-spacer" />
+            <div className={`week-time-grid-day-head${currentDate.toDateString() === now.toDateString() ? " today" : ""}`} style={{ flex: 1 }}>
+              <div className="week-col-day">{currentDate.toLocaleDateString("en-IE", { weekday: "short" })}</div>
+              <div className={`week-col-num${currentDate.toDateString() === now.toDateString() ? " today-num" : ""}`}>{currentDate.getDate()}</div>
+            </div>
+          </div>
+          <div className="week-allday-row">
+            <div className="week-allday-label">all day</div>
+            <div className="week-allday-col" style={{ flex: 1 }}>
+              {getEventsForDate(events, fmtDateStr(currentDate)).filter(ev => !ev.start_time && !ev.time).map(ev => {
+                const c = catOf(ev);
+                return (
+                  <div key={ev.id} className="event-chip"
+                    style={{ background: c.bg, color: c.color, width: "100%", maxWidth: "100%" }}
+                    onClick={() => setActiveEvent(ev)}>
+                    {ev.shared && <span className="event-badge-s">S</span>}
+                    <span style={{ overflow: "hidden", textOverflow: "ellipsis", flex: 1, minWidth: 0 }}>{ev.title}</span>
+                  </div>
+                );
+              })}
+            </div>
+          </div>
+          <div className="week-time-grid-scroll" ref={scrollRef}>
+            <div className="week-time-grid-body">
+              <div className="week-time-col">
+                {HOURS.map(h => (
+                  <div key={h} className="week-hour-label">{String(h).padStart(2,"0")}:00</div>
+                ))}
+              </div>
+              <div className={`week-time-day-col${currentDate.toDateString() === now.toDateString() ? " today" : ""}`} style={{ flex: 1 }}>
+                {HOURS.map(h => (
+                  <div key={h} className="time-slot"
+                    onClick={() => openAdd(fmtDateStr(currentDate), `${String(h).padStart(2,"0")}:00`)} />
+                ))}
+                {getEventsForDate(events, fmtDateStr(currentDate)).filter(ev => ev.start_time || ev.time).map(ev => {
+                  const c  = catOf(ev);
+                  const st = ev.start_time || ev.time || "";
+                  const top = evTop(st);
+                  if (top >= HOURS.length * 48 || top < -48) return null;
+                  const clampedTop = Math.max(0, top);
+                  const height = evHeight(st, ev.end_time);
+                  return (
+                    <div key={ev.id} className="week-grid-event"
+                      style={{ top: clampedTop, height, background: c.bg, color: c.color, border: `1px solid ${c.color}50` }}
+                      onClick={() => setActiveEvent(ev)}>
+                      <div style={{ fontSize: 9, opacity: .75, fontFamily: "var(--mono)", whiteSpace: "nowrap" }}>
+                        {st}{ev.end_time ? ` – ${ev.end_time}` : ""}
+                      </div>
+                      <div style={{ fontSize: 10, fontWeight: 600, overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }}>
+                        {ev.title}
+                      </div>
+                    </div>
+                  );
+                })}
+              </div>
             </div>
           </div>
         </div>
