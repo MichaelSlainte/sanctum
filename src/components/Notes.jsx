@@ -385,8 +385,7 @@ export default function Notes({ user }) {
     const nb = notebooks.find(n => n.id === activeNB);
     const sectionId = activeSection || nb?.sections[0]?.id || '';
     const sec = nb?.sections.find(s => s.id === sectionId);
-    // Save capitalised label so DB is consistent with config (normalization on load handles legacy lowercase ids)
-    const note = { notebook: nb?.label || activeNB, section: sec?.label || sectionId, title: '', body: '', tags: '', updated_at: new Date().toISOString().slice(0, 10), user_id: user?.id };
+    const note = { notebook: nb?.id || activeNB, section: sectionId, title: '', body: '', tags: '', updated_at: new Date().toISOString().slice(0, 10), user_id: user?.id };
     try {
       const res = await sb.from("notes").insert(note);
       if (!Array.isArray(res) || !res[0]?.id) console.error('[newNote] Insert failed or no id:', res);
