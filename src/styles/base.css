@@ -1054,6 +1054,8 @@
     .grid-4 { grid-template-columns: 1fr 1fr; }
     .grid-3 { grid-template-columns: 1fr 1fr; }
     .grid-2 { grid-template-columns: 1fr; }
+    .dash-widgets { display: flex; flex-wrap: nowrap; overflow-x: auto; -webkit-overflow-scrolling: touch; padding-bottom: 6px; gap: 12px; grid-template-columns: unset; }
+    .dash-widgets .dash-widget { min-width: 140px; flex-shrink: 0; width: 140px; }
     /* Mobile notes: single-panel navigation via data-mobile-panel */
     .notes-shell { flex-direction: column; overflow: hidden; height: calc(100vh - 56px - 60px); }
     .notes-sidebar { transition: none; }

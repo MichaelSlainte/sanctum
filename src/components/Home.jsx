@@ -127,7 +127,7 @@ function Dashboard({ onNavigate, onGoToCalendarDay }) {
       </div>
 
       {/* Stat widgets */}
-      <div className="grid-4 mb18">
+      <div className="grid-4 dash-widgets mb18">
         <div className="dash-widget" onClick={() => onNavigate("career")}>
           <div className="dw-arrow"><Icon name="chevR" size={16} /></div>
           <div className="dw-icon" style={{ background: "rgba(245,158,11,0.15)", color: "var(--amber)" }}><Icon name="career" size={20} color="var(--amber)" /></div>
