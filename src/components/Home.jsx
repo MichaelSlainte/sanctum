@@ -421,6 +421,9 @@ export default function Home({ user, archivedTrackers = [], onNavigate, onGoToCa
   const aiInputRef = useRef(null);
   const [pmpSessions, setPmpSessions] = useState([]);
   const [showRingCustomise, setShowRingCustomise] = useState(false);
+  const [showRoadmap, setShowRoadmap] = useState(() =>
+    localStorage.getItem("sanctum_hide_roadmap") !== "true"
+  );
 
   const DEFAULT_RINGS = { pmp: true, scotland: true, msc: true, tasks: true, weekly_study: true, italy: false, thm: false };
   const [dashboardRings, setDashboardRings] = useState(() => {
@@ -1051,7 +1054,21 @@ For all other queries respond in plain conversational text, warm but concise, ma
         </div>
       </div>
 
-      <Roadmap />
+      {showRoadmap ? (
+        <div style={{ position: "relative" }}>
+          <button
+            className="btn xs ghost"
+            onClick={() => { setShowRoadmap(false); localStorage.setItem("sanctum_hide_roadmap", "true"); }}
+            style={{ position: "absolute", top: 10, right: 0, zIndex: 10, fontSize: 11, color: "var(--t3)" }}
+          >Hide</button>
+          <Roadmap />
+        </div>
+      ) : (
+        <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", marginBottom: 18, padding: "10px 14px", background: "var(--bg1)", border: "1px solid var(--b2)", borderRadius: 12 }}>
+          <span style={{ fontSize: 11, color: "var(--t3)", fontWeight: 600, textTransform: "uppercase", letterSpacing: ".5px" }}>Roadmap</span>
+          <button className="btn xs" onClick={() => { setShowRoadmap(true); localStorage.setItem("sanctum_hide_roadmap", "false"); }}>Show</button>
+        </div>
+      )}
 
       {/* Tasks + Week (drag to reorder) */}
       {(() => {
