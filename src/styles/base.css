@@ -981,9 +981,9 @@
   .bottom-nav-inner { display: flex; justify-content: space-around; align-items: center; }
   .bottom-nav-item {
     display: flex; flex-direction: column; align-items: center; gap: 3px;
-    padding: 6px 10px; border-radius: 10px; cursor: pointer;
+    padding: 6px 4px; border-radius: 10px; cursor: pointer;
     color: var(--t3); font-size: 10px; font-weight: 600;
-    transition: all .15s; min-width: 52px; text-align: center;
+    transition: all .15s; min-width: 0; flex: 1; text-align: center;
   }
   .bottom-nav-item.active { color: var(--blue); }
   .bottom-nav-item svg { width: 22px; height: 22px; }
@@ -1021,7 +1021,7 @@
 
   .mobile-ai-fab {
     display: none;
-    position: fixed; bottom: 72px; left: 16px; z-index: 200;
+    position: fixed; bottom: 80px; right: 16px; z-index: 200;
     width: 52px; height: 52px; border-radius: 50%; border: none; cursor: pointer;
     background: linear-gradient(135deg, var(--blue), var(--purple));
     box-shadow: 0 4px 18px rgba(59,130,246,0.45);
@@ -1072,7 +1072,7 @@
     .grid-3 { grid-template-columns: 1fr 1fr; }
     .grid-2 { grid-template-columns: 1fr; }
     .dash-widgets { display: flex; flex-wrap: nowrap; overflow-x: auto; -webkit-overflow-scrolling: touch; padding-bottom: 6px; gap: 12px; grid-template-columns: unset; }
-    .dash-widgets .dash-widget { min-width: 140px; flex-shrink: 0; width: 140px; }
+    .dash-widgets .dash-widget { min-width: 140px; flex-shrink: 0; width: 140px; display: flex; flex-direction: column; align-items: center; text-align: center; justify-content: center; }
     /* Mobile notes: single-panel navigation via data-mobile-panel */
     .notes-shell { flex-direction: column; overflow: hidden; height: calc(100vh - 56px - 60px); }
     .notes-sidebar { transition: none; }
@@ -1095,7 +1095,7 @@
     .topbar { padding: 0 16px; }
     .cal-cell { min-height: 55px; }
     .cal-grid { padding-bottom: 70px; }
-    .ring-card { padding: 14px 10px; }
+    .ring-card { padding: 14px 10px; text-align: center; align-items: center; justify-content: center; }
     .ring-cards-row { grid-template-columns: repeat(2, 1fr); }
     .ring-cards-row .ring-card:last-child:nth-child(odd) { grid-column: 1 / -1; }
     .ring-cards-row .ring-card svg { width: 65px; height: 65px; }
@@ -1218,7 +1218,7 @@
   .ring-card:hover .drag-handle { opacity: 0.45; }
   .ring-card.is-dragging { opacity: .3; transform: scale(0.96); transition: opacity .15s, transform .15s; }
   .ring-card.drag-over { border-color: var(--blueb); background: rgba(59,130,246,0.12); transform: translateY(-3px) scale(1.01); box-shadow: 0 8px 28px rgba(59,130,246,0.18); }
-  .ring-label { font-size: 11px; font-weight: 600; color: var(--t3); letter-spacing: .5px; text-transform: uppercase; }
+  .ring-label { font-size: 11px; font-weight: 600; color: var(--t3); letter-spacing: .5px; text-transform: uppercase; text-align: center; }
   .ring-cards-row { display: grid; grid-template-columns: repeat(5, 1fr); gap: 12px; margin-bottom: 20px; }
 
   /* ── Weekly ring (Study tracker) ── */

@@ -198,12 +198,19 @@ export default function App() {
   const [calendarRefreshKey, setCalendarRefreshKey] = useState(0);
   const [globalAIHistory, setGlobalAIHistory] = useState([]);
 
-  // Draggable AI FAB position
+  // Draggable AI FAB position (right-based)
   const [fabPos, setFabPos] = useState(() => {
-    try { return JSON.parse(localStorage.getItem("sanctum_ai_btn_pos")) || { bottom: 72, left: 16 }; }
-    catch { return { bottom: 72, left: 16 }; }
+    try {
+      const saved = JSON.parse(localStorage.getItem("sanctum_ai_btn_pos"));
+      // Migrate old left-based saves to right-based
+      if (saved && saved.left != null && saved.right == null) {
+        return { bottom: 80, right: 16 };
+      }
+      return saved || { bottom: 80, right: 16 };
+    }
+    catch { return { bottom: 80, right: 16 }; }
   });
-  const fabDrag = useRef({ active: false, startTouchX: 0, startTouchY: 0, startLeft: 0, startBottom: 0 });
+  const fabDrag = useRef({ active: false, startTouchX: 0, startTouchY: 0, startRight: 16, startBottom: 80 });
 
   const [theme, setTheme] = useState(() => localStorage.getItem("sanctum_theme") || "dark");
   const [font, setFont] = useState(() => localStorage.getItem("sanctum_font") || "default");
@@ -487,15 +494,15 @@ RESPONSE RULES — choose one format only:
 
   const onFabTouchStart = (e) => {
     const t = e.touches[0];
-    fabDrag.current = { active: true, startTouchX: t.clientX, startTouchY: t.clientY, startLeft: fabPos.left, startBottom: fabPos.bottom };
+    fabDrag.current = { active: true, startTouchX: t.clientX, startTouchY: t.clientY, startRight: fabPos.right, startBottom: fabPos.bottom };
   };
   const onFabTouchMove = (e) => {
     if (!fabDrag.current.active) return;
     e.preventDefault();
     const t = e.touches[0];
-    const left = Math.max(0, Math.min(window.innerWidth - 52, fabDrag.current.startLeft + (t.clientX - fabDrag.current.startTouchX)));
-    const bottom = Math.max(72, Math.min(window.innerHeight - 52, fabDrag.current.startBottom - (t.clientY - fabDrag.current.startTouchY)));
-    setFabPos({ left, bottom });
+    const right = Math.max(0, Math.min(window.innerWidth - 52, fabDrag.current.startRight - (t.clientX - fabDrag.current.startTouchX)));
+    const bottom = Math.max(80, Math.min(window.innerHeight - 52, fabDrag.current.startBottom - (t.clientY - fabDrag.current.startTouchY)));
+    setFabPos({ right, bottom });
   };
   const onFabTouchEnd = () => {
     fabDrag.current.active = false;
@@ -520,7 +527,7 @@ RESPONSE RULES — choose one format only:
 
   const renderPage = () => {
     if (!user) return null;
-    if (page === "home") return <Home user={user} onNavigate={navigate} onGoToCalendarDay={goToCalendarDay} />;
+    if (page === "home") return <Home user={user} onNavigate={navigate} onGoToCalendarDay={goToCalendarDay} displayName={displayName} />;
     if (page === "notes") return <Notes user={user} />;
     if (page === "calendar") return <Calendar user={user} initialDate={calDate} refreshKey={calendarRefreshKey} />;
     if (page === "settings") return <Settings user={user} onLogout={handleLogout} theme={theme} onThemeChange={applyTheme} font={font} onFontChange={applyFont} sb={sb} />;
@@ -663,7 +670,7 @@ RESPONSE RULES — choose one format only:
       {/* ── Mobile AI FAB ── */}
       <button
         className={`mobile-ai-fab${!['home','calendar','settings'].includes(page)?' hide-fab':''}`}
-        style={{ bottom: fabPos.bottom + 'px', left: fabPos.left + 'px' }}
+        style={{ bottom: fabPos.bottom + 'px', right: fabPos.right + 'px' }}
         onTouchStart={onFabTouchStart}
         onTouchMove={onFabTouchMove}
         onTouchEnd={onFabTouchEnd}

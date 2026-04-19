@@ -406,7 +406,7 @@ For everything else respond naturally in plain text. Be warm, concise, and perso
   );
 }
 
-export default function Home({ user, archivedTrackers = [], onNavigate, onGoToCalendarDay, refreshKey }) {
+export default function Home({ user, archivedTrackers = [], onNavigate, onGoToCalendarDay, refreshKey, displayName: displayNameProp }) {
   const [tasks, setTasks] = useState([]);
   const [tasksLoading, setTasksLoading] = useState(true);
   const [showAddTask, setShowAddTask] = useState(false);
@@ -614,7 +614,7 @@ export default function Home({ user, archivedTrackers = [], onNavigate, onGoToCa
   const hour = now.getHours();
   const greeting = hour < 12 ? "Good morning" : hour < 17 ? "Good afternoon" : "Good evening";
   const homeUserKey = user?.id ? `sanctum_display_name_${user.id}` : "sanctum_display_name";
-  const displayName = user?.user_metadata?.display_name || localStorage.getItem(homeUserKey) || localStorage.getItem("sanctum_display_name") || (user?.email?.split("@")[0] || "");
+  const displayName = displayNameProp || localStorage.getItem(homeUserKey) || user?.user_metadata?.display_name || (user?.email?.split("@")[0] || "");
   const dateStr = now.toLocaleDateString("en-IE", { weekday: "long", day: "numeric", month: "long", year: "numeric" });
 
   const EXAM_DATE = new Date("2026-07-07T13:30");
