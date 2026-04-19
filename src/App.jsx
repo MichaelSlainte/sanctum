@@ -2,7 +2,7 @@ import { useState, useEffect, useRef } from "react";
 import "./styles/base.css";
 import { auth, sb } from "./lib/supabase";
 import { useCrypto } from "./lib/CryptoContext.jsx";
-import { deriveKey, generateSalt } from "./lib/crypto.js";
+import { deriveKey, generateSalt, exportKey, importKey } from "./lib/crypto.js";
 import { Icon } from "./components/shared";
 import Home from "./components/Home";
 import Notes from "./components/Notes";
@@ -409,6 +409,17 @@ RESPONSE RULES — choose one format only:
       }
       if (session) {
         setUser(session.user);
+        // Restore encryption key from sessionStorage (set at login, survives page reloads)
+        const SESSION_KEY = `sanctum_session_key_${session.user.id}`;
+        const exportedKey = sessionStorage.getItem(SESSION_KEY);
+        if (exportedKey) {
+          try {
+            const key = await importKey(exportedKey);
+            setCryptoKey(key);
+          } catch (e) {
+            console.error('[init] key restore failed:', e);
+          }
+        }
         // Fetch display_name from profiles table — takes priority over user_metadata
         try {
           const profile = await sb.from("profiles").select("display_name,timezone", `&id=eq.${session.user.id}`, "");
@@ -445,14 +456,22 @@ RESPONSE RULES — choose one format only:
       }
       if (password) {
         setKeyLoading(true);
-        let salt = Array.isArray(profile) && profile[0]?.encryption_salt;
+        const SALT_LS_KEY = `sanctum_enc_salt_${u.id}`;
+        const SESSION_KEY = `sanctum_session_key_${u.id}`;
+        // Priority: Supabase profile → localStorage → generate new
+        let salt = (Array.isArray(profile) && profile[0]?.encryption_salt) || localStorage.getItem(SALT_LS_KEY);
         if (!salt) {
           salt = await generateSalt();
-          // Fire-and-forget: don't let a failed save block key derivation
+          // Try profiles table (needs encryption_salt column — see SQL note in commit)
           sb.from("profiles").update({ encryption_salt: salt }, { id: u.id }).catch(() => {});
         }
+        // Always persist salt locally so the same key is derived on every login
+        localStorage.setItem(SALT_LS_KEY, salt);
         try {
           const key = await deriveKey(password, salt);
+          // Persist key in sessionStorage so page reloads don't lose it
+          const exported = await exportKey(key);
+          sessionStorage.setItem(SESSION_KEY, exported);
           setCryptoKey(key);
         } catch (keyErr) {
           console.error('[handleLogin] key derivation failed:', keyErr);

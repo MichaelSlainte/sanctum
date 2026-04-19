@@ -251,7 +251,9 @@ export default function Notes({ user }) {
       let body = note.body || '';
       if (isEncrypted(body)) {
         if (cryptoKey) {
-          try { body = await decrypt(body, cryptoKey); } catch { /* fallback to raw */ }
+          try { body = await decrypt(body, cryptoKey); } catch {
+            body = '<div class="we-line" style="color:var(--t3);font-style:italic">⚠️ Decryption failed — this note may have been encrypted with a different password or key.</div>';
+          }
         } else if (keyLoading) {
           body = '<div class="we-line" style="color:var(--t3);font-style:italic">Decrypting...</div>';
         } else {
