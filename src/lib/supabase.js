@@ -71,9 +71,11 @@ export const auth = {
       if (updated.id) {
         const current = JSON.parse(localStorage.getItem("sanctum_user") || "{}");
         localStorage.setItem("sanctum_user", JSON.stringify({ ...current, user_metadata: updated.user_metadata }));
+      } else {
+        console.error('[auth.updateUser] Failed — response:', updated);
       }
       return updated;
-    } catch { return null; }
+    } catch (err) { console.error('[auth.updateUser] Network error:', err); return null; }
   }
 };
 

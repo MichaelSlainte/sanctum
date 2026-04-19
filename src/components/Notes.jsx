@@ -353,6 +353,7 @@ export default function Notes({ user }) {
 
   const openNote = async (n, navigate = true) => {
     if (dirtyRef.current) await flushSave();
+    setRenameTarget(null);
     activeNoteRef.current = n.id;
     setActiveNote(n.id); setEditTitle(n.title || ''); setEditTags(n.tags || '');
     if (navigate && window.innerWidth < 769) setMobilePanel('editor');
@@ -388,10 +389,11 @@ export default function Notes({ user }) {
     const note = { notebook: nb?.label || activeNB, section: sec?.label || sectionId, title: '', body: '', tags: '', updated_at: new Date().toISOString().slice(0, 10), user_id: user?.id };
     try {
       const res = await sb.from("notes").insert(note);
-      const created = Array.isArray(res) && res[0] ? res[0] : { ...note, id: Date.now().toString() };
+      if (!Array.isArray(res) || !res[0]?.id) console.error('[newNote] Insert failed or no id:', res);
+      const created = Array.isArray(res) && res[0]?.id ? res[0] : { ...note, id: `local_${Date.now()}` };
       setAllNotes(prev => [created, ...prev]); openNote(created);
       setTimeout(() => titleInputRef.current?.focus(), 80);
-    } catch { const n = { ...note, id: Date.now().toString() }; setAllNotes(prev => [n, ...prev]); openNote(n); setTimeout(() => titleInputRef.current?.focus(), 80); }
+    } catch (err) { console.error('[newNote] error:', err); const n = { ...note, id: `local_${Date.now()}` }; setAllNotes(prev => [n, ...prev]); openNote(n); setTimeout(() => titleInputRef.current?.focus(), 80); }
   };
 
   const deleteNote = async (id) => {

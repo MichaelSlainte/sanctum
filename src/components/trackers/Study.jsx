@@ -407,10 +407,11 @@ export default function Study({ user }) {
                   <span style={{ fontSize: 11, fontFamily: "var(--mono)", color: t.hours > 0 ? "var(--blue)" : "var(--t3)", minWidth: 36, textAlign: "right" }}>
                     {t.hours.toFixed(1)}h
                   </span>
-                  {t.hours === 0 && (
-                    <button className="btn xs danger" style={{ padding: "2px 6px", fontSize: 11 }}
-                      onClick={() => deleteTopic(t.id)}>×</button>
-                  )}
+                  <button className="btn xs danger" style={{ padding: "2px 6px", fontSize: 11 }}
+                    onClick={() => {
+                      if (t.hours > 0 && !window.confirm(`"${t.label}" has ${t.hours.toFixed(1)}h logged. Sessions will still exist. Delete topic anyway?`)) return;
+                      deleteTopic(t.id);
+                    }}>×</button>
                 </div>
               ))}
               <button className="btn sm" style={{ marginTop: 8, width: "100%", justifyContent: "center" }} onClick={addTopic}>

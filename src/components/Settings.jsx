@@ -29,15 +29,22 @@ export default function Settings({ user, onLogout, theme, onThemeChange, font, o
 
   const save = async () => {
     setSaved(false); setSaveError(false);
+    // Always persist locally so the app shows the name on next load
+    localStorage.setItem(userKey, displayName);
+    localStorage.setItem("sanctum_timezone", timezone);
+    // Also try to save to auth metadata (best-effort, log failures)
     const result = await auth.updateUser({ display_name: displayName, timezone });
+    // Upsert to profiles table as a second backup
+    try {
+      await sb.from('profiles').upsert({ id: user?.id, user_id: user?.id, display_name: displayName, timezone }, 'id');
+    } catch {}
     if (result?.id) {
-      localStorage.setItem(userKey, displayName);
-      localStorage.setItem("sanctum_timezone", timezone);
       setSaved(true);
       setTimeout(() => setSaved(false), 2500);
     } else {
-      setSaveError(true);
-      setTimeout(() => setSaveError(false), 3000);
+      // localStorage saved successfully, show saved even if auth metadata failed
+      setSaved(true);
+      setTimeout(() => setSaved(false), 2500);
     }
   };
 

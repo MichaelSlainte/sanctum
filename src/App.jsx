@@ -57,7 +57,7 @@ function Login({ onLogin }) {
     <div className="login-wrap">
       <div className="login-box animate-in">
         <div className="login-logo">
-          <div className="login-mark">S</div>
+          <SanctumLogo size={56} theme="dark" />
           <div className="login-name">Sanctum</div>
         </div>
         <div className="login-title">{mode === "login" ? "Welcome back" : "Create account"}</div>
@@ -315,7 +315,14 @@ RESPONSE RULES — choose one format only:
   const [navOrder, setNavOrder] = useState(() => {
     try {
       const s = JSON.parse(localStorage.getItem("sanctum_nav_order"));
-      if (Array.isArray(s) && s.length === NAV_IDS.length && NAV_IDS.every(id => s.includes(id))) return s;
+      if (Array.isArray(s)) {
+        const filtered = s.filter(id => NAV_IDS.includes(id));
+        const withMissing = [...filtered, ...NAV_IDS.filter(id => !filtered.includes(id))];
+        if (withMissing.length === NAV_IDS.length) {
+          localStorage.setItem("sanctum_nav_order", JSON.stringify(withMissing));
+          return withMissing;
+        }
+      }
     } catch {}
     return NAV_IDS;
   });
