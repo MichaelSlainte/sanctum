@@ -1,6 +1,7 @@
 import { useState, useEffect, useRef } from "react";
 import { sb } from "../lib/supabase";
 import { Icon, Modal, EVENT_COLORS, SanctumLogo } from "./shared";
+import PhoenixTimeline from "./PhoenixTimeline";
 
 function Dashboard({ onNavigate, onGoToCalendarDay }) {
   const [tasks, setTasks] = useState([]);
@@ -1062,6 +1063,9 @@ For all other queries respond in plain conversational text, warm but concise, ma
           })}
         </div>
       </div>
+
+      {/* Project Phoenix roadmap */}
+      <PhoenixTimeline />
 
       {/* Tasks + Week + Trackers (drag to reorder) */}
       {(() => {
