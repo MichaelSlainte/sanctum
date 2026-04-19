@@ -45,18 +45,27 @@ async function seedPhoenix() {
   const proj = await sb.from("roadmap_projects").insert({
     name: SEED.name, start_date: SEED.start_date, end_date: SEED.end_date,
   });
-  const projId = Array.isArray(proj) && proj[0] ? proj[0].id : null;
-  if (!projId) return null;
+  if (!Array.isArray(proj) || !proj[0]) {
+    console.error("[seedPhoenix] Failed to insert project — response:", proj);
+    return null;
+  }
+  const projId = proj[0].id;
   for (const t of SEED.tracks) {
     const tr = await sb.from("roadmap_tracks").insert({
       project_id: projId, label: t.label, color: t.color, position: t.position,
     });
-    const trackId = Array.isArray(tr) && tr[0] ? tr[0].id : null;
-    if (!trackId) continue;
+    if (!Array.isArray(tr) || !tr[0]) {
+      console.error(`[seedPhoenix] Failed to insert track "${t.label}" — response:`, tr);
+      continue;
+    }
+    const trackId = tr[0].id;
     for (const ms of t.milestones) {
-      await sb.from("roadmap_milestones").insert({
+      const mRes = await sb.from("roadmap_milestones").insert({
         track_id: trackId, label: ms.label, date: ms.date, completed: ms.completed,
       });
+      if (!Array.isArray(mRes) || !mRes[0]) {
+        console.error(`[seedPhoenix] Failed to insert milestone "${ms.label}" — response:`, mRes);
+      }
     }
   }
   return projId;
@@ -236,21 +245,25 @@ export default function Roadmap() {
       const projs = Array.isArray(data) ? data : [];
       if (projs.length === 0) {
         setSeeding(true);
-        const newId = await seedPhoenix();
+        await seedPhoenix();
         setSeeding(false);
         const fresh = await sb.from("roadmap_projects").select("*");
         const freshProjs = Array.isArray(fresh) ? fresh : [];
         setProjects(freshProjs);
-        const first = newId || (freshProjs[0]?.id ?? null);
-        setActiveId(first);
-        if (first) await loadProjectData(first);
+        // freshProjs is desc by created_at; show oldest first tab = last element
+        const firstId = freshProjs.length > 0 ? freshProjs[freshProjs.length - 1].id : null;
+        setActiveId(firstId);
+        if (firstId) await loadProjectData(firstId);
       } else {
         setProjects(projs);
-        const first = projs[projs.length - 1].id; // created_at.desc so last item is oldest
-        setActiveId(first);
-        await loadProjectData(first);
+        // projs is desc by created_at; select oldest = first tab shown after .reverse()
+        const firstId = projs[projs.length - 1].id;
+        setActiveId(firstId);
+        await loadProjectData(firstId);
       }
-    } catch { }
+    } catch (err) {
+      console.error("[Roadmap] init error:", err);
+    }
     setLoading(false);
   };
 
@@ -286,6 +299,37 @@ export default function Roadmap() {
     setMilestones(prev => prev.map(m => m.id === ms.id ? updated : m));
     try { await sb.from("roadmap_milestones").update({ completed: updated.completed }, { id: ms.id }); }
     catch { setMilestones(prev => prev.map(m => m.id === ms.id ? ms : m)); }
+  };
+
+  const deleteProject = async (projId, projName, e) => {
+    e.stopPropagation();
+    if (!window.confirm(`Delete "${projName}"? This will permanently remove all its tracks and milestones.`)) return;
+    try {
+      const tData = await sb.from("roadmap_tracks").select("*", `&project_id=eq.${projId}`);
+      const ts = Array.isArray(tData) ? tData : [];
+      for (const t of ts) {
+        await sb.from("roadmap_milestones").delete({ track_id: t.id });
+      }
+      await sb.from("roadmap_tracks").delete({ project_id: projId });
+      await sb.from("roadmap_projects").delete({ id: projId });
+      setProjects(prev => {
+        const updated = prev.filter(p => p.id !== projId);
+        if (activeId === projId) {
+          const next = updated.length > 0 ? updated[updated.length - 1] : null;
+          if (next) {
+            setActiveId(next.id);
+            loadProjectData(next.id);
+          } else {
+            setActiveId(null);
+            setTracks([]);
+            setMilestones([]);
+          }
+        }
+        return updated;
+      });
+    } catch (err) {
+      console.error("[deleteProject] Error:", err);
+    }
   };
 
   const addProject = async () => {
@@ -435,17 +479,36 @@ export default function Roadmap() {
             <div style={{ fontSize: 11, fontWeight: 600, color: "var(--t3)", textTransform: "uppercase", letterSpacing: ".5px", marginRight: 4 }}>Roadmap</div>
             {/* Project tabs */}
             {[...projects].reverse().map(p => (
-              <button
-                key={p.id}
-                className="btn xs"
-                onClick={() => switchProject(p.id)}
-                style={{
-                  background: p.id === activeId ? "var(--blue)" : "var(--bg2)",
-                  color: p.id === activeId ? "#fff" : "var(--t2)",
-                  border: p.id === activeId ? "none" : "1px solid var(--b2)",
-                  fontSize: 11,
-                }}
-              >{p.name}</button>
+              <div key={p.id} style={{ display: "flex", alignItems: "center", gap: 2 }}>
+                <button
+                  className="btn xs"
+                  onClick={() => switchProject(p.id)}
+                  style={{
+                    background: p.id === activeId ? "var(--blue)" : "var(--bg2)",
+                    color: p.id === activeId ? "#fff" : "var(--t2)",
+                    border: p.id === activeId ? "none" : "1px solid var(--b2)",
+                    fontSize: 11,
+                    borderRadius: "6px 0 0 6px",
+                  }}
+                >{p.name}</button>
+                <button
+                  title={`Delete "${p.name}"`}
+                  onClick={(e) => deleteProject(p.id, p.name, e)}
+                  style={{
+                    display: "flex", alignItems: "center", justifyContent: "center",
+                    width: 20, height: 20, padding: 0, cursor: "pointer",
+                    background: p.id === activeId ? "var(--blue)" : "var(--bg2)",
+                    color: p.id === activeId ? "rgba(255,255,255,0.6)" : "var(--t3)",
+                    border: p.id === activeId ? "none" : "1px solid var(--b2)",
+                    borderLeft: "none",
+                    borderRadius: "0 6px 6px 0",
+                    fontSize: 12, lineHeight: 1,
+                    transition: "color 0.1s, background 0.1s",
+                  }}
+                  onMouseEnter={e => { e.currentTarget.style.color = "#ef4444"; }}
+                  onMouseLeave={e => { e.currentTarget.style.color = p.id === activeId ? "rgba(255,255,255,0.6)" : "var(--t3)"; }}
+                >×</button>
+              </div>
             ))}
           </div>
           <button className="btn xs" onClick={() => setShowNewProject(true)} style={{ flexShrink: 0 }}>
