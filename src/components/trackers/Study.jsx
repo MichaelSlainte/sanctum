@@ -130,17 +130,22 @@ export default function Study({ user }) {
     try { const s = JSON.parse(localStorage.getItem("sanctum_pmbok_topics")); if (Array.isArray(s) && s.length > 0) return s; } catch {}
     return DEFAULT_TOPICS;
   });
-  const [editTopicId,   setEditTopicId]   = useState(null);
-  const [editTopicText, setEditTopicText] = useState("");
+  const [editTopicId,      setEditTopicId]      = useState(null);
+  const [editTopicText,    setEditTopicText]    = useState("");
+  const [addTopicDraft,    setAddTopicDraft]    = useState("");
+  const [showAddTopicForm, setShowAddTopicForm] = useState(false);
 
   const saveTopics = (t) => { localStorage.setItem("sanctum_pmbok_topics", JSON.stringify(t)); setTopics(t); };
   const moveTopicUp   = (i) => { if (i === 0) return; const t = [...topics]; [t[i-1], t[i]] = [t[i], t[i-1]]; saveTopics(t); };
   const moveTopicDown = (i) => { if (i === topics.length-1) return; const t = [...topics]; [t[i+1], t[i]] = [t[i], t[i+1]]; saveTopics(t); };
   const deleteTopic   = (id) => saveTopics(topics.filter(t => t.id !== id));
   const addTopic      = () => {
+    const name = addTopicDraft.trim();
+    if (!name) return;
     const id = `topic_${Date.now()}`;
-    const t = [...topics, { id, label: "New Topic", icon: "notes" }];
-    saveTopics(t); setEditTopicId(id); setEditTopicText("New Topic");
+    saveTopics([...topics, { id, label: name, icon: "notes" }]);
+    setAddTopicDraft("");
+    setShowAddTopicForm(false);
   };
   const saveTopicName = (id) => {
     if (editTopicText.trim()) saveTopics(topics.map(t => t.id === id ? { ...t, label: editTopicText.trim() } : t));
@@ -496,9 +501,29 @@ export default function Study({ user }) {
                     }}>×</button>
                 </div>
               ))}
-              <button className="btn sm" style={{ marginTop: 8, width: "100%", justifyContent: "center" }} onClick={addTopic}>
-                + Add topic
-              </button>
+              {showAddTopicForm ? (
+                <div style={{ display: "flex", gap: 6, marginTop: 8 }}>
+                  <input
+                    className="inp"
+                    style={{ flex: 1, padding: "5px 10px", fontSize: 12 }}
+                    value={addTopicDraft}
+                    autoFocus
+                    placeholder="Topic name…"
+                    onChange={e => setAddTopicDraft(e.target.value)}
+                    onKeyDown={e => {
+                      if (e.key === "Enter") addTopic();
+                      if (e.key === "Escape") { setShowAddTopicForm(false); setAddTopicDraft(""); }
+                    }}
+                  />
+                  <button className="btn sm primary" onClick={addTopic}>Add</button>
+                  <button className="btn sm" onClick={() => { setShowAddTopicForm(false); setAddTopicDraft(""); }}>Cancel</button>
+                </div>
+              ) : (
+                <button className="btn sm" style={{ marginTop: 8, width: "100%", justifyContent: "center" }}
+                  onClick={() => setShowAddTopicForm(true)}>
+                  + Add topic
+                </button>
+              )}
             </div>
 
             <div className="card">
