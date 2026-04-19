@@ -1,4 +1,4 @@
-const CACHE = 'sanctum-v1';
+const CACHE = 'sanctum-v2';
 const ASSETS = ['/', '/index.html'];
 
 self.addEventListener('install', e => {
