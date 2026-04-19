@@ -497,6 +497,7 @@ RESPONSE RULES — choose one format only:
     { id: "home",     label: "Home",     icon: "home" },
     { id: "notes",    label: "Notes",    icon: "notes" },
     { id: "calendar", label: "Calendar", icon: "calendar" },
+    { id: "trackers", label: "Trackers", icon: "trackers" },
     { id: "settings", label: "Settings", icon: "settings" },
   ];
 
