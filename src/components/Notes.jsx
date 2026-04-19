@@ -888,8 +888,6 @@ export default function Notes({ user }) {
               {/* Mobile back button */}
               <button className="mobile-back-btn" style={{marginRight:6}} onClick={()=>setMobilePanel('list')}>‹ Notes</button>
               <span className="enc-badge" style={{flexShrink:0}}><Icon name="lock" size={8} color="var(--grn)"/> enc</span>
-              {saveStatus==='saving' && <span key="saving" className="save-ind saving">saving...</span>}
-              {saveStatus==='saved'  && <span key="saved"  className="save-ind saved">saved ✓</span>}
               <div style={{flex:1}}/>
               <select
                 className="note-format-select"
@@ -1042,6 +1040,8 @@ export default function Notes({ user }) {
                   <Icon name="tag" size={11} color="var(--t3)"/>
                   {editTags.split(',').filter(t=>t.trim()).map(t=><span key={t} className="nli-tag">{t.trim()}</span>)}
                   <input className="note-tags-input" placeholder="Add tags: work, idea, ..." value={editTags} onChange={e=>onTagsChange(e.target.value)}/>
+                  {saveStatus==='saving' && <span key="saving" className="save-ind saving" style={{marginLeft:'auto',flexShrink:0}}>saving...</span>}
+                  {saveStatus==='saved'  && <span key="saved"  className="save-ind saved"  style={{marginLeft:'auto',flexShrink:0}}>saved ✓</span>}
                 </div>
               </>
             )}
