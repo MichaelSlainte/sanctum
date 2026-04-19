@@ -5,7 +5,7 @@ import { Icon, Modal } from "./shared";
 const MONTHS       = ["January","February","March","April","May","June","July","August","September","October","November","December"];
 const MONTHS_SHORT = ["Jan","Feb","Mar","Apr","May","Jun","Jul","Aug","Sep","Oct","Nov","Dec"];
 const DAYS_S       = ["Mon","Tue","Wed","Thu","Fri","Sat","Sun"];
-const HOURS        = Array.from({ length: 15 }, (_, i) => i + 8); // 08–22
+const HOURS        = Array.from({ length: 24 }, (_, i) => i); // 00–22
 
 const VIEWS = [
   { id: "month", label: "Month", key: "1" },
@@ -136,7 +136,7 @@ const fmtDateStr = (date) =>
 const evTop = (time) => {
   if (!time) return 0;
   const [h, m] = time.split(":").map(Number);
-  return (h - 8) * 48 + (m / 60) * 48;
+  return h * 48 + (m / 60) * 48;
 };
 
 const evHeight = (start, end) => {
@@ -204,9 +204,8 @@ export default function Calendar({ user, initialDate, refreshKey }) {
   useEffect(() => { loadEvents(); }, [refreshKey]);
 
   useEffect(() => {
-    if (calView === "week" || calView === "3day") {
-      const h = new Date().getHours();
-      const top = Math.max(0, (h - 8) * 48 - 100);
+    if (calView === "week" || calView === "3day" || calView === "day") {
+      const top = Math.max(0, 7 * 48 - 60);
       scrollRef.current?.scrollTo({ top, behavior: "smooth" });
     }
   }, [calView]);
