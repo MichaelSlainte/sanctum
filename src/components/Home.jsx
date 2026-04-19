@@ -991,7 +991,7 @@ For all other queries respond in plain conversational text, warm but concise, ma
               </div>
             );
             if (id === "scotland") return (
-              <div key="scotland" className={cls} {...drag} style={{ cursor: "pointer" }} onClick={() => onNavigate("calendar")}>
+              <div key="scotland" className={cls} {...drag} style={{ cursor: "pointer" }} onClick={() => onNavigate("travel")}>
                 <div className="drag-handle" style={{ position:"absolute", top:8, right:8 }}><Icon name="grab" size={12} /></div>
                 <RingCard label="SCOTLAND" value={`${daysToScotland}d`} sub="Sep 7"
                   percent={Math.max(0, (420 - daysToScotland) / 420)}
@@ -999,7 +999,7 @@ For all other queries respond in plain conversational text, warm but concise, ma
               </div>
             );
             if (id === "msc") return (
-              <div key="msc" className={cls} {...drag} style={{ cursor: "grab" }}>
+              <div key="msc" className={cls} {...drag} style={{ cursor: "pointer" }} onClick={() => onNavigate("study")}>
                 <div className="drag-handle" style={{ position:"absolute", top:8, right:8 }}><Icon name="grab" size={12} /></div>
                 <RingCard label="MSC SETU" value={`${daysToMSc}d`} sub="Sep 14"
                   percent={Math.max(0, (420 - daysToMSc) / 420)}
@@ -1016,7 +1016,7 @@ For all other queries respond in plain conversational text, warm but concise, ma
               </div>
             );
             if (id === "weekly_study") return (
-              <div key="weekly_study" className={cls} {...drag} style={{ cursor: "grab" }}>
+              <div key="weekly_study" className={cls} {...drag} style={{ cursor: "pointer" }} onClick={() => onNavigate("study")}>
                 <div className="drag-handle" style={{ position:"absolute", top:8, right:8 }}><Icon name="grab" size={12} /></div>
                 <RingCard label="THIS WEEK · STUDY"
                   value={`${thisWeekHours.toFixed(thisWeekHours % 1 === 0 ? 0 : 1)}h`}
