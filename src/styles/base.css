@@ -1228,3 +1228,11 @@
 
   /* ── Tracker hub mini ring ── */
   .tc-ring { position: absolute; top: 12px; right: 12px; }
+
+  /* ── Roadmap responsive ── */
+  .roadmap-mobile-list { display: none; }
+  .roadmap-gantt { display: block; }
+  @media (max-width: 768px) {
+    .roadmap-mobile-list { display: block; }
+    .roadmap-gantt { display: none; }
+  }

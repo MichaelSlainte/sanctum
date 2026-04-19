@@ -79,6 +79,51 @@ function Timeline({ project, tracks, milestones, onEditMs, onAddMs }) {
   const LW = 128;
 
   return (
+    <>
+    {/* ── Mobile vertical list (hidden on desktop via CSS) ── */}
+    <div className="roadmap-mobile-list">
+      {sortedTracks.map(track => {
+        const tms = milestones
+          .filter(m => m.track_id === track.id)
+          .sort((a, b) => a.date.localeCompare(b.date));
+        return (
+          <div key={track.id} style={{ marginBottom: 16 }}>
+            <div style={{ display: "flex", alignItems: "center", gap: 8, marginBottom: 8 }}>
+              <div style={{ width: 10, height: 10, borderRadius: "50%", background: track.color, flexShrink: 0 }} />
+              <span style={{ fontSize: 13, fontWeight: 600, color: track.color }}>{track.label}</span>
+              <button className="btn xs ghost" title="Add milestone" onClick={() => onAddMs(track.id)}
+                style={{ marginLeft: "auto", opacity: 0.6, padding: "2px 6px" }}>
+                + Add
+              </button>
+            </div>
+            <div style={{ paddingLeft: 18 }}>
+              {tms.length === 0 && (
+                <div style={{ fontSize: 12, color: "var(--t3)", fontStyle: "italic" }}>No milestones</div>
+              )}
+              {tms.map(ms => (
+                <div key={ms.id} style={{ display: "flex", alignItems: "flex-start", gap: 8, marginBottom: 6, cursor: "pointer" }}
+                  onClick={() => onEditMs(ms)}>
+                  <div style={{ width: 8, height: 8, borderRadius: "50%", marginTop: 4, flexShrink: 0,
+                    background: ms.completed ? track.color : "var(--bg2)",
+                    border: `2px solid ${track.color}` }} />
+                  <div>
+                    <div style={{ fontSize: 12, color: ms.completed ? "var(--t1)" : "var(--t2)", fontWeight: ms.completed ? 600 : 400,
+                      textDecoration: ms.completed ? "none" : "none" }}>
+                      {ms.label}
+                    </div>
+                    <div style={{ fontSize: 10, color: "var(--t3)", fontFamily: "var(--mono)" }}>{ms.date}</div>
+                  </div>
+                  {ms.completed && <span style={{ fontSize: 10, color: track.color, marginLeft: "auto", flexShrink: 0 }}>✓</span>}
+                </div>
+              ))}
+            </div>
+          </div>
+        );
+      })}
+    </div>
+
+    {/* ── Desktop Gantt chart (hidden on mobile via CSS) ── */}
+    <div className="roadmap-gantt">
     <div style={{ overflowX: "auto" }}>
       <div style={{ minWidth: 580, userSelect: "none" }}>
         {/* Month header */}
@@ -223,6 +268,8 @@ function Timeline({ project, tracks, milestones, onEditMs, onAddMs }) {
         </div>
       </div>
     </div>
+    </div>{/* .roadmap-gantt */}
+    </>
   );
 }
 
