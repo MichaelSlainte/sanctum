@@ -623,33 +623,36 @@ export default function TrackerHub({ archivedTrackers = [], onArchive, onUnarchi
   });
 
   const [customTrackers, setCustomTrackers] = useState(() => {
-    try { return JSON.parse(localStorage.getItem('sanctum_custom_trackers') || '[]'); }
+    try { return JSON.parse(localStorage.getItem('sanctum_custom_trackers') || '[]').filter(t => !t.archived); }
+    catch { return []; }
+  });
+
+  const [archivedCustomTrackers, setArchivedCustomTrackers] = useState(() => {
+    try { return JSON.parse(localStorage.getItem('sanctum_custom_trackers') || '[]').filter(t => t.archived); }
     catch { return []; }
   });
 
   const [trackerEntries, setTrackerEntries] = useState([]);
 
   const loadCustomTrackers = async () => {
-    console.log('Loading custom trackers, key:', refreshKey);
     try {
       const data = await sb.from('custom_trackers').select('*');
-      console.log('Supabase custom trackers:', data);
       if (Array.isArray(data) && data.length > 0) {
-        const active = data.filter(t => !t.archived);
+        const active   = data.filter(t => !t.archived);
+        const archived = data.filter(t =>  t.archived);
         setCustomTrackers(active);
-        localStorage.setItem('sanctum_custom_trackers', JSON.stringify(active));
+        setArchivedCustomTrackers(archived);
+        localStorage.setItem('sanctum_custom_trackers', JSON.stringify(data));
         return;
       }
-    } catch (e) {
-      console.warn('custom_trackers load failed, using localStorage:', e);
-    }
-    // Fallback: localStorage (also used when Supabase table is empty or missing)
+    } catch {}
     try {
       const local = JSON.parse(localStorage.getItem('sanctum_custom_trackers') || '[]');
-      console.log('localStorage trackers:', local);
       setCustomTrackers(local.filter(t => !t.archived));
+      setArchivedCustomTrackers(local.filter(t => t.archived));
     } catch {
       setCustomTrackers([]);
+      setArchivedCustomTrackers([]);
     }
   };
 
@@ -729,7 +732,7 @@ export default function TrackerHub({ archivedTrackers = [], onArchive, onUnarchi
     return known;
   });
 
-  const [archivedOpen, setArchivedOpen] = useState(archivedTrackers.length > 0);
+  const [archivedOpen, setArchivedOpen] = useState(archivedTrackers.length > 0 || archivedCustomTrackers.length > 0);
   const [dragOver, setDragOver] = useState(null);
   const [dragging, setDragging] = useState(null);
   const dragId = useRef(null);
@@ -756,10 +759,21 @@ export default function TrackerHub({ archivedTrackers = [], onArchive, onUnarchi
   const archivedList = order.filter(id => archivedTrackers.includes(id));
 
   const archiveCustomTracker = async (id) => {
+    const target = customTrackers.find(t => t.id === id);
     setCustomTrackers(prev => prev.filter(t => t.id !== id));
+    if (target) setArchivedCustomTrackers(prev => [...prev, { ...target, archived: true }]);
     const all = JSON.parse(localStorage.getItem('sanctum_custom_trackers') || '[]');
     localStorage.setItem('sanctum_custom_trackers', JSON.stringify(all.map(t => t.id === id ? { ...t, archived: true } : t)));
     try { await sb.from('custom_trackers').update({ archived: true }, { id }); } catch {}
+  };
+
+  const unarchiveCustomTracker = async (id) => {
+    const target = archivedCustomTrackers.find(t => t.id === id);
+    setArchivedCustomTrackers(prev => prev.filter(t => t.id !== id));
+    if (target) setCustomTrackers(prev => [...prev, { ...target, archived: false }]);
+    const all = JSON.parse(localStorage.getItem('sanctum_custom_trackers') || '[]');
+    localStorage.setItem('sanctum_custom_trackers', JSON.stringify(all.map(t => t.id === id ? { ...t, archived: false } : t)));
+    try { await sb.from('custom_trackers').update({ archived: false }, { id }); } catch {}
   };
 
   const renderCard = (id) => {
@@ -908,22 +922,31 @@ export default function TrackerHub({ archivedTrackers = [], onArchive, onUnarchi
         <button className="btn ghost"
           style={{ fontSize: 13, color: "var(--t3)", padding: "6px 0", gap: 6, display: "flex", alignItems: "center" }}
           onClick={() => setArchivedOpen(o => !o)}>
-          {archivedOpen ? "▲" : "▶"} Archived ({archivedList.length})
+          {archivedOpen ? "▲" : "▶"} Archived ({archivedList.length + archivedCustomTrackers.length})
         </button>
         {archivedOpen && (
           <div className="archived-grid">
-            {archivedList.length === 0
+            {archivedList.length === 0 && archivedCustomTrackers.length === 0
               ? <div style={{ fontSize: 13, color: "var(--t3)" }}>No archived trackers</div>
-              : archivedList.map(id => {
-                  const t = TRACKERS.find(x => x.id === id);
-                  if (!t) return null;
-                  return (
+              : <>
+                  {archivedList.map(id => {
+                    const t = TRACKERS.find(x => x.id === id);
+                    if (!t) return null;
+                    return (
+                      <div key={t.id} className="archived-card">
+                        <span>{t.name}</span>
+                        <button className="btn sm" onClick={() => onUnarchive(t.id)}>Restore</button>
+                      </div>
+                    );
+                  })}
+                  {archivedCustomTrackers.map(t => (
                     <div key={t.id} className="archived-card">
-                      <span>{t.name}</span>
-                      <button className="btn sm" onClick={() => onUnarchive(t.id)}>Restore</button>
+                      <span>{t.label}</span>
+                      <button className="btn sm" onClick={() => unarchiveCustomTracker(t.id)}>Restore</button>
                     </div>
-                  );
-                })}
+                  ))}
+                </>
+            }
           </div>
         )}
       </div>

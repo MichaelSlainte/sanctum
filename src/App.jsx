@@ -431,8 +431,17 @@ RESPONSE RULES — choose one format only:
     if (!checking && !user) localStorage.removeItem("sanctum_page");
   }, [user, checking]);
 
-  const handleLogin = (u) => setUser(u);
-  const handleLogout = () => { auth.signOut(); setUser(null); setPage("home"); localStorage.removeItem("sanctum_page"); };
+  const handleLogin = async (u) => {
+    setUser(u);
+    try {
+      const profile = await sb.from("profiles").select("display_name,timezone", `&user_id=eq.${u.id}`, "");
+      if (Array.isArray(profile) && profile[0]?.display_name) {
+        localStorage.setItem(`sanctum_display_name_${u.id}`, profile[0].display_name);
+        setProfileName(profile[0].display_name);
+      }
+    } catch {}
+  };
+  const handleLogout = () => { auth.signOut(); setUser(null); setProfileName(""); setPage("home"); localStorage.removeItem("sanctum_page"); };
 
   const onFabTouchStart = (e) => {
     const t = e.touches[0];
