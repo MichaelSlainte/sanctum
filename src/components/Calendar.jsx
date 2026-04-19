@@ -260,7 +260,7 @@ export default function Calendar({ user, initialDate, refreshKey }) {
       else if (e.key === "ArrowLeft")              goToPrev();
       else if (e.key === "ArrowRight")             goToNext();
       else if (e.key === "t" || e.key === "T")     goToToday();
-      else if (e.key === "n" || e.key === "N")     setShowAdd(true);
+      else if (e.key === "n" || e.key === "N") { const n = new Date(); const h = String(n.getHours()).padStart(2,"0"); const m = n.getMinutes() < 30 ? "00" : "30"; openAdd(fmtDateStr(n), `${h}:${m}`); }
     };
     window.addEventListener("keydown", handleKey);
     return () => window.removeEventListener("keydown", handleKey);
@@ -1157,7 +1157,7 @@ export default function Calendar({ user, initialDate, refreshKey }) {
             <div className="card-title">{eventListTitle.heading}</div>
             <div className="card-sub">{eventListTitle.sub}</div>
           </div>
-          <button className="btn sm primary" onClick={() => openAdd(fmtDateStr(new Date()))}>
+          <button className="btn sm primary" onClick={() => { const n = new Date(); const h = String(n.getHours()).padStart(2,"0"); const m = n.getMinutes() < 30 ? "00" : "30"; openAdd(fmtDateStr(n), `${h}:${m}`); }}>
             <Icon name="plus" size={12} /> Add
           </button>
         </div>
