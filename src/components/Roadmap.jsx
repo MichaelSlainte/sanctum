@@ -255,20 +255,31 @@ export default function Roadmap() {
       }
       projs = projs.filter(p => p.name && p.name !== "MM" && p.name.trim() !== "");
 
-      if (projs.length === 0) {
+      // Check if tracks exist — project row alone doesn't mean data is complete
+      let needsSeed = projs.length === 0;
+      if (!needsSeed && projs.length > 0) {
+        const projId = projs[projs.length - 1].id;
+        const tCheck = await sb.from("roadmap_tracks").select("*", `&project_id=eq.${projId}`);
+        if (!Array.isArray(tCheck) || tCheck.length === 0) needsSeed = true;
+      }
+
+      if (needsSeed) {
+        // If a Project Phoenix project exists but has no tracks, delete it first to avoid duplicate
+        const existing = projs.find(p => p.name === SEED.name);
+        if (existing) {
+          await sb.from("roadmap_projects").delete({ id: existing.id });
+        }
         setSeeding(true);
         await seedPhoenix();
         setSeeding(false);
         const fresh = await sb.from("roadmap_projects").select("*");
         const freshProjs = Array.isArray(fresh) ? fresh : [];
         setProjects(freshProjs);
-        // freshProjs is desc by created_at; show oldest first tab = last element
         const firstId = freshProjs.length > 0 ? freshProjs[freshProjs.length - 1].id : null;
         setActiveId(firstId);
         if (firstId) await loadProjectData(firstId);
       } else {
         setProjects(projs);
-        // projs is desc by created_at; select oldest = first tab shown after .reverse()
         const firstId = projs[projs.length - 1].id;
         setActiveId(firstId);
         await loadProjectData(firstId);
