@@ -628,8 +628,10 @@ export default function TrackerHub({ archivedTrackers = [], onArchive, onUnarchi
   const [detailTracker, setDetailTracker] = useState(null);
 
   const loadCustomTrackers = async () => {
+    console.log('Loading custom trackers, key:', refreshKey);
     try {
       const data = await sb.from('custom_trackers').select('*');
+      console.log('Supabase custom trackers:', data);
       if (Array.isArray(data) && data.length > 0) {
         const active = data.filter(t => !t.archived);
         setCustomTrackers(active);
@@ -642,6 +644,7 @@ export default function TrackerHub({ archivedTrackers = [], onArchive, onUnarchi
     // Fallback: localStorage (also used when Supabase table is empty or missing)
     try {
       const local = JSON.parse(localStorage.getItem('sanctum_custom_trackers') || '[]');
+      console.log('localStorage trackers:', local);
       setCustomTrackers(local.filter(t => !t.archived));
     } catch {
       setCustomTrackers([]);
@@ -652,8 +655,13 @@ export default function TrackerHub({ archivedTrackers = [], onArchive, onUnarchi
     loadCustomTrackers();
     const loadEntries = async () => {
       const data = await sb.from('tracker_entries').select('*');
-      if (Array.isArray(data) && data.length > 0) setTrackerEntries(data);
-      else setTrackerEntries(loadCustomEntries());
+      if (Array.isArray(data) && data.length > 0) {
+        setTrackerEntries(data);
+      } else {
+        const local = loadCustomEntries();
+        console.log('localStorage entries:', local);
+        setTrackerEntries(local);
+      }
     };
     loadEntries();
   }, [refreshKey]);
@@ -745,10 +753,11 @@ export default function TrackerHub({ archivedTrackers = [], onArchive, onUnarchi
   const activeOrder  = order.filter(id => !archivedTrackers.includes(id));
   const archivedList = order.filter(id => archivedTrackers.includes(id));
 
-  const deleteCustomTracker = (id) => {
-    const updated = customTrackers.filter(t => t.id !== id);
-    setCustomTrackers(updated);
-    localStorage.setItem('sanctum_custom_trackers', JSON.stringify(updated));
+  const archiveCustomTracker = async (id) => {
+    setCustomTrackers(prev => prev.filter(t => t.id !== id));
+    const all = JSON.parse(localStorage.getItem('sanctum_custom_trackers') || '[]');
+    localStorage.setItem('sanctum_custom_trackers', JSON.stringify(all.map(t => t.id === id ? { ...t, archived: true } : t)));
+    try { await sb.from('custom_trackers').update({ archived: true }, { id }); } catch {}
   };
 
   const handleTrackerUpdate = (updated) => {
@@ -798,33 +807,77 @@ export default function TrackerHub({ archivedTrackers = [], onArchive, onUnarchi
     );
   };
 
-  const renderCustomCard = (tracker) => {
+  const renderCustomCard = (t) => {
     const ws = getWeekStart();
-    const thisWeekCount = trackerEntries.filter(e => e.tracker_id === tracker.id && new Date(e.date) >= ws).length;
-    const percent = thisWeekCount / (tracker.weekly_goal || 3);
-    const color = tracker.color || '#10b981';
+    const weekCount = (trackerEntries || []).filter(e => e.tracker_id === t.id && new Date(e.date) >= ws).length;
+    const color = t.color || '#10b981';
+    const circ = 2 * Math.PI * 18;
+    const offset = circ * (1 - Math.min(weekCount / (t.weekly_goal || 3), 1));
     return (
-      <div key={tracker.id} className="tracker-card"
-        style={{ borderTop: `3px solid ${color}`, cursor: 'pointer' }}
-        onClick={() => setDetailTracker(tracker)}>
-        <button className="tracker-archive-btn" title="Delete tracker"
-          onClick={e => { e.stopPropagation(); if (confirm(`Delete "${tracker.label}" tracker?`)) deleteCustomTracker(tracker.id); }}>
-          <svg width="14" height="14" viewBox="0 0 24 24" fill="none"
-            stroke="currentColor" strokeWidth="2.5" strokeLinecap="round">
-            <line x1="18" y1="6" x2="6" y2="18"/><line x1="6" y1="6" x2="18" y2="18"/>
+      <div
+        key={t.id}
+        onClick={() => setDetailTracker(t)}
+        style={{
+          background: 'var(--bg1)',
+          border: '1px solid var(--b2)',
+          borderTop: `3px solid ${color}`,
+          borderRadius: 16,
+          padding: 20,
+          cursor: 'pointer',
+          position: 'relative',
+          minHeight: 160,
+          display: 'flex',
+          flexDirection: 'column',
+          justifyContent: 'flex-end',
+          transition: 'border-color .15s, transform .15s',
+        }}
+        onMouseEnter={e => e.currentTarget.style.transform = 'translateY(-2px)'}
+        onMouseLeave={e => e.currentTarget.style.transform = 'translateY(0)'}
+      >
+        {/* Ring top right */}
+        <div style={{ position: 'absolute', top: 12, right: 12 }}>
+          <svg width="44" height="44" viewBox="0 0 44 44">
+            <circle cx="22" cy="22" r="18" fill="none" stroke="var(--b2)" strokeWidth="4" />
+            <circle cx="22" cy="22" r="18" fill="none" stroke={color} strokeWidth="4"
+              strokeDasharray={circ} strokeDashoffset={offset}
+              strokeLinecap="round" transform="rotate(-90 22 22)" />
+          </svg>
+        </div>
+        {/* Icon */}
+        <div style={{
+          width: 36, height: 36, borderRadius: 10,
+          background: color + '22',
+          display: 'flex', alignItems: 'center', justifyContent: 'center',
+          marginBottom: 36,
+        }}>
+          <svg width="18" height="18" viewBox="0 0 24 24" fill="none"
+            stroke={color} strokeWidth="2" strokeLinecap="round">
+            <path d="M22 12h-4l-3 9L9 3l-3 9H2" />
+          </svg>
+        </div>
+        {/* Text */}
+        <div style={{ fontSize: 16, fontWeight: 600, color: 'var(--t1)', marginBottom: 4 }}>{t.label}</div>
+        {t.description && <div style={{ fontSize: 12, color: 'var(--t3)', marginBottom: 6 }}>{t.description}</div>}
+        <div style={{ fontSize: 11, color: 'var(--t3)' }}>
+          {weekCount} / {t.weekly_goal || 3} this week
+        </div>
+        {/* Archive button */}
+        <button
+          title="Archive"
+          onClick={e => { e.stopPropagation(); archiveCustomTracker(t.id); }}
+          style={{
+            position: 'absolute', bottom: 10, right: 10,
+            background: 'var(--bg2)', border: '1px solid var(--b2)',
+            borderRadius: 6, padding: '4px 7px', cursor: 'pointer',
+            color: 'var(--t3)', display: 'flex', alignItems: 'center',
+          }}>
+          <svg width="12" height="12" viewBox="0 0 24 24" fill="none"
+            stroke="currentColor" strokeWidth="2">
+            <polyline points="21 8 21 21 3 21 3 8" />
+            <rect x="1" y="3" width="22" height="5" />
+            <line x1="10" y1="12" x2="14" y2="12" />
           </svg>
         </button>
-        <div className="tc-ring"><MiniRing percent={percent} color={color} /></div>
-        <div className="tc-icon">
-          <div style={{ width: 36, height: 36, borderRadius: 10, background: color + '22', display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
-            <Icon name="trackers" size={18} color={color} />
-          </div>
-        </div>
-        <div className="tc-name">{tracker.label}</div>
-        {tracker.description && <div className="tc-sub">{tracker.description}</div>}
-        <div className="tc-sub" style={{ marginTop: tracker.description ? 2 : 0 }}>
-          {thisWeekCount} of {tracker.weekly_goal || 3} {tracker.unit || 'sessions'} this week
-        </div>
       </div>
     );
   };

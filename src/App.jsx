@@ -235,11 +235,24 @@ export default function App() {
     try {
       const todayISO = new Date().toISOString().slice(0, 10);
       const trackerCreationInstructions = page === 'trackers' ? `
-- Create custom tracker → When user asks to create a tracker, guide them through a conversation one question at a time:
-  Step 1: Ask the tracker name. Step 2: Ask weekly goal (e.g. "3 sessions"). Step 3: Ask preferred time (e.g. "07:00"). Step 4: Ask which days (e.g. "Mon, Wed, Fri"). Step 5: Confirm and ask if they want it added to the calendar.
-  Only after confirmation, reply ONLY with valid JSON, no markdown: {"action":"create_tracker","name":"Workout","description":"Track gym sessions","icon":"trackers","color":"#10b981","weekly_goal":3,"unit":"sessions","has_ring":true,"schedule_days":["monday","wednesday","friday"],"schedule_time":"07:00","add_to_calendar":true}
-  Choose a fitting color hex (green=#10b981, blue=#388bfd, purple=#8b5cf6, amber=#f59e0b, red=#ef4444).
-  For intermediate conversation steps, reply with plain conversational text only.` : '';
+TRACKER CREATION FLOW:
+When user wants to create any tracker, follow these steps:
+
+Step 1 - Ask: What would you like to call this tracker?
+Step 2 - Ask: What is your weekly goal? (number + what you are tracking, e.g. '3 gym sessions' or '5km runs')
+Step 3 - Ask: What days and time? (e.g. Mon/Wed/Fri at 7am)
+Step 4 - Confirm everything, then output EXACTLY this JSON and nothing else:
+
+{"action":"create_tracker","name":"TRACKER_NAME","description":"DESCRIPTION","color":"COLOR_HEX","weekly_goal":NUMBER,"unit":"UNIT","schedule_days":["monday","wednesday"],"schedule_time":"07:00","add_to_calendar":true}
+
+Color guide:
+- Fitness/gym: #10b981
+- Running: #06b6d4
+- Learning: #8b5cf6
+- Personal: #388bfd
+- Creative: #ec4899
+
+IMPORTANT: When outputting the final JSON, output ONLY the JSON. No other text.` : '';
       const sys = `You are Sanctum AI, a personal assistant embedded in a private life organiser app.
 Today is ${todayISO}. User: Michael, Dublin, Ireland.
 When user mentions dates, always convert to ISO format YYYY-MM-DD in your JSON response.
@@ -306,6 +319,8 @@ RESPONSE RULES — choose one format only:
           setCalendarRefreshKey(k => k + 1);
           setGlobalAIResponse({ text: `Added to calendar: "${action.title}" on ${parseDate(action.date)}`, type: 'success' });
         } else if (action.action === 'create_tracker') {
+          console.log('=== CREATE TRACKER START ===');
+          console.log('Action received:', JSON.stringify(action));
           setGlobalAIHistory([]);
           const newId = 'custom_' + Date.now();
           const tracker = {
@@ -314,32 +329,36 @@ RESPONSE RULES — choose one format only:
             description: action.description || '',
             icon: 'trackers',
             color: action.color || '#10b981',
-            fields: action.fields || [],
+            fields: [],
             has_ring: true,
-            weekly_goal: action.weekly_goal || 3,
+            weekly_goal: parseInt(action.weekly_goal) || 3,
             unit: action.unit || 'sessions',
             archived: false,
             created_at: new Date().toISOString(),
             user_id: user?.id,
           };
+          console.log('Tracker object:', tracker);
           // Save to localStorage immediately as source of truth
           const existing = JSON.parse(localStorage.getItem('sanctum_custom_trackers') || '[]');
-          localStorage.setItem('sanctum_custom_trackers', JSON.stringify([...existing, tracker]));
+          const updated = [...existing, tracker];
+          localStorage.setItem('sanctum_custom_trackers', JSON.stringify(updated));
+          console.log('localStorage updated:', updated.length, 'trackers');
           // Try Supabase (fails gracefully if table missing)
           try {
-            await sb.from('custom_trackers').insert({
+            const insertResult = await sb.from('custom_trackers').insert({
               id: tracker.id,
               label: tracker.label,
               description: tracker.description,
               icon: tracker.icon,
               color: tracker.color,
-              fields: tracker.fields,
-              has_ring: tracker.has_ring,
+              fields: '[]',
+              has_ring: true,
               weekly_goal: tracker.weekly_goal,
               unit: tracker.unit,
               archived: false,
               user_id: user?.id,
             });
+            console.log('Supabase insert result:', insertResult);
           } catch (e) {
             console.warn('custom_trackers Supabase insert failed (localStorage used):', e);
           }
@@ -369,6 +388,7 @@ RESPONSE RULES — choose one format only:
             setCalendarRefreshKey(k => k + 1);
           }
           setTrackersRefreshKey(k => k + 1);
+          console.log('Refresh key incremented');
           setGlobalAIResponse({ text: `Created "${tracker.label}" tracker${action.add_to_calendar ? ' and added 8 weeks of events to calendar' : ''}! Go to Trackers to see it.`, type: 'success' });
         } else {
           setGlobalAIHistory([...newHistory, { role: 'assistant', content: reply }]);
