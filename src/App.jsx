@@ -11,6 +11,7 @@ import Ozzy from "./components/trackers/Ozzy";
 import Travel from "./components/trackers/Travel";
 import Career from "./components/trackers/Career";
 import Finance from "./components/trackers/Finance";
+import TrackerHub, { TrackerBackBar } from "./components/trackers/TrackerHub";
 
 // ─── LOGIN ───────────────────────────────────────────────────────────────────
 function Login({ onLogin }) {
@@ -119,15 +120,14 @@ const NAV = [
   { id: "home",     label: "Home",     icon: "home" },
   { id: "notes",    label: "Notes",    icon: "notes" },
   { id: "calendar", label: "Calendar", icon: "calendar" },
-  { id: "study",    label: "Study",    icon: "study" },
-  { id: "pet",      label: "Ozzy",     icon: "pet" },
-  { id: "travel",   label: "Travel",   icon: "travel" },
+  { id: "trackers", label: "Trackers", icon: "trackers" },
   { id: "settings", label: "Settings", icon: "settings" },
 ];
 const TITLES = {
   home: "Home", notes: "Notes", calendar: "Calendar", settings: "Settings",
-  study: "Study", pet: "Ozzy", travel: "Travel", career: "Career", finance: "Finance",
+  trackers: "Trackers", study: "Study", pet: "Ozzy", travel: "Travel", career: "Career", finance: "Finance",
 };
+const TRACKER_PAGES = ["study", "pet", "travel", "career", "finance"];
 
 // ─── SANCTUM LOGO ────────────────────────────────────────────────────────────
 const SanctumLogo = ({ size = 36, theme = "dark" }) => {
@@ -315,7 +315,7 @@ RESPONSE RULES — choose one format only:
   const [page, setPage] = useState(() => {
     const saved = localStorage.getItem("sanctum_page");
     if (!saved || ["dashboard", "ai"].includes(saved)) return "home";
-    if (["home","notes","calendar","settings","study","pet","travel","career","finance"].includes(saved)) return saved;
+    if (["home","notes","calendar","settings","trackers","study","pet","travel","career","finance"].includes(saved)) return saved;
     return "home";
   });
 
@@ -338,6 +338,21 @@ RESPONSE RULES — choose one format only:
   const [navDragOver, setNavDragOver] = useState(null);
   const [navDragging, setNavDragging] = useState(null);
   const navDragId = useRef(null);
+
+  const [archivedTrackers, setArchivedTrackers] = useState(() => {
+    try { return JSON.parse(localStorage.getItem("sanctum_archived_trackers")) || []; }
+    catch { return []; }
+  });
+  const archiveTracker = (id) => setArchivedTrackers(prev => {
+    const next = [...new Set([...prev, id])];
+    localStorage.setItem("sanctum_archived_trackers", JSON.stringify(next));
+    return next;
+  });
+  const unarchiveTracker = (id) => setArchivedTrackers(prev => {
+    const next = prev.filter(x => x !== id);
+    localStorage.setItem("sanctum_archived_trackers", JSON.stringify(next));
+    return next;
+  });
 
   const onNavDragStart = (e, id) => {
     navDragId.current = id; setNavDragging(id); e.dataTransfer.effectAllowed = "move";
@@ -446,11 +461,12 @@ RESPONSE RULES — choose one format only:
     if (page === "notes") return <Notes user={user} />;
     if (page === "calendar") return <Calendar user={user} initialDate={calDate} refreshKey={calendarRefreshKey} />;
     if (page === "settings") return <Settings user={user} onLogout={handleLogout} theme={theme} onThemeChange={applyTheme} font={font} onFontChange={applyFont} sb={sb} />;
-    if (page === "study") return <Study user={user} />;
-    if (page === "pet") return <Ozzy user={user} />;
-    if (page === "travel") return <Travel user={user} />;
-    if (page === "career") return <Career user={user} />;
-    if (page === "finance") return <Finance user={user} />;
+    if (page === "trackers") return <TrackerHub user={user} archivedTrackers={archivedTrackers} onArchive={archiveTracker} onUnarchive={unarchiveTracker} onNavigate={navigate} />;
+    if (page === "study")   return <><TrackerBackBar name="Study"   onBack={() => navigate("trackers")} /><Study   user={user} /></>;
+    if (page === "pet")     return <><TrackerBackBar name="Ozzy"    onBack={() => navigate("trackers")} /><Ozzy    user={user} /></>;
+    if (page === "travel")  return <><TrackerBackBar name="Travel"  onBack={() => navigate("trackers")} /><Travel  user={user} /></>;
+    if (page === "career")  return <><TrackerBackBar name="Career"  onBack={() => navigate("trackers")} /><Career  user={user} /></>;
+    if (page === "finance") return <><TrackerBackBar name="Finance" onBack={() => navigate("trackers")} /><Finance user={user} /></>;
   };
 
   const today = new Date().toLocaleDateString("en-IE", { weekday: "short", day: "numeric", month: "short", year: "numeric" });
@@ -487,9 +503,10 @@ RESPONSE RULES — choose one format only:
             {navOrder.map(id => {
               const n = NAV.find(x => x.id === id);
               if (!n) return null;
+              const isActive = n.id === page || (n.id === "trackers" && TRACKER_PAGES.includes(page));
               const cls = [
                 "nav-item",
-                n.id === page      ? "active"       : "",
+                isActive           ? "active"       : "",
                 navDragging === id ? "is-dragging"   : "",
                 navDragOver === id ? "nav-drag-over" : "",
               ].filter(Boolean).join(" ");
