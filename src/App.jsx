@@ -455,39 +455,47 @@ RESPONSE RULES — choose one format only:
 
   const handleLogin = async (u, password) => {
     setUser(u);
+
+    // Step 1: fetch profile (best-effort — never blocks key derivation)
+    let profileSalt = null;
     try {
       const profile = await sb.from("profiles").select("display_name,timezone,encryption_salt", `&id=eq.${u.id}`, "");
       if (Array.isArray(profile) && profile[0]?.display_name) {
         localStorage.setItem(`sanctum_display_name_${u.id}`, profile[0].display_name);
         setProfileName(profile[0].display_name);
       }
-      if (password) {
-        setKeyLoading(true);
-        const SALT_LS_KEY = `sanctum_enc_salt_${u.id}`;
-        const SESSION_KEY = `sanctum_session_key_${u.id}`;
-        // Priority: Supabase profile → localStorage → generate new
-        let salt = (Array.isArray(profile) && profile[0]?.encryption_salt) || localStorage.getItem(SALT_LS_KEY);
-        if (!salt) {
-          salt = await generateSalt();
-          // Try profiles table (needs encryption_salt column — see SQL note in commit)
-          sb.from("profiles").update({ encryption_salt: salt }, { id: u.id }).catch(() => {});
-        }
-        // Always persist salt locally so the same key is derived on every login
-        localStorage.setItem(SALT_LS_KEY, salt);
-        try {
-          const key = await deriveKey(password, salt);
-          // Persist key in sessionStorage so page reloads don't lose it
-          const exported = await exportKey(key);
-          sessionStorage.setItem(SESSION_KEY, exported);
-          setCryptoKey(key);
-        } catch (keyErr) {
-          console.error('[handleLogin] key derivation failed:', keyErr);
-        } finally {
-          setKeyLoading(false);
-        }
+      if (Array.isArray(profile) && profile[0]?.encryption_salt) {
+        profileSalt = profile[0].encryption_salt;
       }
     } catch (err) {
       console.error('[handleLogin] profile fetch error:', err);
+    }
+
+    // Step 2: derive encryption key — always runs, independent of profile fetch
+    if (password) {
+      setKeyLoading(true);
+      const SALT_LS_KEY = `sanctum_enc_salt_${u.id}`;
+      const SESSION_KEY = `sanctum_session_key_${u.id}`;
+      // Priority: Supabase profile → localStorage → generate new
+      let salt = profileSalt || localStorage.getItem(SALT_LS_KEY);
+      if (!salt) {
+        salt = await generateSalt();
+        // Try profiles table (needs encryption_salt column — see SQL note in commit)
+        sb.from("profiles").update({ encryption_salt: salt }, { id: u.id }).catch(() => {});
+      }
+      // Always persist salt locally so the same key is derived on every login in this browser
+      localStorage.setItem(SALT_LS_KEY, salt);
+      try {
+        const key = await deriveKey(password, salt);
+        // Persist key in sessionStorage so page reloads don't lose it
+        const exported = await exportKey(key);
+        sessionStorage.setItem(SESSION_KEY, exported);
+        setCryptoKey(key);
+      } catch (keyErr) {
+        console.error('[handleLogin] key derivation failed:', keyErr);
+      } finally {
+        setKeyLoading(false);
+      }
     }
   };
   const handleLogout = () => { auth.signOut(); setUser(null); setProfileName(""); setPage("home"); localStorage.removeItem("sanctum_page"); };
