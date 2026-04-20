@@ -559,7 +559,7 @@ RESPONSE RULES — choose one format only:
   ];
 
   const userDisplayKey = user?.id ? `sanctum_display_name_${user.id}` : "sanctum_display_name";
-  const displayName = profileName || localStorage.getItem(userDisplayKey) || user?.email?.split('@')[0]?.split('.')[0] || 'You';
+  const displayName = profileName || localStorage.getItem(userDisplayKey) || user?.user_metadata?.display_name || user?.email?.split('@')[0] || 'You';
   const initials = displayName.split(' ').length > 1
     ? displayName.split(' ').map(w => w[0]).join('').toUpperCase().slice(0, 2)
     : displayName.slice(0, 2).toUpperCase();
