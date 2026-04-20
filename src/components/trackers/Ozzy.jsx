@@ -305,8 +305,11 @@ export default function Ozzy({ user }) {
                 if (!file) return;
                 setPhotoUploading(true);
                 try {
+                  // Ensure bucket exists (no-op if already created)
+                  await storage.createBucket("pets", true);
                   const path = `${user?.id || "shared"}/ozzy.jpg`;
-                  await storage.upload("pets", path, file);
+                  const uploadRes = await storage.upload("pets", path, file);
+                  if (uploadRes?.error) throw new Error(uploadRes.error.message || "Upload failed");
                   const url = storage.getPublicUrl("pets", path) + `?t=${Date.now()}`;
                   setOzzyPhoto(url);
                   await sb.from("ozzy_profile").upsert({ key: "photo_url", value: url }, "key");
