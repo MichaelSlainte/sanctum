@@ -1095,7 +1095,9 @@
     .topbar { padding: 0 16px; }
     .cal-cell { min-height: 55px; }
     .cal-grid { padding-bottom: 70px; }
-    .ring-card { padding: 14px 10px; text-align: center; align-items: center; justify-content: center; }
+    .ring-card { display: flex; flex-direction: column; align-items: center; justify-content: center; padding: 14px 10px; text-align: center; }
+    .ring-card svg { display: block; margin: 0 auto; }
+    .ring-label { width: 100%; }
     .ring-cards-row { grid-template-columns: repeat(2, 1fr); }
     .ring-cards-row .ring-card:last-child:nth-child(odd) { grid-column: 1 / -1; }
     .ring-cards-row .ring-card svg { width: 65px; height: 65px; }
