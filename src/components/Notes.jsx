@@ -748,6 +748,10 @@ export default function Notes({ user }) {
   return (
     <div className="notes-shell" data-mobile-panel={mobilePanel} onClick={() => { setNbMenu(null); setNoteMenu(null); }}>
 
+      {isMobile && mobilePanel !== 'editor' && (
+        <button className="mobile-notes-fab" onClick={newNote} title="New note">+</button>
+      )}
+
       {migrating && (
         <div style={{position:'fixed',bottom:80,left:'50%',transform:'translateX(-50%)',background:'var(--bg2)',border:'1px solid var(--b2)',borderRadius:8,padding:'8px 16px',fontSize:12,color:'var(--t2)',zIndex:999,display:'flex',alignItems:'center',gap:6}}>
           🔒 Securing your notes...
@@ -755,7 +759,7 @@ export default function Notes({ user }) {
       )}
 
       {/* ── Notebooks sidebar ── */}
-      <div className={`notes-sidebar${sidebarCollapsed?' collapsed':''}`} onClick={e => e.stopPropagation()}>
+      <div className={`notes-sidebar${sidebarCollapsed && !isMobile?' collapsed':''}`} onClick={e => e.stopPropagation()}>
         <div className="notes-sidebar-header">
           {!sidebarCollapsed && <span style={{fontSize:11,fontWeight:700,color:'var(--t1)',letterSpacing:-.2,flex:1}}>Notes</span>}
           {!sidebarCollapsed && <span className="enc-badge"><Icon name="lock" size={8} color="var(--grn)"/> enc</span>}
@@ -867,7 +871,7 @@ export default function Notes({ user }) {
       </div>
 
       {/* ── Notes list ── */}
-      <div className={`notes-list${listCollapsed?' collapsed':''}`}>
+      <div className={`notes-list${listCollapsed && !isMobile?' collapsed':''}`}>
         {/* Mobile back button — list header */}
         <div className="notes-list-header-mobile">
           <button className="mobile-back-btn" onClick={()=>setMobilePanel('notebooks')}>
