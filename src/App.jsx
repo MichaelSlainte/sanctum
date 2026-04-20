@@ -463,6 +463,14 @@ RESPONSE RULES — choose one format only:
       if (Array.isArray(profile) && profile[0]?.display_name) {
         localStorage.setItem(`sanctum_display_name_${u.id}`, profile[0].display_name);
         setProfileName(profile[0].display_name);
+      } else {
+        // No display_name in profiles — derive from email and persist
+        const derived = u.email?.split('@')[0] || '';
+        if (derived) {
+          localStorage.setItem(`sanctum_display_name_${u.id}`, derived);
+          setProfileName(derived);
+          sb.from("profiles").upsert({ id: u.id, display_name: derived }, "id").catch(() => {});
+        }
       }
       if (Array.isArray(profile) && profile[0]?.encryption_salt) {
         profileSalt = profile[0].encryption_salt;
@@ -559,7 +567,10 @@ RESPONSE RULES — choose one format only:
   ];
 
   const userDisplayKey = user?.id ? `sanctum_display_name_${user.id}` : "sanctum_display_name";
-  const displayName = profileName || localStorage.getItem(userDisplayKey) || user?.user_metadata?.display_name || user?.email?.split('@')[0] || 'You';
+  const _metaName = user?.user_metadata?.display_name;
+  const _emailName = user?.email?.split('@')[0] || '';
+  // Prefer profiles table name → localStorage cache → email username → metadata (may be stale/short) → fallback
+  const displayName = profileName || localStorage.getItem(userDisplayKey) || (_emailName.length > 1 ? _emailName : null) || (_metaName && _metaName.length > 1 ? _metaName : null) || _emailName || 'You';
   const initials = displayName.split(' ').length > 1
     ? displayName.split(' ').map(w => w[0]).join('').toUpperCase().slice(0, 2)
     : displayName.slice(0, 2).toUpperCase();
