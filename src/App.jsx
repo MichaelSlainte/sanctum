@@ -643,7 +643,7 @@ RESPONSE RULES — choose one format only:
               <div className="user-avatar" title={email} onClick={() => navigate('settings')}>{initials}</div>
             </div>
           </div>
-          {['calendar','settings'].includes(page) && (
+          {['calendar','settings','trackers'].includes(page) && (
             <div className="global-ai-bar-wrap" style={{padding:'12px 24px 0'}}>
               <div className="ai-bar">
                 <div style={{width:32,height:32,borderRadius:'50%',background:'#080808',border:'1px solid #333',display:'flex',alignItems:'center',justifyContent:'center',flexShrink:0,overflow:'hidden'}}><SanctumLogo size={28}/></div>
@@ -688,7 +688,7 @@ RESPONSE RULES — choose one format only:
       {/* ── Bottom nav (mobile) ── */}
       {/* ── Mobile AI FAB ── */}
       <button
-        className={`mobile-ai-fab${!['home','calendar','settings'].includes(page)?' hide-fab':''}`}
+        className={`mobile-ai-fab${!['home','calendar','settings','trackers'].includes(page)?' hide-fab':''}`}
         style={{ bottom: fabPos.bottom + 'px', right: fabPos.right + 'px' }}
         onTouchStart={onFabTouchStart}
         onTouchMove={onFabTouchMove}
