@@ -864,38 +864,25 @@ export default function TrackerHub({ archivedTrackers = [], onArchive, onUnarchi
             <path d="M22 12h-4l-3 9L9 3l-3 9H2" />
           </svg>
         </div>
-        {/* Text */}
-        <div style={{ fontSize: 16, fontWeight: 600, color: 'var(--t1)', marginBottom: 4 }}>{t.label}</div>
-        {t.description && <div style={{ fontSize: 12, color: 'var(--t3)', marginBottom: 6 }}>{t.description}</div>}
-        <div style={{ fontSize: 11, color: 'var(--t3)' }}>
-          {weekCount} / {t.weekly_goal || 3} this week
-        </div>
-        {/* Archive + Delete buttons */}
-        <div style={{ position: 'absolute', bottom: 10, right: 10, display: 'flex', gap: 4 }}>
-          <button
-            title="Archive"
-            onClick={e => { e.stopPropagation(); archiveCustomTracker(t.id); }}
-            style={{
-              background: 'var(--bg2)', border: '1px solid var(--b2)',
-              borderRadius: 6, padding: '4px 7px', cursor: 'pointer',
-              color: 'var(--t3)', display: 'flex', alignItems: 'center',
-            }}>
-            <svg width="12" height="12" viewBox="0 0 24 24" fill="none"
-              stroke="currentColor" strokeWidth="2">
-              <polyline points="21 8 21 21 3 21 3 8" />
-              <rect x="1" y="3" width="22" height="5" />
-              <line x1="10" y1="12" x2="14" y2="12" />
-            </svg>
-          </button>
+        {/* Text + delete row */}
+        <div style={{ display: 'flex', alignItems: 'flex-end', justifyContent: 'space-between', gap: 8 }}>
+          <div style={{ flex: 1, minWidth: 0 }}>
+            <div style={{ fontSize: 16, fontWeight: 600, color: 'var(--t1)', marginBottom: 4 }}>{t.label}</div>
+            {t.description && <div style={{ fontSize: 12, color: 'var(--t3)', marginBottom: 4 }}>{t.description}</div>}
+            <div style={{ fontSize: 11, color: 'var(--t3)' }}>
+              {weekCount} / {t.weekly_goal || 3} this week
+            </div>
+          </div>
           <button
             title="Delete tracker"
             onClick={e => { e.stopPropagation(); deleteCustomTracker(t.id, t.label); }}
             style={{
               background: 'var(--bg2)', border: '1px solid var(--b2)',
-              borderRadius: 6, padding: '4px 7px', cursor: 'pointer',
+              borderRadius: 6, padding: '5px 7px', cursor: 'pointer',
               color: 'var(--red, #ef4444)', display: 'flex', alignItems: 'center',
+              flexShrink: 0,
             }}>
-            <Icon name="trash" size={12} />
+            <Icon name="trash" size={13} />
           </button>
         </div>
       </div>
