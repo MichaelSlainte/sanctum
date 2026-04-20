@@ -1042,6 +1042,7 @@
   .mobile-ai-backdrop {
     position: fixed; inset: 0; z-index: 200;
     background: rgba(0,0,0,0.45); backdrop-filter: blur(2px);
+    cursor: pointer; -webkit-tap-highlight-color: transparent;
   }
   .mobile-ai-panel-header {
     position: relative; display: flex; align-items: center; justify-content: center;
@@ -1054,12 +1055,13 @@
   .mobile-ai-close-btn {
     position: absolute; right: 0; top: 50%; transform: translateY(-50%);
     width: 44px; height: 44px; border-radius: 50%;
-    background: var(--bg2); border: 1px solid var(--b1);
-    color: var(--t2); font-size: 22px; line-height: 1;
+    background: var(--bg2); border: 1px solid var(--b2);
+    color: var(--t1); font-size: 24px; line-height: 1;
     display: flex; align-items: center; justify-content: center;
     cursor: pointer; touch-action: manipulation;
+    -webkit-tap-highlight-color: transparent; z-index: 1;
   }
-  .mobile-ai-close-btn:active { background: var(--bg); }
+  .mobile-ai-close-btn:active { background: var(--b2); transform: translateY(-50%) scale(0.92); }
   @media (max-width: 768px) {
     .sidebar { display: none; }
     .bottom-nav { display: block; }
