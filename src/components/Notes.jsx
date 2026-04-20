@@ -118,9 +118,15 @@ export default function Notes({ user }) {
     sb.from('notebooks').select('*').then((res) => {
       const rows = Array.isArray(res) ? res : res?.data;
       const singleton = Array.isArray(rows) ? rows.find(r => r.id === 'singleton') : null;
-      if (singleton?.data) {
-        setNotebooks(singleton.data);
-        localStorage.setItem('sanctum_notebooks_v2', JSON.stringify(singleton.data));
+      if (singleton) {
+        // Singleton exists — always trust it, never overwrite with defaults
+        if (singleton.data) {
+          setNotebooks(singleton.data);
+          localStorage.setItem('sanctum_notebooks_v2', JSON.stringify(singleton.data));
+        }
+      } else {
+        // No record at all — seed once with defaults
+        sb.from('notebooks').upsert({ id: 'singleton', data: DEFAULT_NOTEBOOKS, updated_at: new Date().toISOString() }, 'id').catch(() => {});
       }
     });
   }, []);
