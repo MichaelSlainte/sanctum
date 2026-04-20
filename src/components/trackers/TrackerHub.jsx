@@ -874,15 +874,20 @@ export default function TrackerHub({ archivedTrackers = [], onArchive, onUnarchi
             </div>
           </div>
           <button
-            title="Delete tracker"
-            onClick={e => { e.stopPropagation(); deleteCustomTracker(t.id, t.label); }}
+            title="Archive tracker"
+            onClick={e => { e.stopPropagation(); archiveCustomTracker(t.id); }}
             style={{
               background: 'var(--bg2)', border: '1px solid var(--b2)',
               borderRadius: 6, padding: '5px 7px', cursor: 'pointer',
-              color: 'var(--red, #ef4444)', display: 'flex', alignItems: 'center',
+              color: 'var(--t3)', display: 'flex', alignItems: 'center',
               flexShrink: 0,
             }}>
-            <Icon name="trash" size={13} />
+            <svg width="14" height="14" viewBox="0 0 24 24" fill="none"
+              stroke="currentColor" strokeWidth="2" strokeLinecap="round">
+              <polyline points="21 8 21 21 3 21 3 8"/>
+              <rect x="1" y="3" width="22" height="5"/>
+              <line x1="10" y1="12" x2="14" y2="12"/>
+            </svg>
           </button>
         </div>
       </div>
