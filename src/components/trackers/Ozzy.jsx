@@ -33,7 +33,7 @@ const VET_TYPES = ["Annual checkup", "Vaccination", "Grooming", "Dental", "Emerg
 export default function Ozzy({ user }) {
   const [activeTab, setActiveTab] = useState("overview");
 
-  const [ozzyPhoto, setOzzyPhoto] = useState(null);
+  const [ozzyPhoto, setOzzyPhoto] = useState(() => localStorage.getItem("sanctum_ozzy_photo") || null);
   const [photoUploading, setPhotoUploading] = useState(false);
   const photoInputRef = useRef(null);
 
@@ -90,13 +90,14 @@ export default function Ozzy({ user }) {
       }
     }).catch(() => {});
 
-    sb.from("ozzy_profile").select("*").then(data => {
+    sb.from("ozzy_profile").select("*", "", "").then(data => {
       if (!Array.isArray(data) || data.length === 0) return;
       const merged = { ...DEFAULT_PROFILE };
       const custom = [];
       data.forEach(row => {
         if (row.key === "photo_url") {
           setOzzyPhoto(row.value);
+          localStorage.setItem("sanctum_ozzy_photo", row.value);
         } else if (row.key === "diet") {
           try { setDiet(JSON.parse(row.value)); } catch {}
         } else if (row.key in DEFAULT_PROFILE) {
@@ -305,16 +306,29 @@ export default function Ozzy({ user }) {
                 if (!file) return;
                 setPhotoUploading(true);
                 try {
-                  // Ensure bucket exists (no-op if already created)
                   await storage.createBucket("pets", true);
                   const path = `${user?.id || "shared"}/ozzy.jpg`;
                   const uploadRes = await storage.upload("pets", path, file);
                   if (uploadRes?.error) throw new Error(uploadRes.error.message || "Upload failed");
                   const url = storage.getPublicUrl("pets", path) + `?t=${Date.now()}`;
-                  setOzzyPhoto(url);
-                  await sb.from("ozzy_profile").upsert({ key: "photo_url", value: url }, "key");
+                  // Save to DB first, then update state
+                  const saved = await sb.from("ozzy_profile").upsert({ key: "photo_url", value: url }, "key");
+                  if (saved && !saved?.error) {
+                    setOzzyPhoto(url);
+                  } else {
+                    // Fallback: store in localStorage so it persists in this browser
+                    localStorage.setItem("sanctum_ozzy_photo", url);
+                    setOzzyPhoto(url);
+                  }
                 } catch (err) {
                   console.error("[Ozzy] photo upload failed:", err);
+                  // Try localStorage fallback
+                  const reader = new FileReader();
+                  reader.onload = () => {
+                    localStorage.setItem("sanctum_ozzy_photo", reader.result);
+                    setOzzyPhoto(reader.result);
+                  };
+                  reader.readAsDataURL(file);
                 } finally {
                   setPhotoUploading(false);
                 }
