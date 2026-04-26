@@ -1,3 +1,4 @@
+// Copyright (c) 2026 Sanctum — Michael & Tamara. All rights reserved.
 import { useState, useEffect } from "react";
 import { sb } from "../../lib/supabase";
 import { Icon, Modal } from "../shared";
@@ -141,6 +142,25 @@ export default function Study({ user }) {
     localStorage.setItem("sanctum_study_subjects", JSON.stringify(s));
     setSubjects(s);
   };
+  const loadSubjectsAndTopics = async () => {
+    try {
+      const [dbSubjects, dbTopics] = await Promise.all([
+        sb.from("study_subjects").select("*", "", "position.asc"),
+        sb.from("study_topics").select("*", "", "position.asc"),
+      ]);
+      if (!Array.isArray(dbSubjects) || dbSubjects.length === 0) return;
+      const built = dbSubjects.map(s => ({
+        id: s.id,
+        label: s.label,
+        color: s.color,
+        topics: Array.isArray(dbTopics)
+          ? dbTopics.filter(t => t.subject_id === s.id).map(t => ({ id: t.id, label: t.label, icon: t.icon || "notes" }))
+          : [],
+      }));
+      setSubjects(built);
+      localStorage.setItem("sanctum_study_subjects", JSON.stringify(built));
+    } catch {}
+  };
 
   // Collapsed subject IDs
   const [collapsedSubjects, setCollapsedSubjects] = useState(() => {
@@ -181,7 +201,7 @@ export default function Study({ user }) {
   const [barFilter, setBarFilter] = useState("all");
   const [barWeeks,  setBarWeeks]  = useState(6);
 
-  useEffect(() => { loadAll(); }, []);
+  useEffect(() => { loadAll(); loadSubjectsAndTopics(); }, []);
   const loadAll = async () => {
     const data = await sb.from("study_sessions").select("*");
     if (Array.isArray(data)) setAllSessions(data);
@@ -208,51 +228,77 @@ export default function Study({ user }) {
   };
 
   // Subject ops
-  const addSubject = () => {
-    const id = `subj_${Date.now()}`;
+  const addSubject = async () => {
     const color = SUBJECT_COLORS[subjects.length % SUBJECT_COLORS.length];
-    const updated = [...subjects, { id, label: "New Subject", color, topics: [] }];
+    const position = subjects.length;
+    let subjId = `subj_${Date.now()}`;
+    try {
+      const res = await sb.from("study_subjects").insert({ user_id: user?.id, label: "New Subject", color, position });
+      if (Array.isArray(res) && res[0]?.id) subjId = res[0].id;
+    } catch {}
+    const updated = [...subjects, { id: subjId, label: "New Subject", color, topics: [] }];
     saveSubjects(updated);
-    setEditSubjectId(id);
+    setEditSubjectId(subjId);
     setEditSubjectText("New Subject");
   };
   const saveSubjectName = (id, text) => {
     const trimmed = text.trim();
-    if (trimmed) saveSubjects(subjects.map(s => s.id === id ? { ...s, label: trimmed } : s));
+    if (trimmed) {
+      saveSubjects(subjects.map(s => s.id === id ? { ...s, label: trimmed } : s));
+      sb.from("study_subjects").update({ label: trimmed }, { id }).catch(() => {});
+    }
     setEditSubjectId(null);
   };
   const deleteSubject = (id) => {
     const hasSessions = allSessions.some(s => s.type === id);
     if (hasSessions && !window.confirm("This subject has sessions logged. Delete anyway?")) return;
     saveSubjects(subjects.filter(s => s.id !== id));
+    sb.from("study_topics").delete({ subject_id: id }).catch(() => {});
+    sb.from("study_subjects").delete({ id }).catch(() => {});
   };
   const cycleSubjectColor = (id) => {
     const subj = subjects.find(s => s.id === id);
     const idx = SUBJECT_COLORS.indexOf(subj?.color);
     const nextColor = SUBJECT_COLORS[(idx + 1) % SUBJECT_COLORS.length];
     saveSubjects(subjects.map(s => s.id === id ? { ...s, color: nextColor } : s));
+    sb.from("study_subjects").update({ color: nextColor }, { id }).catch(() => {});
   };
 
   // Topic ops
   const moveTopicUp = (subjId, i) => {
-    saveSubjects(subjects.map(s => {
+    const updated = subjects.map(s => {
       if (s.id !== subjId || i === 0) return s;
       const t = [...s.topics]; [t[i - 1], t[i]] = [t[i], t[i - 1]];
       return { ...s, topics: t };
-    }));
+    });
+    saveSubjects(updated);
+    const subj = updated.find(s => s.id === subjId);
+    if (subj && i > 0) {
+      sb.from("study_topics").update({ position: i - 1 }, { id: subj.topics[i - 1].id }).catch(() => {});
+      sb.from("study_topics").update({ position: i },     { id: subj.topics[i].id     }).catch(() => {});
+    }
   };
   const moveTopicDown = (subjId, i) => {
-    saveSubjects(subjects.map(s => {
+    const updated = subjects.map(s => {
       if (s.id !== subjId || i === s.topics.length - 1) return s;
       const t = [...s.topics]; [t[i + 1], t[i]] = [t[i], t[i + 1]];
       return { ...s, topics: t };
-    }));
+    });
+    saveSubjects(updated);
+    const subj = updated.find(s => s.id === subjId);
+    if (subj && i < subj.topics.length - 1) {
+      sb.from("study_topics").update({ position: i },     { id: subj.topics[i].id     }).catch(() => {});
+      sb.from("study_topics").update({ position: i + 1 }, { id: subj.topics[i + 1].id }).catch(() => {});
+    }
   };
   const saveTopicName = (subjId, topicId, text) => {
     const trimmed = text.trim();
-    if (trimmed) saveSubjects(subjects.map(s => s.id !== subjId ? s : {
-      ...s, topics: s.topics.map(t => t.id === topicId ? { ...t, label: trimmed } : t),
-    }));
+    if (trimmed) {
+      saveSubjects(subjects.map(s => s.id !== subjId ? s : {
+        ...s, topics: s.topics.map(t => t.id === topicId ? { ...t, label: trimmed } : t),
+      }));
+      sb.from("study_topics").update({ label: trimmed }, { id: topicId }).catch(() => {});
+    }
     setEditTopicKey(null);
     setEditTopicText("");
   };
@@ -260,16 +306,23 @@ export default function Study({ user }) {
     saveSubjects(subjects.map(s => s.id !== subjId ? s : {
       ...s, topics: s.topics.filter(t => t.id !== topicId),
     }));
+    sb.from("study_topics").delete({ id: topicId }).catch(() => {});
   };
-  const addTopic = (subjId) => {
+  const addTopic = async (subjId) => {
     const name = addTopicDraft.trim();
     if (!name) { setAddTopicSubjectId(null); setAddTopicDraft(""); return; }
-    const id = `topic_${Date.now()}`;
-    saveSubjects(subjects.map(s => s.id !== subjId ? s : {
-      ...s, topics: [...s.topics, { id, label: name, icon: "notes" }],
-    }));
+    const subj = subjects.find(s => s.id === subjId);
+    const position = subj ? subj.topics.length : 0;
     setAddTopicDraft("");
     setAddTopicSubjectId(null);
+    let topicId = `topic_${Date.now()}`;
+    try {
+      const res = await sb.from("study_topics").insert({ subject_id: subjId, user_id: user?.id, label: name, icon: "notes", position });
+      if (Array.isArray(res) && res[0]?.id) topicId = res[0].id;
+    } catch {}
+    saveSubjects(subjects.map(s => s.id !== subjId ? s : {
+      ...s, topics: [...s.topics, { id: topicId, label: name, icon: "notes" }],
+    }));
   };
 
   // Derived stats
