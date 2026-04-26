@@ -118,21 +118,19 @@ export default function Notes({ user }) {
     return DEFAULT_NOTEBOOKS;
   });
   useEffect(() => {
+    const singletonId = `singleton_${user?.id || 'default'}`;
     sb.from('notebooks').select('*').then((res) => {
-      const rows = Array.isArray(res) ? res : res?.data;
-      const singletonId = `singleton_${user?.id || 'default'}`;
-      const singleton = Array.isArray(rows) ? rows.find(r => r.id === singletonId) : null;
-      if (singleton) {
-        // Singleton exists — always trust it, never overwrite with defaults
-        if (singleton.data) {
-          setNotebooks(singleton.data);
-          localStorage.setItem('sanctum_notebooks_v2', JSON.stringify(singleton.data));
-        }
+      const rows = Array.isArray(res) ? res : [];
+      const singleton = rows.find(r => r.id === singletonId);
+      if (singleton && Array.isArray(singleton.data) && singleton.data.length > 0) {
+        // Valid data in Supabase — use it
+        setNotebooks(singleton.data);
+        localStorage.setItem('sanctum_notebooks_v2', JSON.stringify(singleton.data));
       } else {
-        // No record at all — seed once with defaults
+        // No singleton or empty data (new user / first Tamara login) — seed with defaults
         sb.from('notebooks').upsert({ id: singletonId, user_id: user?.id, data: DEFAULT_NOTEBOOKS, updated_at: new Date().toISOString() }, 'id').catch(() => {});
       }
-    });
+    }).catch(() => {}); // network error — keep current state (localStorage/defaults)
   }, []);
   const saveNotebooks = useCallback(async (nbs) => {
     setNotebooks(nbs);
@@ -660,15 +658,10 @@ export default function Notes({ user }) {
     if (activeNB===id && rem[0]) selectSection(rem[0].sections[0]?.id, rem[0].id);
     setNbMenu(null);
   };
-  const addSection = async (nbId) => {
+  const addSection = (nbId) => {
     const id='sec-'+Date.now(), label='New Section';
     saveNotebooks(notebooks.map(nb => nb.id!==nbId ? nb : {...nb, sections:[...nb.sections,{id,label}]}));
     setNbMenu(null);
-    try {
-      const res = await sb.from("notes").insert({ notebook: nbId, section: id, title: label, body: '', tags: '', user_id: user?.id });
-      const created = Array.isArray(res) && res[0] ? res[0] : { notebook: nbId, section: id, title: label, body: '', tags: '', id: Date.now().toString() };
-      setAllNotes(prev => [...prev, created]);
-    } catch {}
     setTimeout(() => setRenameTarget({type:'section',id,parentId:nbId,value:label}), 50);
   };
   const deleteSection = async (secId, parentId) => {
