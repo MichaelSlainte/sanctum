@@ -1,3 +1,6 @@
+// Copyright © 2026 Michael FR Marques & Tamara Lechner. All rights reserved.
+// Sanctum — Private and confidential. Unauthorised use prohibited.
+// https://sanctum.app
 import { useState, useEffect, useRef, useCallback } from "react";
 import { sb } from "../lib/supabase";
 import { Icon, Modal, DEFAULT_NOTEBOOKS } from "./shared";
@@ -117,7 +120,8 @@ export default function Notes({ user }) {
   useEffect(() => {
     sb.from('notebooks').select('*').then((res) => {
       const rows = Array.isArray(res) ? res : res?.data;
-      const singleton = Array.isArray(rows) ? rows.find(r => r.id === 'singleton') : null;
+      const singletonId = `singleton_${user?.id || 'default'}`;
+      const singleton = Array.isArray(rows) ? rows.find(r => r.id === singletonId) : null;
       if (singleton) {
         // Singleton exists — always trust it, never overwrite with defaults
         if (singleton.data) {
@@ -126,7 +130,7 @@ export default function Notes({ user }) {
         }
       } else {
         // No record at all — seed once with defaults
-        sb.from('notebooks').upsert({ id: 'singleton', data: DEFAULT_NOTEBOOKS, updated_at: new Date().toISOString() }, 'id').catch(() => {});
+        sb.from('notebooks').upsert({ id: singletonId, user_id: user?.id, data: DEFAULT_NOTEBOOKS, updated_at: new Date().toISOString() }, 'id').catch(() => {});
       }
     });
   }, []);
@@ -134,7 +138,7 @@ export default function Notes({ user }) {
     setNotebooks(nbs);
     localStorage.setItem('sanctum_notebooks_v2', JSON.stringify(nbs));
     try {
-      await sb.from('notebooks').upsert({ id: 'singleton', data: nbs, updated_at: new Date().toISOString() }, 'id');
+      await sb.from('notebooks').upsert({ id: `singleton_${user?.id || 'default'}`, user_id: user?.id, data: nbs, updated_at: new Date().toISOString() }, 'id');
     } catch (err) {
       console.error('Failed to save notebooks to Supabase:', err);
     }

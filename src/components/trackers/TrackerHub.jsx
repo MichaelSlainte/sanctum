@@ -1,3 +1,6 @@
+// Copyright © 2026 Michael FR Marques & Tamara Lechner. All rights reserved.
+// Sanctum — Private and confidential. Unauthorised use prohibited.
+// https://sanctum.app
 import { useState, useRef, useEffect } from "react";
 import { Icon } from "../shared";
 import { sb } from "../../lib/supabase";
@@ -134,9 +137,8 @@ export function CustomTrackerDetail({ tracker: initialTracker, onClose, user, on
     const load = async () => {
       setLoadingEntries(true);
       try {
-        const data = await sb.from('tracker_entries').select('*');
+        const data = await sb.from('tracker_entries').select('*', '&tracker_id=eq.' + tracker.id);
         const mine = (Array.isArray(data) ? data : [])
-          .filter(e => e.tracker_id === tracker.id)
           .map(e => ({
             ...e,
             data: typeof e.data === 'string' ? JSON.parse(e.data || '{}') : (e.data || {}),

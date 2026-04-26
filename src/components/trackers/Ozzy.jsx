@@ -1,3 +1,6 @@
+// Copyright © 2026 Michael FR Marques & Tamara Lechner. All rights reserved.
+// Sanctum — Private and confidential. Unauthorised use prohibited.
+// https://sanctum.app
 import { useState, useEffect, useRef } from "react";
 import { sb, storage } from "../../lib/supabase";
 import { Icon, Modal } from "../shared";
@@ -114,7 +117,7 @@ export default function Ozzy({ user }) {
       if (!Array.isArray(data) || data.length === 0) return;
       setDocs(prev => {
         const meta = { ...prev };
-        data.forEach(row => { meta[row.name] = { filename: row.filename, uploaded_at: row.uploaded_at }; });
+        data.forEach(row => { meta[row.name] = { filename: row.filename, uploaded_at: row.uploaded_at, url: row.url }; });
         return meta;
       });
     }).catch(() => {});
@@ -124,7 +127,7 @@ export default function Ozzy({ user }) {
     const updated = { ...profile, [key]: value };
     setProfile(updated);
     localStorage.setItem("sanctum_ozzy_profile", JSON.stringify(updated));
-    try { await sb.from("ozzy_profile").upsert({ key, value }, "key"); } catch {}
+    try { await sb.from("ozzy_profile").upsert({ key, value, user_id: user?.id }, "key"); } catch {}
   };
 
   const saveCustomFields = (fields) => {
@@ -137,7 +140,7 @@ export default function Ozzy({ user }) {
   const saveDiet = (d) => {
     setDiet(d);
     localStorage.setItem("sanctum_ozzy_diet", JSON.stringify(d));
-    sb.from("ozzy_profile").upsert({ key: "diet", value: JSON.stringify(d) }, "key").catch(() => {});
+    sb.from("ozzy_profile").upsert({ key: "diet", value: JSON.stringify(d), user_id: user?.id }, "key").catch(() => {});
   };
 
   const addVet = async () => {
@@ -165,29 +168,29 @@ export default function Ozzy({ user }) {
     setShowAddWeight(false);
   };
 
-  const handleDocUpload = (docName, file) => {
+  const handleDocUpload = async (docName, file) => {
     if (!file) return;
-    const reader = new FileReader();
-    reader.onload = async () => {
-      const b64 = reader.result;
-      localStorage.setItem(`sanctum_ozzy_doc_${docName}`, b64);
-      const meta = { filename: file.name, uploaded_at: new Date().toISOString() };
+    try {
+      const path = `${user?.id || 'shared'}/${docName.replace(/\s+/g, '_')}_${Date.now()}`;
+      await storage.upload('pets', path, file);
+      const url = storage.getPublicUrl('pets', path);
+      const meta = { filename: file.name, uploaded_at: new Date().toISOString(), url };
       setDocs(prev => {
         const updated = { ...prev, [docName]: meta };
         localStorage.setItem("sanctum_ozzy_docs_meta", JSON.stringify(updated));
         return updated;
       });
-      try { await sb.from("ozzy_docs").insert({ name: docName, filename: file.name, uploaded_at: meta.uploaded_at, user_id: user?.id }); } catch {}
-    };
-    reader.readAsDataURL(file);
+      await sb.from("ozzy_docs").insert({ name: docName, filename: file.name, uploaded_at: meta.uploaded_at, url, user_id: user?.id });
+    } catch {}
   };
 
   const downloadDoc = (docName) => {
-    const b64 = localStorage.getItem(`sanctum_ozzy_doc_${docName}`);
-    if (!b64) return;
+    const meta = docs[docName];
+    if (!meta?.url) return;
     const link = document.createElement("a");
-    link.href = b64;
-    link.download = docs[docName]?.filename || docName;
+    link.href = meta.url;
+    link.download = meta.filename || docName;
+    link.target = '_blank';
     link.click();
   };
 
