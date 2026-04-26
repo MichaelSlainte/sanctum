@@ -1,3 +1,4 @@
+// Copyright (c) 2026 Sanctum — Michael & Tamara. All rights reserved.
 import { useState, useEffect } from "react";
 import { sb } from "../../lib/supabase";
 import { Icon, Modal } from "../shared";
@@ -117,7 +118,7 @@ export default function Travel({ user }) {
     const updated = { ...editTrip, budget: parseFloat(editTrip.budget) || 0 };
     const next = trips.map(t => t.id === editTrip.id ? updated : t);
     saveLocal(next);
-    try { await sb.from("trips").update(toDb(updated), { id: updated.id }); } catch {}
+    try { await sb.from("trips").update({ ...toDb(updated), user_id: user?.id }, { id: updated.id }); } catch {}
     setEditTrip(null);
   };
 
@@ -134,7 +135,7 @@ export default function Travel({ user }) {
       : t);
     saveLocal(next);
     const trip = next.find(t => t.id === tripId);
-    if (trip) sb.from("trips").update({ checklist: trip.checklist }, { id: tripId }).catch(() => {});
+    if (trip) sb.from("trips").update({ checklist: trip.checklist, user_id: user?.id }, { id: tripId }).catch(() => {});
   };
 
   const addCheckItem = (tripId) => {
@@ -145,7 +146,7 @@ export default function Travel({ user }) {
       : t);
     saveLocal(next);
     const trip = next.find(t => t.id === tripId);
-    if (trip) sb.from("trips").update({ checklist: trip.checklist }, { id: tripId }).catch(() => {});
+    if (trip) sb.from("trips").update({ checklist: trip.checklist, user_id: user?.id }, { id: tripId }).catch(() => {});
     setNewItems(n => ({ ...n, [tripId]: "" }));
   };
 
@@ -155,7 +156,7 @@ export default function Travel({ user }) {
       : t);
     saveLocal(next);
     const trip = next.find(t => t.id === tripId);
-    if (trip) sb.from("trips").update({ checklist: trip.checklist }, { id: tripId }).catch(() => {});
+    if (trip) sb.from("trips").update({ checklist: trip.checklist, user_id: user?.id }, { id: tripId }).catch(() => {});
   };
 
   /* ── Budget filter ── */
