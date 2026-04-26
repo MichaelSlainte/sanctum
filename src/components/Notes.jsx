@@ -119,7 +119,7 @@ export default function Notes({ user }) {
   });
   useEffect(() => {
     const singletonId = `singleton_${user?.id || 'default'}`;
-    sb.from('notebooks').select('*').then((res) => {
+    sb.from('notebooks').select('*', '', '').then((res) => {
       const rows = Array.isArray(res) ? res : [];
       const singleton = rows.find(r => r.id === singletonId);
       if (singleton && Array.isArray(singleton.data) && singleton.data.length > 0) {
@@ -924,7 +924,7 @@ export default function Notes({ user }) {
               </div>
               <button className="nb-dot-btn" onClick={e=>{e.stopPropagation();setNoteMenu(m=>m?.id===n.id?null:{id:n.id,x:e.clientX,y:e.clientY});}}>···</button>
             </div>
-            <div className="nli-preview" style={n.locked?{color:'var(--t3)',letterSpacing:2}:undefined}>{n.locked ? '••••••' : (() => { const d = document.createElement('div'); d.innerHTML = n.body || ''; return (d.textContent || d.innerText || '').replace(/\s+/g,' ').trim().slice(0,60) || 'No content'; })()}</div>
+            <div className="nli-preview" style={n.locked?{color:'var(--t3)',letterSpacing:2}:undefined}>{n.locked ? '••••••' : (n.body||'').startsWith('ENC:v1:') ? '🔒 Encrypted' : (() => { const d = document.createElement('div'); d.innerHTML = n.body || ''; return (d.textContent || d.innerText || '').replace(/\s+/g,' ').trim().slice(0,60) || 'No content'; })()}</div>
             {n.tags&&<div className="nli-tags">{n.tags.split(',').filter(Boolean).slice(0,3).map(t=><span key={t} className="nli-tag">{t.trim()}</span>)}</div>}
             <div className="nli-date">{n.updated_at ? new Date(n.updated_at).toLocaleDateString("en-IE", { day: "numeric", month: "short", year: "numeric" }) : ''}</div>
           </div>
