@@ -1,3 +1,6 @@
+// Copyright © 2026 Michael FR Marques & Tamara Lechner. All rights reserved.
+// Sanctum — Private and confidential. Unauthorised use prohibited.
+// https://sanctum.app
 const ENC_PREFIX = 'ENC:v1:';
 
 export async function generateSalt() {

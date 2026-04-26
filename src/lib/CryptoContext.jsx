@@ -1,3 +1,6 @@
+// Copyright © 2026 Michael FR Marques & Tamara Lechner. All rights reserved.
+// Sanctum — Private and confidential. Unauthorised use prohibited.
+// https://sanctum.app
 import { createContext, useContext, useState } from 'react';
 
 const CryptoContext = createContext({ key: null, setKey: () => {}, keyLoading: false, setKeyLoading: () => {} });

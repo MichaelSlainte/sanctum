@@ -1,3 +1,6 @@
+// Copyright © 2026 Michael FR Marques & Tamara Lechner. All rights reserved.
+// Sanctum — Private and confidential. Unauthorised use prohibited.
+// https://sanctum.app
 import { useState, useEffect, useRef } from "react";
 import "./styles/base.css";
 import { auth, sb } from "./lib/supabase";
