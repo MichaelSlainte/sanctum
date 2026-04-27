@@ -148,7 +148,7 @@ export default function Study({ user }) {
         sb.from("study_subjects").select("*", "", "position.asc"),
         sb.from("study_topics").select("*", "", "position.asc"),
       ]);
-      if (!Array.isArray(dbSubjects) || dbSubjects.length === 0) return;
+      if (!Array.isArray(dbSubjects)) return;
       const built = dbSubjects.map(s => ({
         id: s.id,
         label: s.label,
