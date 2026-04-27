@@ -126,7 +126,7 @@ export default function Study({ user }) {
     const updated = { ...pmpGoals, [key]: val };
     setPmpGoals(updated);
     sb.from('ozzy_profile').upsert({
-      key: 'study_config',
+      key: 'study_config_' + user?.id,
       value: JSON.stringify({ weeklyGoal: updated.weeklyGoal, targetTotal: updated.targetHours, examDate: updated.examDate }),
       user_id: user?.id,
     }, 'key').catch(() => {});
@@ -210,7 +210,7 @@ export default function Study({ user }) {
   useEffect(() => {
     loadAll();
     loadSubjectsAndTopics();
-    sb.from('ozzy_profile').select('*', '&key=eq.study_config', '').then(rows => {
+    sb.from('ozzy_profile').select('*', `&key=eq.study_config_${user?.id}`, '').then(rows => {
       if (Array.isArray(rows) && rows[0]?.value) {
         try {
           const cfg = JSON.parse(rows[0].value);
