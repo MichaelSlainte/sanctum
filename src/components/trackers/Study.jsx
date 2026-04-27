@@ -129,7 +129,7 @@ export default function Study({ user }) {
       key: 'study_config_' + user?.id,
       value: JSON.stringify({ weeklyGoal: updated.weeklyGoal, targetTotal: updated.targetHours, examDate: updated.examDate }),
       user_id: user?.id,
-    }, 'key').catch(() => {});
+    }, 'key,user_id').catch(() => {});
   };
   const EXAM_DATE  = new Date(pmpGoals.examDate + "T13:30");
   const daysLeft   = Math.ceil((EXAM_DATE - today) / (1000 * 60 * 60 * 24));
