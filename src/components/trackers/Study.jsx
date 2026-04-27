@@ -126,25 +126,10 @@ export default function Study({ user }) {
     const updated = { ...pmpGoals, [key]: val };
     setPmpGoals(updated);
     sb.from('ozzy_profile').upsert({
-      key: 'study_config_' + user?.id,
-      value: JSON.stringify({ weeklyGoal: updated.weeklyGoal, targetHours: updated.targetHours, examDate: updated.examDate }),
+      key: 'study_config',
+      value: JSON.stringify({ weeklyGoal: updated.weeklyGoal, targetTotal: updated.targetHours, examDate: updated.examDate }),
       user_id: user?.id,
     }, 'key').catch(() => {});
-  };
-  const loadStudyConfig = async () => {
-    try {
-      const rows = await sb.from('ozzy_profile').select('*', `&key=eq.study_config_${user?.id}`);
-      if (!Array.isArray(rows) || rows.length === 0) return;
-      const cfg = JSON.parse(rows[0].value || '{}');
-      if (cfg.weeklyGoal)  localStorage.setItem("sanctum_study_goal",  cfg.weeklyGoal);
-      if (cfg.targetHours) localStorage.setItem("sanctum_pmp_target",  cfg.targetHours);
-      if (cfg.examDate)    localStorage.setItem("sanctum_pmp_date",    cfg.examDate);
-      setPmpGoals(g => ({
-        examDate:    cfg.examDate    || g.examDate,
-        weeklyGoal:  cfg.weeklyGoal  || g.weeklyGoal,
-        targetHours: cfg.targetHours || g.targetHours,
-      }));
-    } catch {}
   };
   const EXAM_DATE  = new Date(pmpGoals.examDate + "T13:30");
   const daysLeft   = Math.ceil((EXAM_DATE - today) / (1000 * 60 * 60 * 24));
@@ -222,7 +207,22 @@ export default function Study({ user }) {
   const [barFilter, setBarFilter] = useState("all");
   const [barWeeks,  setBarWeeks]  = useState(6);
 
-  useEffect(() => { loadAll(); loadSubjectsAndTopics(); loadStudyConfig(); }, []);
+  useEffect(() => {
+    loadAll();
+    loadSubjectsAndTopics();
+    sb.from('ozzy_profile').select('*', '&key=eq.study_config', '').then(rows => {
+      if (Array.isArray(rows) && rows[0]?.value) {
+        try {
+          const cfg = JSON.parse(rows[0].value);
+          setPmpGoals(g => ({
+            weeklyGoal:  cfg.weeklyGoal  || g.weeklyGoal,
+            targetHours: cfg.targetTotal || g.targetHours,
+            examDate:    cfg.examDate    || g.examDate,
+          }));
+        } catch {}
+      }
+    });
+  }, []);
   const loadAll = async () => {
     const data = await sb.from("study_sessions").select("*");
     if (Array.isArray(data)) setAllSessions(data);
