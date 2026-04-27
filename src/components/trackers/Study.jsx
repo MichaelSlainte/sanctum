@@ -347,7 +347,7 @@ export default function Study({ user }) {
   };
 
   // Derived stats
-  const pmpSessions = allSessions.filter(s => s.type === "pmp");
+  const pmpSessions = allSessions;
   const totalPmpHours = pmpSessions.reduce((s, x) => s + (x.hours || 0), 0);
   const totalLoggedHours = allSessions.reduce((s, x) => s + (x.hours || 0), 0);
   const weekStart = new Date(today);

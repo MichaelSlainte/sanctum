@@ -643,7 +643,7 @@ export default function Home({ user, archivedTrackers = [], onNavigate, onGoToCa
   const loadStudy = async () => {
     try {
       const d = await sb.from("study_sessions").select("*");
-      if (Array.isArray(d)) setPmpSessions(d.filter(s => s.type === "pmp"));
+      if (Array.isArray(d)) setPmpSessions(d);
     } catch {}
   };
 
