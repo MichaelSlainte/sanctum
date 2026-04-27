@@ -640,8 +640,8 @@ export default function TrackerHub({ archivedTrackers = [], onArchive, onUnarchi
     try {
       const data = await sb.from('custom_trackers').select('*');
       if (Array.isArray(data) && data.length > 0) {
-        const active   = data.filter(t => !t.archived);
-        const archived = data.filter(t =>  t.archived);
+        const active   = data.filter(t => !t.archived && t.user_id === user?.id);
+        const archived = data.filter(t =>  t.archived && t.user_id === user?.id);
         setCustomTrackers(active);
         setArchivedCustomTrackers(archived);
         localStorage.setItem('sanctum_custom_trackers', JSON.stringify(data));

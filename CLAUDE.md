@@ -58,10 +58,7 @@ https://sanctum-beige.vercel.app
 6. Backend API refactor (after design complete)
 
 ## Current bugs being fixed
-1. Chess Practice tracker (Tamara's) shows on Michael's account — `TrackerHub.jsx` `loadCustomTrackers`: filter after fetch with `data.filter(t => !t.archived && t.user_id === user?.id)`
-2. `saveNotebooks` in `Notes.jsx` has stale closure on `user` — add `user` to its `useCallback` dependency array
-3. `Study.jsx` `loadSubjectsAndTopics` may have stale `user` prop — verify `user` is passed as prop and used in all inserts
-4. `addSection` in `Notes.jsx` — section saves to Supabase but sidebar doesn't update visually after save
+- (all resolved in dc2c5d2..)
 
 ## Rules for Claude Code
 - Always use CSS variables, never hardcode colors

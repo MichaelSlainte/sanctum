@@ -140,7 +140,7 @@ export default function Notes({ user }) {
     } catch (err) {
       console.error('Failed to save notebooks to Supabase:', err);
     }
-  }, []);
+  }, [user]);
   const [expandedNBs, setExpandedNBs] = useState(() => {
     try { const s = localStorage.getItem('sanctum_expanded_nbs'); if (s) return new Set(JSON.parse(s)); } catch {}
     return new Set([DEFAULT_NOTEBOOKS[0]?.id]);
@@ -817,7 +817,7 @@ export default function Notes({ user }) {
                 </>}
               </div>
 
-              {isExpanded && nb.sections.filter(sec => sec.label !== 'New Section').map(sec => (
+              {isExpanded && nb.sections.map(sec => (
                 <div key={sec.id}
                   className={`section-item${activeSection===sec.id?' active':''}${dragOverId==='sec-'+sec.id?' sec-drag-over':''}`}
                   draggable
