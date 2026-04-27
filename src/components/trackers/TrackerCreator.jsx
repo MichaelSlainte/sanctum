@@ -158,8 +158,8 @@ export default function TrackerCreator({ onCreated, user }) {
         onMouseEnter={(e) => (e.currentTarget.style.opacity = "0.85")}
         onMouseLeave={(e) => (e.currentTarget.style.opacity = "1")}
       >
-        <Icon name="ai" size={14} color="#fff" />
-        Create with AI
+        <Icon name="plus" size={14} color="#fff" />
+        New Tracker
       </button>
 
       {open && (

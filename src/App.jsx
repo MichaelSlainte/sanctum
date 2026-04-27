@@ -656,7 +656,7 @@ RESPONSE RULES — choose one format only:
                   value={globalAIInput}
                   onChange={e => setGlobalAIInput(e.target.value)}
                   onKeyDown={e => e.key === 'Enter' && !e.shiftKey && sendGlobalAI()}
-                  placeholder={`Ask anything on ${pageTitle}…`}
+                  placeholder={page === 'trackers' ? 'Ask anything or create a tracker…' : `Ask anything on ${pageTitle}…`}
                   disabled={globalAILoading}
                 />
                 <button className="ai-bar-btn" onClick={sendGlobalAI} disabled={globalAILoading || !globalAIInput.trim()} title="Send (Enter)">
