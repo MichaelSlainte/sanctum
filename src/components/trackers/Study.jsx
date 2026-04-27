@@ -349,6 +349,7 @@ export default function Study({ user }) {
   // Derived stats
   const pmpSessions = allSessions.filter(s => s.type === "pmp");
   const totalPmpHours = pmpSessions.reduce((s, x) => s + (x.hours || 0), 0);
+  const totalLoggedHours = allSessions.reduce((s, x) => s + (x.hours || 0), 0);
   const weekStart = new Date(today);
   weekStart.setDate(today.getDate() - (today.getDay() === 0 ? 6 : today.getDay() - 1));
   weekStart.setHours(0, 0, 0, 0);
@@ -759,9 +760,9 @@ export default function Study({ user }) {
           <div>
             <div style={{ fontSize: 13, fontWeight: 600, color: "var(--t1)", marginBottom: 4 }}>Study plan to hit July 7</div>
             <div style={{ fontSize: 13, color: "var(--t2)", lineHeight: 1.6 }}>
-              You need <strong style={{ color: "var(--purple)" }}>{Math.max(0, targetHours - totalPmpHours).toFixed(0)}h</strong> more to reach the {targetHours}h PMP target.
-              With {daysLeft} days left, that's <strong style={{ color: "var(--purple)" }}>{((targetHours - totalPmpHours) / Math.max(daysLeft / 7, 0.1)).toFixed(1)}h/week</strong> —
-              {((targetHours - totalPmpHours) / Math.max(daysLeft / 7, 0.1)) <= weeklyGoal
+              You need <strong style={{ color: "var(--purple)" }}>{Math.max(0, targetHours - totalLoggedHours).toFixed(0)}h</strong> more to reach the {targetHours}h PMP target.
+              With {daysLeft} days left, that's <strong style={{ color: "var(--purple)" }}>{((targetHours - totalLoggedHours) / Math.max(daysLeft / 7, 0.1)).toFixed(1)}h/week</strong> —
+              {((targetHours - totalLoggedHours) / Math.max(daysLeft / 7, 0.1)) <= weeklyGoal
                 ? " within your weekly goal. You're on track."
                 : " above your current goal. Consider increasing weekly hours."}
             </div>
