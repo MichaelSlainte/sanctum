@@ -193,6 +193,7 @@ const getEventsForDate = (events, dateStr) => {
 export default function Calendar({ user, initialDate, refreshKey }) {
   const now = new Date();
   const [currentDate, setCurrentDate] = useState(initialDate || now);
+  const [currentTime, setCurrentTime] = useState(() => new Date());
   const scrollRef = useRef(null);
   const [calView,     setCalView]     = useState(() => localStorage.getItem("sanctum_cal_view") || "month");
   const [events,      setEvents]      = useState([]);
@@ -206,6 +207,11 @@ export default function Calendar({ user, initialDate, refreshKey }) {
   const month = currentDate.getMonth();
 
   useEffect(() => { loadEvents(); }, [refreshKey]);
+
+  useEffect(() => {
+    const id = setInterval(() => setCurrentTime(new Date()), 60000);
+    return () => clearInterval(id);
+  }, []);
 
   useEffect(() => {
     if (calView === "week" || calView === "3day" || calView === "day") {
@@ -378,6 +384,7 @@ export default function Calendar({ user, initialDate, refreshKey }) {
   })();
   const weekDays  = Array.from({ length: 7 }, (_, i) => { const d = new Date(weekStart); d.setDate(weekStart.getDate()+i); return d; });
   const isWToday  = (date) => date.toDateString() === now.toDateString();
+  const nowTop = currentTime.getHours() * 48 + (currentTime.getMinutes() / 60) * 48;
   const evOnDay   = (date) => getEventsForDate(events, fmtDateStr(date)).sort((a,b) => (a.start_time||"").localeCompare(b.start_time||""));
 
   // ── 3-day view ──
@@ -862,6 +869,7 @@ export default function Calendar({ user, initialDate, refreshKey }) {
               <div key={i} className={`week-time-grid-day-head${isWToday(d)?" today":""}`}>
                 <div className="week-col-day">{DAYS_S[i]}</div>
                 <div className={`week-col-num${isWToday(d)?" today-num":""}`}>{d.getDate()}</div>
+                {isWToday(d) && <div style={{ width: 6, height: 6, borderRadius: "50%", background: "var(--red, #ef4444)", margin: "2px auto 0" }} />}
               </div>
             ))}
           </div>
@@ -923,6 +931,12 @@ export default function Calendar({ user, initialDate, refreshKey }) {
                         </div>
                       );
                     })}
+                    {isWToday(d) && (
+                      <div style={{ position: "absolute", top: nowTop, left: 0, right: 0, zIndex: 10, pointerEvents: "none", display: "flex", alignItems: "center" }}>
+                        <div style={{ width: 8, height: 8, borderRadius: "50%", background: "var(--red, #ef4444)", flexShrink: 0, marginLeft: -4 }} />
+                        <div style={{ flex: 1, height: 2, background: "var(--red, #ef4444)" }} />
+                      </div>
+                    )}
                   </div>
                 );
               })}
@@ -940,6 +954,7 @@ export default function Calendar({ user, initialDate, refreshKey }) {
               <div key={i} className={`week-time-grid-day-head${isWToday(d)?" today":""}`}>
                 <div className="week-col-day">{d.toLocaleDateString("en-IE",{weekday:"short"})}</div>
                 <div className={`week-col-num${isWToday(d)?" today-num":""}`}>{d.getDate()}</div>
+                {isWToday(d) && <div style={{ width: 6, height: 6, borderRadius: "50%", background: "var(--red, #ef4444)", margin: "2px auto 0" }} />}
               </div>
             ))}
           </div>
@@ -1001,6 +1016,12 @@ export default function Calendar({ user, initialDate, refreshKey }) {
                         </div>
                       );
                     })}
+                    {isWToday(d) && (
+                      <div style={{ position: "absolute", top: nowTop, left: 0, right: 0, zIndex: 10, pointerEvents: "none", display: "flex", alignItems: "center" }}>
+                        <div style={{ width: 8, height: 8, borderRadius: "50%", background: "var(--red, #ef4444)", flexShrink: 0, marginLeft: -4 }} />
+                        <div style={{ flex: 1, height: 2, background: "var(--red, #ef4444)" }} />
+                      </div>
+                    )}
                   </div>
                 );
               })}
@@ -1017,6 +1038,7 @@ export default function Calendar({ user, initialDate, refreshKey }) {
             <div className={`week-time-grid-day-head${currentDate.toDateString() === now.toDateString() ? " today" : ""}`} style={{ flex: 1 }}>
               <div className="week-col-day">{currentDate.toLocaleDateString("en-IE", { weekday: "short" })}</div>
               <div className={`week-col-num${currentDate.toDateString() === now.toDateString() ? " today-num" : ""}`}>{currentDate.getDate()}</div>
+              {currentDate.toDateString() === now.toDateString() && <div style={{ width: 6, height: 6, borderRadius: "50%", background: "var(--red, #ef4444)", margin: "2px auto 0" }} />}
             </div>
           </div>
           <div className="week-allday-row">
@@ -1067,6 +1089,12 @@ export default function Calendar({ user, initialDate, refreshKey }) {
                     </div>
                   );
                 })}
+                {currentDate.toDateString() === now.toDateString() && (
+                  <div style={{ position: "absolute", top: nowTop, left: 0, right: 0, zIndex: 10, pointerEvents: "none", display: "flex", alignItems: "center" }}>
+                    <div style={{ width: 8, height: 8, borderRadius: "50%", background: "var(--red, #ef4444)", flexShrink: 0, marginLeft: -4 }} />
+                    <div style={{ flex: 1, height: 2, background: "var(--red, #ef4444)" }} />
+                  </div>
+                )}
               </div>
             </div>
           </div>
