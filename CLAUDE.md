@@ -57,6 +57,12 @@ https://sanctum-beige.vercel.app
 5. E2E encryption
 6. Backend API refactor (after design complete)
 
+## Current bugs being fixed
+1. Chess Practice tracker (Tamara's) shows on Michael's account — `TrackerHub.jsx` `loadCustomTrackers`: filter after fetch with `data.filter(t => !t.archived && t.user_id === user?.id)`
+2. `saveNotebooks` in `Notes.jsx` has stale closure on `user` — add `user` to its `useCallback` dependency array
+3. `Study.jsx` `loadSubjectsAndTopics` may have stale `user` prop — verify `user` is passed as prop and used in all inserts
+4. `addSection` in `Notes.jsx` — section saves to Supabase but sidebar doesn't update visually after save
+
 ## Rules for Claude Code
 - Always use CSS variables, never hardcode colors
 - Always commit after each completed task
@@ -65,3 +71,4 @@ https://sanctum-beige.vercel.app
 - Theme is applied via document.documentElement.setAttribute("data-theme", t)
 - PMP exam date: new Date("2026-07-07T13:30")
 - Always add the copyright header to any file you create or modify
+- The custom sb helper delete method signature is `delete({field: value})` — always use object match syntax
