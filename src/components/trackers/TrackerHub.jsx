@@ -159,8 +159,6 @@ export function CustomTrackerDetail({ tracker: initialTracker, onClose, user, on
   const updateTracker = async (fields) => {
     const updated = { ...tracker, ...fields };
     setTracker(updated);
-    const all = JSON.parse(localStorage.getItem('sanctum_custom_trackers') || '[]');
-    localStorage.setItem('sanctum_custom_trackers', JSON.stringify(all.map(t => t.id === tracker.id ? { ...t, ...fields } : t)));
     try { await sb.from('custom_trackers').update(fields, { id: tracker.id }); } catch {}
     onUpdate?.(updated);
   };
@@ -624,38 +622,21 @@ export default function TrackerHub({ archivedTrackers = [], onArchive, onUnarchi
     ozzyRing: 0, ozzyColor: "var(--grn)",
   });
 
-  const [customTrackers, setCustomTrackers] = useState(() => {
-    try { return JSON.parse(localStorage.getItem('sanctum_custom_trackers') || '[]').filter(t => !t.archived); }
-    catch { return []; }
-  });
+  const [customTrackers, setCustomTrackers] = useState([]);
 
-  const [archivedCustomTrackers, setArchivedCustomTrackers] = useState(() => {
-    try { return JSON.parse(localStorage.getItem('sanctum_custom_trackers') || '[]').filter(t => t.archived); }
-    catch { return []; }
-  });
+  const [archivedCustomTrackers, setArchivedCustomTrackers] = useState([]);
 
   const [trackerEntries, setTrackerEntries] = useState([]);
 
   const loadCustomTrackers = async () => {
     try {
       const data = await sb.from('custom_trackers').select('*');
-      if (Array.isArray(data) && data.length > 0) {
-        const active   = data.filter(t => !t.archived && t.user_id === user?.id);
-        const archived = data.filter(t =>  t.archived && t.user_id === user?.id);
-        setCustomTrackers(active);
-        setArchivedCustomTrackers(archived);
-        localStorage.setItem('sanctum_custom_trackers', JSON.stringify(data));
-        return;
-      }
+      if (!Array.isArray(data)) return;
+      const active   = data.filter(t => !t.archived && t.user_id === user?.id);
+      const archived = data.filter(t =>  t.archived && t.user_id === user?.id);
+      setCustomTrackers(active);
+      setArchivedCustomTrackers(archived);
     } catch {}
-    try {
-      const local = JSON.parse(localStorage.getItem('sanctum_custom_trackers') || '[]');
-      setCustomTrackers(local.filter(t => !t.archived));
-      setArchivedCustomTrackers(local.filter(t => t.archived));
-    } catch {
-      setCustomTrackers([]);
-      setArchivedCustomTrackers([]);
-    }
   };
 
   useEffect(() => {
@@ -764,16 +745,12 @@ export default function TrackerHub({ archivedTrackers = [], onArchive, onUnarchi
     const target = customTrackers.find(t => t.id === id);
     setCustomTrackers(prev => prev.filter(t => t.id !== id));
     if (target) setArchivedCustomTrackers(prev => [...prev, { ...target, archived: true }]);
-    const all = JSON.parse(localStorage.getItem('sanctum_custom_trackers') || '[]');
-    localStorage.setItem('sanctum_custom_trackers', JSON.stringify(all.map(t => t.id === id ? { ...t, archived: true } : t)));
     try { await sb.from('custom_trackers').update({ archived: true }, { id }); } catch {}
   };
 
   const deleteCustomTracker = async (id, label) => {
     if (!window.confirm(`Delete ${label} tracker? This cannot be undone.`)) return;
     setCustomTrackers(prev => prev.filter(t => t.id !== id));
-    const all = JSON.parse(localStorage.getItem('sanctum_custom_trackers') || '[]');
-    localStorage.setItem('sanctum_custom_trackers', JSON.stringify(all.filter(t => t.id !== id)));
     try { await sb.from('custom_trackers').delete({ id }); } catch {}
   };
 
@@ -781,8 +758,6 @@ export default function TrackerHub({ archivedTrackers = [], onArchive, onUnarchi
     const target = archivedCustomTrackers.find(t => t.id === id);
     setArchivedCustomTrackers(prev => prev.filter(t => t.id !== id));
     if (target) setCustomTrackers(prev => [...prev, { ...target, archived: false }]);
-    const all = JSON.parse(localStorage.getItem('sanctum_custom_trackers') || '[]');
-    localStorage.setItem('sanctum_custom_trackers', JSON.stringify(all.map(t => t.id === id ? { ...t, archived: false } : t)));
     try { await sb.from('custom_trackers').update({ archived: false }, { id }); } catch {}
   };
 
