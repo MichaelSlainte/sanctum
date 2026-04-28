@@ -201,6 +201,7 @@ export default function Calendar({ user, initialDate, refreshKey }) {
   const [editingEvent,setEditingEvent]= useState(null);
   const [formData,    setFormData]    = useState(makeBlank);
   const [activeEvent, setActiveEvent] = useState(null);
+  const [allDay,      setAllDay]      = useState(false);
 
   // Derived
   const year  = currentDate.getFullYear();
@@ -277,6 +278,7 @@ export default function Calendar({ user, initialDate, refreshKey }) {
 
   const openAdd = (dateStr, presetTime = "") => {
     setEditingEvent(null);
+    setAllDay(false);
     setFormData({ ...makeBlank(), date: dateStr, start_time: presetTime, end_time: presetTime ? addOneHour(presetTime) : "" });
     setShowAdd(true);
   };
@@ -284,6 +286,7 @@ export default function Calendar({ user, initialDate, refreshKey }) {
   const openEdit = (ev) => {
     setActiveEvent(null);
     setEditingEvent(ev);
+    setAllDay(ev.all_day || false);
     setFormData({
       title:               ev.title               || "",
       category:            ev.category            || "personal",
@@ -305,7 +308,7 @@ export default function Calendar({ user, initialDate, refreshKey }) {
     setShowAdd(true);
   };
 
-  const closeModal = () => { setShowAdd(false); setEditingEvent(null); };
+  const closeModal = () => { setShowAdd(false); setEditingEvent(null); setAllDay(false); };
 
   const saveEvent = async () => {
     if (!formData.title.trim() || !formData.date) return;
@@ -315,15 +318,15 @@ export default function Calendar({ user, initialDate, refreshKey }) {
       date:      formData.date,
       category:  formData.category,
       color:     cat.color,
-      start_time: formData.start_time || null,
-      end_time:  formData.end_time   || null,
+      start_time: allDay ? null : formData.start_time || null,
+      end_time:   allDay ? null : formData.end_time   || null,
       timezone:  formData.timezone   || "Europe/Dublin",
       location:  formData.location   || null,
       notes:     formData.notes      || null,
       repeat:    formData.repeat     || "none",
       reminder:  formData.reminder   || "none",
       shared:    formData.shared     || false,
-      all_day:   false,
+      all_day:   allDay,
       user_id:   user?.id,
     };
     if (editingEvent) {
@@ -553,34 +556,45 @@ export default function Calendar({ user, initialDate, refreshKey }) {
           </div>
 
           <div className="form-row">
-            <label className="form-label">Time</label>
-            <div style={{ display: "flex", gap: 6, flexWrap: "wrap", marginBottom: 8 }}>
-              {TIME_PRESETS.map(p => (
-                <button key={p.label} className="time-quick-btn"
-                  style={{ padding: "4px 10px", borderRadius: 6, background: "var(--bg2)", border: "1px solid var(--b2)", fontSize: 11, color: "var(--t2)", cursor: "pointer" }}
-                  onMouseOver={e => e.currentTarget.style.background = "var(--b2)"}
-                  onMouseOut={e  => e.currentTarget.style.background = "var(--bg2)"}
-                  onClick={() => applyTimePreset(p.time)}>
-                  {p.label} {p.time.replace(/^0/, "").replace(":00","").replace(":","h")}
-                </button>
-              ))}
+            <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", marginBottom: allDay ? 0 : 8 }}>
+              <label className="form-label" style={{ marginBottom: 0 }}>Time</label>
+              <label style={{ display: "flex", alignItems: "center", gap: 6, cursor: "pointer", fontSize: 12, color: "var(--t2)", fontWeight: 500, userSelect: "none" }}>
+                <input type="checkbox" checked={allDay} onChange={e => setAllDay(e.target.checked)}
+                  style={{ accentColor: "var(--blue)", width: 14, height: 14 }} />
+                All day
+              </label>
             </div>
-            <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: 10 }}>
-              <div>
-                <label className="form-label" style={{ fontSize: 10 }}>Start</label>
-                <select className="inp" value={formData.start_time} onChange={e => setStartTime(e.target.value)}>
-                  <option value="">No time</option>
-                  {TIME_OPTIONS.map(o => <option key={o.value} value={o.value}>{o.label}</option>)}
-                </select>
-              </div>
-              <div>
-                <label className="form-label" style={{ fontSize: 10 }}>End</label>
-                <select className="inp" value={formData.end_time} onChange={e => setF("end_time", e.target.value)}>
-                  <option value="">No end time</option>
-                  {TIME_OPTIONS.map(o => <option key={o.value} value={o.value}>{o.label}</option>)}
-                </select>
-              </div>
-            </div>
+            {!allDay && (
+              <>
+                <div style={{ display: "flex", gap: 6, flexWrap: "wrap", marginBottom: 8 }}>
+                  {TIME_PRESETS.map(p => (
+                    <button key={p.label} className="time-quick-btn"
+                      style={{ padding: "4px 10px", borderRadius: 6, background: "var(--bg2)", border: "1px solid var(--b2)", fontSize: 11, color: "var(--t2)", cursor: "pointer" }}
+                      onMouseOver={e => e.currentTarget.style.background = "var(--b2)"}
+                      onMouseOut={e  => e.currentTarget.style.background = "var(--bg2)"}
+                      onClick={() => applyTimePreset(p.time)}>
+                      {p.label} {p.time.replace(/^0/, "").replace(":00","").replace(":","h")}
+                    </button>
+                  ))}
+                </div>
+                <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: 10 }}>
+                  <div>
+                    <label className="form-label" style={{ fontSize: 10 }}>Start</label>
+                    <select className="inp" value={formData.start_time} onChange={e => setStartTime(e.target.value)}>
+                      <option value="">No time</option>
+                      {TIME_OPTIONS.map(o => <option key={o.value} value={o.value}>{o.label}</option>)}
+                    </select>
+                  </div>
+                  <div>
+                    <label className="form-label" style={{ fontSize: 10 }}>End</label>
+                    <select className="inp" value={formData.end_time} onChange={e => setF("end_time", e.target.value)}>
+                      <option value="">No end time</option>
+                      {TIME_OPTIONS.map(o => <option key={o.value} value={o.value}>{o.label}</option>)}
+                    </select>
+                  </div>
+                </div>
+              </>
+            )}
           </div>
 
           <div className="form-row" style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: 10 }}>
@@ -876,7 +890,7 @@ export default function Calendar({ user, initialDate, refreshKey }) {
           <div className="week-allday-row">
             <div className="week-allday-label">all day</div>
             {weekDays.map((d, i) => {
-              const alldayEvs = evOnDay(d).filter(ev => !ev.start_time && !ev.time);
+              const alldayEvs = evOnDay(d).filter(ev => ev.all_day || (!ev.start_time && !ev.time));
               return (
                 <div key={i} className="week-allday-col">
                   {alldayEvs.map(ev => {
@@ -904,7 +918,7 @@ export default function Calendar({ user, initialDate, refreshKey }) {
                 ))}
               </div>
               {weekDays.map((d, i) => {
-                const timedEvs = evOnDay(d).filter(ev => ev.start_time || ev.time);
+                const timedEvs = evOnDay(d).filter(ev => !ev.all_day && (ev.start_time || ev.time));
                 return (
                   <div key={i} className={`week-time-day-col${isWToday(d)?" today":""}`}>
                     {HOURS.map(h => (
@@ -961,7 +975,7 @@ export default function Calendar({ user, initialDate, refreshKey }) {
           <div className="week-allday-row">
             <div className="week-allday-label">all day</div>
             {threeDays.map((d, i) => {
-              const alldayEvs = evOnDay(d).filter(ev => !ev.start_time && !ev.time);
+              const alldayEvs = evOnDay(d).filter(ev => ev.all_day || (!ev.start_time && !ev.time));
               return (
                 <div key={i} className="week-allday-col">
                   {alldayEvs.map(ev => {
@@ -989,7 +1003,7 @@ export default function Calendar({ user, initialDate, refreshKey }) {
                 ))}
               </div>
               {threeDays.map((d, i) => {
-                const timedEvs = evOnDay(d).filter(ev => ev.start_time || ev.time);
+                const timedEvs = evOnDay(d).filter(ev => !ev.all_day && (ev.start_time || ev.time));
                 return (
                   <div key={i} className={`week-time-day-col${isWToday(d)?" today":""}`}>
                     {HOURS.map(h => (
@@ -1044,7 +1058,7 @@ export default function Calendar({ user, initialDate, refreshKey }) {
           <div className="week-allday-row">
             <div className="week-allday-label">all day</div>
             <div className="week-allday-col" style={{ flex: 1 }}>
-              {getEventsForDate(events, fmtDateStr(currentDate)).filter(ev => !ev.start_time && !ev.time).map(ev => {
+              {getEventsForDate(events, fmtDateStr(currentDate)).filter(ev => ev.all_day || (!ev.start_time && !ev.time)).map(ev => {
                 const c = catOf(ev);
                 return (
                   <div key={ev.id} className="event-chip"
@@ -1069,7 +1083,7 @@ export default function Calendar({ user, initialDate, refreshKey }) {
                   <div key={h} className="time-slot"
                     onClick={() => openAdd(fmtDateStr(currentDate), `${String(h).padStart(2,"0")}:00`)} />
                 ))}
-                {getEventsForDate(events, fmtDateStr(currentDate)).filter(ev => ev.start_time || ev.time).map(ev => {
+                {getEventsForDate(events, fmtDateStr(currentDate)).filter(ev => !ev.all_day && (ev.start_time || ev.time)).map(ev => {
                   const c  = catOf(ev);
                   const st = ev.start_time || ev.time || "";
                   const top = evTop(st);
