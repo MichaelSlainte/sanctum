@@ -1,5 +1,5 @@
 // Copyright (c) 2026 Sanctum — Michael & Tamara. All rights reserved.
-import { useState, useEffect } from "react";
+import { useState, useEffect, useRef } from "react";
 import { sb } from "../../lib/supabase";
 import { Icon, Modal } from "../shared";
 
@@ -113,6 +113,7 @@ function buildDefaultSubjects() {
 
 export default function Study({ user }) {
   const today = new Date();
+  const logFormRef = useRef(null);
 
   // PMP goals
   const [pmpGoals, setPmpGoals] = useState({
@@ -204,9 +205,7 @@ export default function Study({ user }) {
 
   const openSessionModal = () => {
     setShowAddSession(true);
-    setTimeout(() => {
-      document.querySelector('.page-body')?.scrollTo({ top: 0, behavior: 'smooth' });
-    }, 50);
+    setTimeout(() => logFormRef.current?.scrollIntoView({ behavior: 'smooth', block: 'center' }), 100);
   };
 
   // Chart
@@ -370,6 +369,7 @@ export default function Study({ user }) {
 
       {/* Log session modal */}
       {showAddSession && (
+        <div ref={logFormRef}>
         <Modal title="Log study session" onClose={() => setShowAddSession(false)} wide>
           <div className="grid-2" style={{ gap: 12 }}>
             <div className="form-row">
@@ -415,6 +415,7 @@ export default function Study({ user }) {
             <button className="btn primary" onClick={addSession}>Log session</button>
           </div>
         </Modal>
+        </div>
       )}
 
       {/* PMP goals bar */}
