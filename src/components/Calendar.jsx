@@ -118,9 +118,12 @@ const catOf    = (ev) => CATS.find(c => c.id === ev.category) || CATS[0];
 const badgeCls = (cat) =>
   cat==="travel" ? "green" : cat==="career" ? "amber" : cat==="study" ? "purple" : cat==="family" ? "pink" : "blue";
 
+const MICHAEL_ID = "d86cb548-3254-46d4-9322-fc5a45043037";
+const TAMARA_ID  = "8936c969-9baa-4a73-adc3-089ef80ef941";
+
 const BLANK_FORM = {
   title: "", category: "personal",
-  date: "", start_time: "", end_time: "",
+  date: "", end_date: "", start_time: "", end_time: "",
   timezone: () => localStorage.getItem("sanctum_timezone") || "Europe/Dublin",
   location: "", notes: "",
   repeat: "none", reminder: "none",
@@ -155,6 +158,10 @@ const getEventsForDate = (events, dateStr) => {
   const results = [];
   for (const ev of events) {
     if (ev.date === dateStr) { results.push(ev); continue; }
+    if (ev.all_day && ev.end_date && ev.end_date > ev.date && dateStr > ev.date && dateStr <= ev.end_date) {
+      results.push({ ...ev, date: dateStr, _multiday: true, id: `${ev.id}_md_${dateStr}` });
+      continue;
+    }
     if (!ev.repeat || ev.repeat === "none") continue;
     const base   = new Date(ev.date + "T00:00:00");
     const target = new Date(dateStr + "T00:00:00");
@@ -223,8 +230,15 @@ export default function Calendar({ user, initialDate, refreshKey }) {
 
   const loadEvents = async () => {
     try {
-      const data = await sb.from("events").select("*");
-      setEvents(Array.isArray(data) ? data : []);
+      const [own, shared] = await Promise.all([
+        sb.from("events").select("*"),
+        sb.from("events").select("*", "&shared=eq.true", ""),
+      ]);
+      const ownArr    = Array.isArray(own)    ? own    : [];
+      const sharedArr = Array.isArray(shared) ? shared : [];
+      const seen = new Set(ownArr.map(e => e.id));
+      const merged = [...ownArr, ...sharedArr.filter(e => !seen.has(e.id))];
+      setEvents(merged);
     } catch {}
   };
 
@@ -279,7 +293,7 @@ export default function Calendar({ user, initialDate, refreshKey }) {
   const openAdd = (dateStr, presetTime = "") => {
     setEditingEvent(null);
     setAllDay(false);
-    setFormData({ ...makeBlank(), date: dateStr, start_time: presetTime, end_time: presetTime ? addOneHour(presetTime) : "" });
+    setFormData({ ...makeBlank(), date: dateStr, end_date: dateStr, start_time: presetTime, end_time: presetTime ? addOneHour(presetTime) : "" });
     setShowAdd(true);
   };
 
@@ -291,6 +305,7 @@ export default function Calendar({ user, initialDate, refreshKey }) {
       title:               ev.title               || "",
       category:            ev.category            || "personal",
       date:                ev.date                || "",
+      end_date:            ev.end_date            || ev.date || "",
       start_time:          ev.start_time          || ev.time || "",
       end_time:            ev.end_time            || "",
       timezone:            ev.timezone            || localStorage.getItem("sanctum_timezone") || "Europe/Dublin",
@@ -316,6 +331,7 @@ export default function Calendar({ user, initialDate, refreshKey }) {
     const payload = {
       title:     formData.title.trim(),
       date:      formData.date,
+      end_date:  allDay ? (formData.end_date || formData.date) : null,
       category:  formData.category,
       color:     cat.color,
       start_time: allDay ? null : formData.start_time || null,
@@ -559,8 +575,10 @@ export default function Calendar({ user, initialDate, refreshKey }) {
             <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", marginBottom: allDay ? 0 : 8 }}>
               <label className="form-label" style={{ marginBottom: 0 }}>Time</label>
               <label style={{ display: "flex", alignItems: "center", gap: 6, cursor: "pointer", fontSize: 12, color: "var(--t2)", fontWeight: 500, userSelect: "none" }}>
-                <input type="checkbox" checked={allDay} onChange={e => setAllDay(e.target.checked)}
-                  style={{ accentColor: "var(--blue)", width: 14, height: 14 }} />
+                <input type="checkbox" checked={allDay} onChange={e => {
+                  setAllDay(e.target.checked);
+                  if (e.target.checked && !formData.end_date) setF("end_date", formData.date);
+                }} style={{ accentColor: "var(--blue)", width: 14, height: 14 }} />
                 All day
               </label>
             </div>
@@ -594,6 +612,40 @@ export default function Calendar({ user, initialDate, refreshKey }) {
                   </div>
                 </div>
               </>
+            )}
+            {allDay && (
+              <div style={{ marginTop: 8 }}>
+                <label className="form-label" style={{ fontSize: 10 }}>End date</label>
+                <div style={{ display: "flex", gap: 8, alignItems: "center" }}>
+                  <select className="inp" style={{ width: 70 }}
+                    value={new Date((formData.end_date || formData.date) + "T12:00:00").getDate()}
+                    onChange={e => {
+                      const d = new Date((formData.end_date || formData.date) + "T12:00:00");
+                      d.setDate(parseInt(e.target.value));
+                      setF("end_date", d.toISOString().slice(0, 10));
+                    }}>
+                    {DATE_DAYS.map(d => <option key={d} value={d}>{d}</option>)}
+                  </select>
+                  <select className="inp" style={{ flex: 1 }}
+                    value={new Date((formData.end_date || formData.date) + "T12:00:00").getMonth()}
+                    onChange={e => {
+                      const d = new Date((formData.end_date || formData.date) + "T12:00:00");
+                      d.setMonth(parseInt(e.target.value));
+                      setF("end_date", d.toISOString().slice(0, 10));
+                    }}>
+                    {DATE_MONTHS.map((m, i) => <option key={i} value={i}>{m}</option>)}
+                  </select>
+                  <select className="inp" style={{ width: 80 }}
+                    value={new Date((formData.end_date || formData.date) + "T12:00:00").getFullYear()}
+                    onChange={e => {
+                      const d = new Date((formData.end_date || formData.date) + "T12:00:00");
+                      d.setFullYear(parseInt(e.target.value));
+                      setF("end_date", d.toISOString().slice(0, 10));
+                    }}>
+                    {DATE_YEARS.map(y => <option key={y} value={y}>{y}</option>)}
+                  </select>
+                </div>
+              </div>
             )}
           </div>
 
@@ -709,18 +761,24 @@ export default function Calendar({ user, initialDate, refreshKey }) {
           </div>
 
           <div className="form-row">
-            <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", background: "rgba(255,255,255,0.03)", borderRadius: 10, padding: "10px 14px", border: "1px solid var(--b1)" }}>
-              <div>
-                <div style={{ fontSize: 13, fontWeight: 600, color: "var(--t1)" }}>Share with Tamara</div>
-                <div style={{ fontSize: 11, color: "var(--t3)", marginTop: 2 }}>
-                  Visible to: {formData.shared ? "Tamara too" : "Just me"}
+            {(() => {
+              const isMichael = user?.id === MICHAEL_ID || user?.email?.toLowerCase().includes("michael");
+              const partnerName = isMichael ? "Tamara" : "Michael";
+              return (
+                <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", background: "rgba(255,255,255,0.03)", borderRadius: 10, padding: "10px 14px", border: "1px solid var(--b1)" }}>
+                  <div>
+                    <div style={{ fontSize: 13, fontWeight: 600, color: "var(--t1)" }}>Share with {partnerName}</div>
+                    <div style={{ fontSize: 11, color: "var(--t3)", marginTop: 2 }}>
+                      Visible to: {formData.shared ? `${partnerName} too` : "Just me"}
+                    </div>
+                  </div>
+                  <button onClick={() => setF("shared", !formData.shared)}
+                    style={{ width: 44, height: 24, borderRadius: 12, border: "none", cursor: "pointer", transition: "background .2s", background: formData.shared ? "var(--blue)" : "rgba(255,255,255,0.12)", position: "relative", flexShrink: 0 }}>
+                    <div style={{ position: "absolute", top: 2, left: formData.shared ? 22 : 2, width: 20, height: 20, borderRadius: "50%", background: "#fff", transition: "left .2s", boxShadow: "0 1px 4px rgba(0,0,0,0.3)" }} />
+                  </button>
                 </div>
-              </div>
-              <button onClick={() => setF("shared", !formData.shared)}
-                style={{ width: 44, height: 24, borderRadius: 12, border: "none", cursor: "pointer", transition: "background .2s", background: formData.shared ? "var(--blue)" : "rgba(255,255,255,0.12)", position: "relative", flexShrink: 0 }}>
-                <div style={{ position: "absolute", top: 2, left: formData.shared ? 22 : 2, width: 20, height: 20, borderRadius: "50%", background: "#fff", transition: "left .2s", boxShadow: "0 1px 4px rgba(0,0,0,0.3)" }} />
-              </button>
-            </div>
+              );
+            })()}
           </div>
 
           <div className="modal-actions">
