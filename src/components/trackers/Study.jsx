@@ -202,6 +202,13 @@ export default function Study({ user }) {
     date: today.toISOString().slice(0, 10),
   });
 
+  const openSessionModal = () => {
+    setShowAddSession(true);
+    setTimeout(() => {
+      document.querySelector('.page-body')?.scrollTo({ top: 0, behavior: 'smooth' });
+    }, 50);
+  };
+
   // Chart
   const [barPeriod, setBarPeriod] = useState("week");
   const [barFilter, setBarFilter] = useState("all");
@@ -427,7 +434,7 @@ export default function Study({ user }) {
           <input type="number" className="inp" style={{ padding: "4px 8px", fontSize: 12, width: 80 }}
             min="1" max="999" value={pmpGoals.targetHours} onChange={e => savePmpGoal("targetHours", e.target.value)} />
         </div>
-        <button className="btn sm primary" style={{ marginLeft: "auto" }} onClick={() => setShowAddSession(true)}>
+        <button className="btn sm primary" style={{ marginLeft: "auto" }} onClick={openSessionModal}>
           <Icon name="plus" size={13} /> Log session
         </button>
       </div>
@@ -721,12 +728,12 @@ export default function Study({ user }) {
       <div className="card mb18">
         <div className="card-header">
           <div><div className="card-title">Study log</div><div className="card-sub">All recent sessions</div></div>
-          <button className="btn sm primary" onClick={() => setShowAddSession(true)}><Icon name="plus" size={13} /> Log</button>
+          <button className="btn sm primary" onClick={openSessionModal}><Icon name="plus" size={13} /> Log</button>
         </div>
         {allSessions.length === 0 && (
           <div style={{ color: "var(--t3)", fontSize: 13, textAlign: "center", padding: "24px 0" }}>
             No sessions yet.<br />
-            <button className="btn sm primary" style={{ marginTop: 12 }} onClick={() => setShowAddSession(true)}>Log your first session</button>
+            <button className="btn sm primary" style={{ marginTop: 12 }} onClick={openSessionModal}>Log your first session</button>
           </div>
         )}
         {allSessions.slice().sort((a, b) => b.date.localeCompare(a.date)).slice(0, 15).map(s => {
