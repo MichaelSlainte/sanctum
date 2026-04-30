@@ -36,7 +36,7 @@ const VET_TYPES = ["Annual checkup", "Vaccination", "Grooming", "Dental", "Emerg
 export default function Ozzy({ user }) {
   const [activeTab, setActiveTab] = useState("overview");
 
-  const [ozzyPhoto, setOzzyPhoto] = useState(() => localStorage.getItem("sanctum_ozzy_photo") || null);
+  const [ozzyPhoto, setOzzyPhoto] = useState(null);
   const [photoUploading, setPhotoUploading] = useState(false);
   const photoInputRef = useRef(null);
 
@@ -98,9 +98,8 @@ export default function Ozzy({ user }) {
       const merged = { ...DEFAULT_PROFILE };
       const custom = [];
       data.forEach(row => {
-        if (row.key === "photo_url") {
-          setOzzyPhoto(row.value);
-          localStorage.setItem("sanctum_ozzy_photo", row.value);
+        if (row.key === "photo_url" && row.value) {
+          setOzzyPhoto(storage.getPublicUrl("pets", `${user?.id || "shared"}/ozzy.jpg`));
         } else if (row.key === "diet") {
           try { setDiet(JSON.parse(row.value)); } catch {}
         } else if (row.key in DEFAULT_PROFILE) {
@@ -127,7 +126,7 @@ export default function Ozzy({ user }) {
     const updated = { ...profile, [key]: value };
     setProfile(updated);
     localStorage.setItem("sanctum_ozzy_profile", JSON.stringify(updated));
-    try { await sb.from("ozzy_profile").upsert({ key, value, user_id: user?.id }, "key"); } catch {}
+    try { await sb.from("ozzy_profile").upsert({ key, value, user_id: user?.id }, "key,user_id"); } catch {}
   };
 
   const saveCustomFields = (fields) => {
@@ -140,7 +139,7 @@ export default function Ozzy({ user }) {
   const saveDiet = (d) => {
     setDiet(d);
     localStorage.setItem("sanctum_ozzy_diet", JSON.stringify(d));
-    sb.from("ozzy_profile").upsert({ key: "diet", value: JSON.stringify(d), user_id: user?.id }, "key").catch(() => {});
+    sb.from("ozzy_profile").upsert({ key: "diet", value: JSON.stringify(d), user_id: user?.id }, "key,user_id").catch(() => {});
   };
 
   const addVet = async () => {
@@ -206,7 +205,7 @@ export default function Ozzy({ user }) {
     updated[idx] = { ...updated[idx], key: editCustomKey || updated[idx].key, value: editValue };
     saveCustomFields(updated);
     setEditingField(null);
-    try { sb.from("ozzy_profile").upsert({ key: updated[idx].key, value: updated[idx].value }, "key"); } catch {}
+    try { sb.from("ozzy_profile").upsert({ key: updated[idx].key, value: updated[idx].value, user_id: user?.id }, "key,user_id"); } catch {}
   };
 
   const addCustomField = () => {
@@ -313,25 +312,10 @@ export default function Ozzy({ user }) {
                   const path = `${user?.id || "shared"}/ozzy.jpg`;
                   const uploadRes = await storage.upload("pets", path, file);
                   if (uploadRes?.error) throw new Error(uploadRes.error.message || "Upload failed");
-                  const url = storage.getPublicUrl("pets", path) + `?t=${Date.now()}`;
-                  // Save to DB first, then update state
-                  const saved = await sb.from("ozzy_profile").upsert({ key: "photo_url", value: url }, "key");
-                  if (saved && !saved?.error) {
-                    setOzzyPhoto(url);
-                  } else {
-                    // Fallback: store in localStorage so it persists in this browser
-                    localStorage.setItem("sanctum_ozzy_photo", url);
-                    setOzzyPhoto(url);
-                  }
+                  await sb.from("ozzy_profile").upsert({ key: "photo_url", value: path, user_id: user?.id }, "key,user_id");
+                  setOzzyPhoto(storage.getPublicUrl("pets", path) + `?t=${Date.now()}`);
                 } catch (err) {
                   console.error("[Ozzy] photo upload failed:", err);
-                  // Try localStorage fallback
-                  const reader = new FileReader();
-                  reader.onload = () => {
-                    localStorage.setItem("sanctum_ozzy_photo", reader.result);
-                    setOzzyPhoto(reader.result);
-                  };
-                  reader.readAsDataURL(file);
                 } finally {
                   setPhotoUploading(false);
                 }

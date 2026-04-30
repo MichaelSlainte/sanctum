@@ -1,4 +1,4 @@
-// Copyright (c) 2026 Sanctum — Michael & Tamara. All rights reserved.
+// Copyright © 2026 Michael FR Marques & Tamara Lechner. All rights reserved.
 import { useState, useEffect } from "react";
 import { sb } from "../../lib/supabase";
 import { Icon, Modal } from "../shared";
@@ -36,41 +36,8 @@ const toDb = (trip) => ({
   notes: trip.notes || null,
 });
 
-const DEFAULT_TRIPS = [
-  {
-    id: "scotland-2026", name: "Scotland Road Trip", destination: "Scotland, UK",
-    start: "2026-09-07", end: "2026-09-13",
-    status: "planning", budget: 2000, spent: 0,
-    travelers: "Michael, Tamara, Ozzy",
-    notes: "Edinburgh → Highlands → Skye. Dog-friendly accommodation needed.",
-    checklist: [
-      { id: "c1", text: "Book accommodation", done: false },
-      { id: "c2", text: "Book ferry/route",   done: false },
-      { id: "c3", text: "Dog-friendly hotels check", done: false },
-      { id: "c4", text: "Travel insurance",   done: false },
-      { id: "c5", text: "Ozzy travel docs",   done: false },
-    ],
-  },
-  {
-    id: "italy-2026", name: "Italy Trip", destination: "Italy",
-    start: "2026-06-12", end: "2026-06-17",
-    status: "booked", budget: 1500, spent: 344,
-    travelers: "Michael, Tamara",
-    notes: "Flights booked — €344. Accommodation TBC.",
-    checklist: [
-      { id: "c1", text: "Flights",          done: true  },
-      { id: "c2", text: "Hotel/Airbnb",     done: false },
-      { id: "c3", text: "Travel insurance", done: false },
-      { id: "c4", text: "Activities plan",  done: false },
-    ],
-  },
-];
-
 export default function Travel({ user }) {
-  const [trips, setTrips] = useState(() => {
-    try { return JSON.parse(localStorage.getItem("sanctum_trips") || JSON.stringify(DEFAULT_TRIPS)); }
-    catch { return [...DEFAULT_TRIPS]; }
-  });
+  const [trips, setTrips] = useState([]);
 
   const [showAdd,   setShowAdd]   = useState(false);
   const [editTrip,  setEditTrip]  = useState(null);
@@ -81,15 +48,9 @@ export default function Travel({ user }) {
 
   useEffect(() => {
     sb.from("trips").select("*").then(data => {
-      if (Array.isArray(data) && data.length > 0) {
-        const mapped = data.map(fromDb);
-        setTrips(mapped);
-        localStorage.setItem("sanctum_trips", JSON.stringify(mapped));
-      }
+      if (Array.isArray(data)) setTrips(data.map(fromDb));
     }).catch(() => {});
   }, []);
-
-  const saveLocal = (t) => { setTrips(t); localStorage.setItem("sanctum_trips", JSON.stringify(t)); };
 
   /* ── Add ── */
   const addTrip = async () => {
@@ -104,9 +65,9 @@ export default function Travel({ user }) {
     try {
       const res = await sb.from("trips").insert({ ...toDb(trip), user_id: user?.id });
       const created = Array.isArray(res) && res[0] ? fromDb(res[0]) : trip;
-      saveLocal([created, ...trips]);
+      setTrips(prev => [created, ...prev]);
     } catch {
-      saveLocal([trip, ...trips]);
+      setTrips(prev => [trip, ...prev]);
     }
     setNewTrip(EMPTY_TRIP);
     setShowAdd(false);
@@ -116,15 +77,14 @@ export default function Travel({ user }) {
   const saveEdit = async () => {
     if (!editTrip) return;
     const updated = { ...editTrip, budget: parseFloat(editTrip.budget) || 0 };
-    const next = trips.map(t => t.id === editTrip.id ? updated : t);
-    saveLocal(next);
+    setTrips(trips.map(t => t.id === editTrip.id ? updated : t));
     try { await sb.from("trips").update({ ...toDb(updated), user_id: user?.id }, { id: updated.id }); } catch {}
     setEditTrip(null);
   };
 
   /* ── Delete ── */
   const deleteTrip = async (id) => {
-    saveLocal(trips.filter(t => t.id !== id));
+    setTrips(trips.filter(t => t.id !== id));
     try { await sb.from("trips").delete({ id }); } catch {}
   };
 
@@ -133,7 +93,7 @@ export default function Travel({ user }) {
     const next = trips.map(t => t.id === tripId
       ? { ...t, checklist: t.checklist.map(c => c.id === checkId ? { ...c, done: !c.done } : c) }
       : t);
-    saveLocal(next);
+    setTrips(next);
     const trip = next.find(t => t.id === tripId);
     if (trip) sb.from("trips").update({ checklist: trip.checklist, user_id: user?.id }, { id: tripId }).catch(() => {});
   };
@@ -144,7 +104,7 @@ export default function Travel({ user }) {
     const next = trips.map(t => t.id === tripId
       ? { ...t, checklist: [...t.checklist, { id: Date.now().toString(), text, done: false }] }
       : t);
-    saveLocal(next);
+    setTrips(next);
     const trip = next.find(t => t.id === tripId);
     if (trip) sb.from("trips").update({ checklist: trip.checklist, user_id: user?.id }, { id: tripId }).catch(() => {});
     setNewItems(n => ({ ...n, [tripId]: "" }));
@@ -154,7 +114,7 @@ export default function Travel({ user }) {
     const next = trips.map(t => t.id === tripId
       ? { ...t, checklist: t.checklist.filter(c => c.id !== checkId) }
       : t);
-    saveLocal(next);
+    setTrips(next);
     const trip = next.find(t => t.id === tripId);
     if (trip) sb.from("trips").update({ checklist: trip.checklist, user_id: user?.id }, { id: tripId }).catch(() => {});
   };

@@ -1,4 +1,4 @@
-// Copyright (c) 2026 Sanctum — Michael & Tamara. All rights reserved.
+// Copyright © 2026 Michael FR Marques & Tamara Lechner. All rights reserved.
 import { useState, useEffect, useRef } from "react";
 import { sb } from "../../lib/supabase";
 import { Icon, Modal } from "../shared";
@@ -480,7 +480,7 @@ export default function Study({ user }) {
         const offset = circ - circ * pct;
         const ringColor = pct >= 1 ? "var(--grn)" : pct >= 0.5 ? "var(--amber)" : "var(--red)";
         return (
-          <div className="weekly-ring-wrap">
+          <div className="weekly-ring-wrap" onClick={openSessionModal} style={{ cursor: "pointer" }} title="Log a study session">
             <svg width="120" height="120" viewBox="0 0 120 120">
               <circle cx="60" cy="60" r={r} fill="none" style={{ stroke: "var(--b2)" }} strokeWidth="8" />
               <circle cx="60" cy="60" r={r} fill="none" style={{ stroke: ringColor }}
@@ -493,7 +493,7 @@ export default function Study({ user }) {
                 {pct >= 1 ? "Goal met!" : pct >= 0.5 ? "Halfway there" : "Keep pushing"}
               </text>
             </svg>
-            <div className="weekly-ring-label">This week's PMP</div>
+            <div className="weekly-ring-label">This week · tap to log</div>
           </div>
         );
       })()}
