@@ -195,6 +195,10 @@ export default function Study({ user }) {
   // Sessions (Supabase)
   const [allSessions, setAllSessions] = useState([]);
   const [showAddSession, setShowAddSession] = useState(false);
+  const [showQuickLog,   setShowQuickLog]   = useState(false);
+  const [quickHours,     setQuickHours]     = useState("1");
+  const [quickSubject,   setQuickSubject]   = useState(subjects[0]?.id || "pmp");
+  const [quickSaving,    setQuickSaving]    = useState(false);
   const [newSession, setNewSession] = useState({
     subject: subjects[0]?.id || "pmp",
     topic: "",
@@ -249,6 +253,26 @@ export default function Study({ user }) {
     setNewSession(n => ({ ...n, topic: "", hours: "", notes: "" }));
     setShowAddSession(false);
   };
+  const logQuickHours = async () => {
+    const h = parseFloat(quickHours);
+    if (!h || h <= 0) return;
+    setQuickSaving(true);
+    try {
+      await sb.from("study_sessions").insert({
+        type: quickSubject,
+        topic: "Quick log",
+        hours: h,
+        date: today.toISOString().slice(0, 10),
+        user_id: user?.id,
+      });
+      await loadAll();
+    } finally {
+      setShowQuickLog(false);
+      setQuickHours("1");
+      setQuickSaving(false);
+    }
+  };
+
   const deleteSession = async (id) => {
     await sb.from("study_sessions").delete({ id });
     setAllSessions(s => s.filter(x => x.id !== id));
@@ -367,6 +391,42 @@ export default function Study({ user }) {
   return (
     <div className="page-body animate-in">
 
+      {/* Quick-log modal — opened by clicking the weekly ring */}
+      {showQuickLog && (
+        <Modal title="Log hours" onClose={() => setShowQuickLog(false)}>
+          <div style={{ display: "flex", gap: 6, marginBottom: 14, flexWrap: "wrap" }}>
+            {[0.5, 1, 1.5, 2, 3].map(h => (
+              <button key={h}
+                className={`btn${parseFloat(quickHours) === h ? " primary" : ""}`}
+                onClick={() => setQuickHours(String(h))}
+                style={{ flex: "1 0 auto", minWidth: 52 }}>
+                +{h}h
+              </button>
+            ))}
+          </div>
+          <div className="grid-2" style={{ gap: 12 }}>
+            <div className="form-row">
+              <label className="form-label">Hours</label>
+              <input className="inp" type="number" step="0.5" min="0.5" max="12"
+                value={quickHours} onChange={e => setQuickHours(e.target.value)}
+                placeholder="e.g. 1.5" autoFocus />
+            </div>
+            <div className="form-row">
+              <label className="form-label">Subject</label>
+              <select className="inp" value={quickSubject} onChange={e => setQuickSubject(e.target.value)}>
+                {subjects.map(s => <option key={s.id} value={s.id}>{s.label}</option>)}
+              </select>
+            </div>
+          </div>
+          <div className="modal-actions">
+            <button className="btn" onClick={() => setShowQuickLog(false)}>Cancel</button>
+            <button className="btn primary" onClick={logQuickHours} disabled={quickSaving}>
+              {quickSaving ? "Saving…" : "Save"}
+            </button>
+          </div>
+        </Modal>
+      )}
+
       {/* Log session modal */}
       {showAddSession && (
         <div ref={logFormRef}>
@@ -480,7 +540,7 @@ export default function Study({ user }) {
         const offset = circ - circ * pct;
         const ringColor = pct >= 1 ? "var(--grn)" : pct >= 0.5 ? "var(--amber)" : "var(--red)";
         return (
-          <div className="weekly-ring-wrap" onClick={openSessionModal} style={{ cursor: "pointer" }} title="Log a study session">
+          <div className="weekly-ring-wrap" onClick={() => setShowQuickLog(true)} style={{ cursor: "pointer" }} title="Log study hours">
             <svg width="120" height="120" viewBox="0 0 120 120">
               <circle cx="60" cy="60" r={r} fill="none" style={{ stroke: "var(--b2)" }} strokeWidth="8" />
               <circle cx="60" cy="60" r={r} fill="none" style={{ stroke: ringColor }}
