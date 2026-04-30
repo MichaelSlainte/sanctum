@@ -46,11 +46,12 @@ export default function Travel({ user }) {
   const [newItems,  setNewItems]  = useState({});
   const [budgetFilter, setBudgetFilter] = useState("all");
 
-  useEffect(() => {
-    sb.from("trips").select("*").then(data => {
-      if (Array.isArray(data)) setTrips(data.map(fromDb));
-    }).catch(() => {});
-  }, []);
+  const loadTrips = async () => {
+    const data = await sb.from("trips").select("*").catch(() => null);
+    if (Array.isArray(data)) setTrips(data.map(fromDb));
+  };
+
+  useEffect(() => { loadTrips(); }, []);
 
   /* ── Add ── */
   const addTrip = async () => {
@@ -63,9 +64,8 @@ export default function Travel({ user }) {
       checklist: [],
     };
     try {
-      const res = await sb.from("trips").insert({ ...toDb(trip), user_id: user?.id });
-      const created = Array.isArray(res) && res[0] ? fromDb(res[0]) : trip;
-      setTrips(prev => [created, ...prev]);
+      await sb.from("trips").insert({ ...toDb(trip), user_id: user?.id });
+      await loadTrips();
     } catch {
       setTrips(prev => [trip, ...prev]);
     }
