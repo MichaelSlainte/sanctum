@@ -99,7 +99,7 @@ export default function Ozzy({ user }) {
       const custom = [];
       data.forEach(row => {
         if (row.key === "photo_url" && row.value) {
-          setOzzyPhoto(storage.getPublicUrl("pets", `${user?.id || "shared"}/ozzy.jpg`));
+          setOzzyPhoto(storage.getPublicUrl("pets", row.value));
         } else if (row.key === "diet") {
           try { setDiet(JSON.parse(row.value)); } catch {}
         } else if (row.key in DEFAULT_PROFILE) {
@@ -308,7 +308,6 @@ export default function Ozzy({ user }) {
                 if (!file) return;
                 setPhotoUploading(true);
                 try {
-                  await storage.createBucket("pets", true);
                   const path = `${user?.id || "shared"}/ozzy.jpg`;
                   const uploadRes = await storage.upload("pets", path, file);
                   if (uploadRes?.error) throw new Error(uploadRes.error.message || "Upload failed");
