@@ -310,18 +310,20 @@ export default function Notes({ user }) {
           return { ...n, notebook: nbVal, section: secVal };
         });
         setAllNotes(normalized);
-        // Restore last viewed state — case-insensitive so legacy label-stored values still match
-        const storedNB  = (localStorage.getItem('sanctum_active_nb')  || DEFAULT_NOTEBOOKS[0]?.id || '').toLowerCase().trim();
-        const storedSec = (localStorage.getItem('sanctum_active_sec') || '').toLowerCase().trim();
-        // Also match stored value as a label (e.g. localStorage had "mortgage & house" → id "mortgage")
-        const resolveNBId  = (v) => DEFAULT_NOTEBOOKS.find(nb => nb.id.toLowerCase()===v||nb.label.toLowerCase()===v)?.id || v;
-        const resolveSecId = (nbId, v) => DEFAULT_NOTEBOOKS.find(nb=>nb.id===nbId)?.sections.find(s=>s.id.toLowerCase()===v||s.label.toLowerCase()===v)?.id || v;
-        const resolvedNB  = resolveNBId(storedNB);
-        const resolvedSec = resolveSecId(resolvedNB, storedSec);
-        let first;
-        if (resolvedSec) first = normalized.find(n => n.section.toLowerCase() === resolvedSec.toLowerCase());
-        if (!first && resolvedNB) first = normalized.find(n => n.notebook.toLowerCase() === resolvedNB.toLowerCase());
-        if (!first && normalized.length > 0) first = normalized[0];
+        // Restore last-viewed note by ID first; fall back to notebook/section, then first note
+        const storedNoteId = localStorage.getItem('sanctum_active_note');
+        let first = storedNoteId ? normalized.find(n => String(n.id) === storedNoteId) : null;
+        if (!first) {
+          const storedNB  = (localStorage.getItem('sanctum_active_nb')  || DEFAULT_NOTEBOOKS[0]?.id || '').toLowerCase().trim();
+          const storedSec = (localStorage.getItem('sanctum_active_sec') || '').toLowerCase().trim();
+          const resolveNBId  = (v) => DEFAULT_NOTEBOOKS.find(nb => nb.id.toLowerCase()===v||nb.label.toLowerCase()===v)?.id || v;
+          const resolveSecId = (nbId, v) => DEFAULT_NOTEBOOKS.find(nb=>nb.id===nbId)?.sections.find(s=>s.id.toLowerCase()===v||s.label.toLowerCase()===v)?.id || v;
+          const resolvedNB  = resolveNBId(storedNB);
+          const resolvedSec = resolveSecId(resolvedNB, storedSec);
+          if (resolvedSec) first = normalized.find(n => n.section.toLowerCase() === resolvedSec.toLowerCase());
+          if (!first && resolvedNB) first = normalized.find(n => n.notebook.toLowerCase() === resolvedNB.toLowerCase());
+          if (!first && normalized.length > 0) first = normalized[0];
+        }
         if (first) {
           const nbId  = first.notebook || DEFAULT_NOTEBOOKS[0]?.id || '';
           const secId = first.section  || '';
@@ -414,6 +416,7 @@ export default function Notes({ user }) {
     setRenameTarget(null);
     activeNoteRef.current = n.id;
     setActiveNote(n.id); setEditTitle(n.title || ''); setEditTags(n.tags || '');
+    localStorage.setItem('sanctum_active_note', String(n.id));
     if (navigate && window.innerWidth < 769) setMobilePanel('editor');
   };
   const selectSection = (sid, nbid) => {
@@ -462,7 +465,7 @@ export default function Notes({ user }) {
       const next = activeSection
         ? remaining.find(n => (n.section?.toLowerCase().trim() || '') === _secL)
         : remaining.find(n => (n.notebook?.toLowerCase().trim() || '') === _nbL);
-      if (next) openNote(next); else { setActiveNote(null); setEditTitle(''); setEditBody(''); setEditTags(''); }
+      if (next) openNote(next); else { setActiveNote(null); setEditTitle(''); setEditBody(''); setEditTags(''); localStorage.removeItem('sanctum_active_note'); }
     }
     try { await sb.from("notes").delete({ id: nid }); } catch {}
     setNoteMenu(null);
@@ -569,6 +572,59 @@ export default function Notes({ user }) {
     setEditBody(md);
     if (activeNoteRef.current) autoSave(activeNoteRef.current, editTitle, editTags);
   }, [editTitle, editTags, autoSave]);
+
+  // Intercept Enter inside list/checklist items to keep DOM structure clean
+  const onEditorKeyDown = useCallback((e) => {
+    if (e.key !== 'Enter') return;
+    const ed = editorRef.current; if (!ed) return;
+    const sel = window.getSelection();
+    if (!sel?.rangeCount) return;
+    let block = sel.getRangeAt(0).startContainer;
+    while (block && block.parentElement && block.parentElement !== ed) block = block.parentElement;
+    if (!block || block === ed || block.parentElement !== ed) return;
+    const cls = block.className || '';
+    if (!cls.includes('we-check') && !cls.includes('we-ul') && !cls.includes('we-ol')) return;
+    e.preventDefault();
+    const range = sel.getRangeAt(0);
+    range.deleteContents();
+    // Extract content from cursor to end of block
+    const tailRange = document.createRange();
+    tailRange.setStart(range.startContainer, range.startOffset);
+    tailRange.setEnd(block, block.childNodes.length);
+    const tail = tailRange.extractContents();
+    // Strip structural spans (checkbox/bullet) from the extracted tail
+    const tmp = document.createElement('div');
+    tmp.appendChild(tail);
+    tmp.querySelectorAll('.we-checkbox, .we-bullet').forEach(s => s.remove());
+    const tailHtml = tmp.innerHTML || '<br>';
+    // Build the new list item with correct structure
+    const newEl = document.createElement('div');
+    if (cls.includes('we-check')) {
+      newEl.className = 'we-check';
+      newEl.innerHTML = `<span class="we-checkbox" contenteditable="false">☐</span>${tailHtml}`;
+    } else if (cls.includes('we-ul')) {
+      newEl.className = 'we-ul';
+      newEl.innerHTML = `<span class="we-bullet" contenteditable="false">•</span>${tailHtml}`;
+    } else {
+      newEl.className = 'we-ol';
+      newEl.innerHTML = tailHtml;
+    }
+    block.after(newEl);
+    // Position cursor: first text node in new item, or after the structural span
+    const tw = document.createTreeWalker(newEl, NodeFilter.SHOW_TEXT, null);
+    const firstText = tw.nextNode();
+    const r = document.createRange();
+    if (firstText) {
+      r.setStart(firstText, 0);
+    } else {
+      const structSpan = newEl.querySelector('.we-checkbox, .we-bullet');
+      const offset = structSpan ? Array.from(newEl.childNodes).indexOf(structSpan) + 1 : 0;
+      r.setStart(newEl, offset);
+    }
+    r.collapse(true);
+    sel.removeAllRanges(); sel.addRange(r);
+    syncBody();
+  }, [syncBody]);
 
   const applyFormat = (fmt) => {
     const ed = editorRef.current; if (!ed) return;
@@ -1065,6 +1121,7 @@ export default function Notes({ user }) {
                   data-placeholder="Start writing..."
                   spellCheck
                   onInput={syncBody}
+                  onKeyDown={onEditorKeyDown}
                   onKeyUp={updateLineFormat}
                   onBlur={() => { const s = window.getSelection(); if (s?.rangeCount) savedRangeRef.current = s.getRangeAt(0).cloneRange(); }}
                   onClick={(e) => {
