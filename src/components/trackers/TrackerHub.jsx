@@ -719,6 +719,7 @@ export default function TrackerHub({ archivedTrackers = [], onArchive, onUnarchi
   const [dragOver, setDragOver] = useState(null);
   const [dragging, setDragging] = useState(null);
   const dragId = useRef(null);
+  const touchDragId = useRef(null);
 
   const onDragStart = (e, id) => { dragId.current = id; setDragging(id); e.dataTransfer.effectAllowed = "move"; };
   const onDragOver  = (e, id) => { e.preventDefault(); e.dataTransfer.dropEffect = "move"; if (id !== dragId.current) setDragOver(id); };
@@ -737,6 +738,33 @@ export default function TrackerHub({ archivedTrackers = [], onArchive, onUnarchi
     setDragOver(null); setDragging(null); dragId.current = null;
   };
   const onDragEnd = () => { setDragOver(null); setDragging(null); dragId.current = null; };
+
+  const onTouchStart = (e, id) => { touchDragId.current = id; setDragging(id); };
+  const onTouchMove = (e) => {
+    e.preventDefault();
+    if (!touchDragId.current) return;
+    const touch = e.touches[0];
+    const el = document.elementFromPoint(touch.clientX, touch.clientY);
+    const card = el?.closest('[data-tracker-id]');
+    const tid = card?.dataset.trackerId;
+    if (tid && tid !== touchDragId.current) setDragOver(tid); else setDragOver(null);
+  };
+  const onTouchEnd = (e) => {
+    if (!touchDragId.current) return;
+    const touch = e.changedTouches[0];
+    const el = document.elementFromPoint(touch.clientX, touch.clientY);
+    const card = el?.closest('[data-tracker-id]');
+    const tid = card?.dataset.trackerId;
+    if (tid && tid !== touchDragId.current) {
+      setOrder(prev => {
+        const next = [...prev];
+        const from = next.indexOf(touchDragId.current), to = next.indexOf(tid);
+        if (from !== -1 && to !== -1) { next.splice(from, 1); next.splice(to, 0, touchDragId.current); localStorage.setItem("sanctum_tracker_order", JSON.stringify(next)); }
+        return next;
+      });
+    }
+    touchDragId.current = null; setDragging(null); setDragOver(null);
+  };
 
   const activeOrder  = order.filter(id => !archivedTrackers.includes(id));
   const archivedList = order.filter(id => archivedTrackers.includes(id));
@@ -767,10 +795,12 @@ export default function TrackerHub({ archivedTrackers = [], onArchive, onUnarchi
     const ring = getRingProps(t.id, ringData);
     const cls = ["tracker-card", dragging === id ? "is-dragging" : "", dragOver === id ? "drag-over" : ""].filter(Boolean).join(" ");
     return (
-      <div key={t.id} className={cls} draggable
+      <div key={t.id} className={cls} draggable data-tracker-id={t.id}
         onDragStart={e => onDragStart(e, t.id)} onDragOver={e => onDragOver(e, t.id)}
         onDragLeave={e => onDragLeave(e, t.id)} onDrop={e => onDrop(e, t.id)}
-        onDragEnd={onDragEnd} onClick={() => onNavigate(t.id)}>
+        onDragEnd={onDragEnd}
+        onTouchStart={e => onTouchStart(e, t.id)} onTouchMove={onTouchMove} onTouchEnd={onTouchEnd}
+        onClick={() => onNavigate(t.id)}>
         <div className="drag-handle" style={{ position: "absolute", top: 12, left: 14 }}>
           <Icon name="grab" size={12} />
         </div>

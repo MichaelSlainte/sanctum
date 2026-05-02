@@ -16,7 +16,7 @@
     /* Text — WCAG-AA contrast on dark backgrounds */
     --t1:    #f1f5f9;
     --t2:    #cbd5e1;
-    --t3:    #94a3b8;
+    --t3:    #a8b4c8;
     /* Accent */
     --blue:  #7b8ec8;
     --blue2: #6a7db8;
@@ -53,7 +53,7 @@
     --b3:    #9ca3af;
     --t1:    #1f2937;
     --t2:    #4b5563;
-    --t3:    #9ca3af;
+    --t3:    #6b7280;
     --blue:  #0969da;
     --blue2: #0550ae;
     --bluem: rgba(9,105,218,0.08);
@@ -83,7 +83,7 @@
     /* Text — same WCAG contrast targets as Midnight */
     --t1:    #f1f5f9;
     --t2:    #cbd5e1;
-    --t3:    #94a3b8;
+    --t3:    #a8b4c8;
     /* Accent — blush rose */
     --blue:  #fbc4d4;
     --blue2: #f9a8d4;
@@ -1064,6 +1064,28 @@
     -webkit-tap-highlight-color: transparent; z-index: 1;
   }
   .mobile-ai-close-btn:active { background: var(--b2); transform: translateY(-50%) scale(0.92); }
+  /* ── Tablet: horizontal carousel for stat widgets ── */
+  @media (min-width: 769px) and (max-width: 1024px) {
+    .dash-widgets {
+      display: flex; flex-wrap: nowrap; overflow-x: auto;
+      -webkit-overflow-scrolling: touch; padding-bottom: 6px;
+      gap: 12px; grid-template-columns: unset;
+      scrollbar-width: none;
+    }
+    .dash-widgets::-webkit-scrollbar { display: none; }
+    .dash-widgets .dash-widget {
+      min-width: 160px; flex-shrink: 0; width: 160px;
+      display: flex; flex-direction: column;
+      align-items: center; text-align: center; justify-content: center;
+    }
+    .ring-cards-row {
+      display: flex; flex-wrap: nowrap; overflow-x: auto;
+      -webkit-overflow-scrolling: touch; scrollbar-width: none; padding-bottom: 4px;
+    }
+    .ring-cards-row::-webkit-scrollbar { display: none; }
+    .ring-card { min-width: 130px; flex-shrink: 0; }
+  }
+
   @media (max-width: 768px) {
     .sidebar { display: none; }
     .bottom-nav { display: block; }

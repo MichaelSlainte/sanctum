@@ -175,6 +175,9 @@ export default function Notes({ user }) {
   const activeNoteRef  = useRef(null);
   const titleInputRef  = useRef(null);
   const savedRangeRef  = useRef(null);
+  const touchNoteRef   = useRef(null);
+  const longPressTimer = useRef(null);
+  const didTouchDrag   = useRef(false);
   // Collapsible panels
   const [sidebarCollapsed, setSidebarCollapsed] = useState(() => localStorage.getItem('sanctum_sidebar_col') === 'true');
   const [nbSearch, setNbSearch] = useState('');
@@ -790,6 +793,59 @@ export default function Notes({ user }) {
     saveNoteOrder({...noteOrder,[activeSection]:ids}); setDragNoteId(null); setDragOverId(null);
   };
 
+  // ── Note touch drag + long-press ─────────────────────────────────────
+  const onNoteTouchStart = (e, n) => {
+    didTouchDrag.current = false;
+    const touch = e.touches[0];
+    touchNoteRef.current = { id: n.id, startX: touch.clientX, startY: touch.clientY, dragging: false };
+    longPressTimer.current = setTimeout(() => {
+      if (touchNoteRef.current && !touchNoteRef.current.dragging) {
+        didTouchDrag.current = true;
+        setNoteMenu({ id: n.id, x: touchNoteRef.current.startX, y: touchNoteRef.current.startY });
+        touchNoteRef.current = null;
+      }
+    }, 600);
+  };
+  const onNoteTouchMove = (e) => {
+    if (!touchNoteRef.current) return;
+    const touch = e.touches[0];
+    const dx = touch.clientX - touchNoteRef.current.startX;
+    const dy = touch.clientY - touchNoteRef.current.startY;
+    if (!touchNoteRef.current.dragging && Math.abs(dx) + Math.abs(dy) > 8) {
+      clearTimeout(longPressTimer.current);
+      touchNoteRef.current.dragging = true;
+      setDragNoteId(touchNoteRef.current.id);
+    }
+    if (touchNoteRef.current.dragging) {
+      e.preventDefault();
+      const el = document.elementFromPoint(touch.clientX, touch.clientY);
+      const card = el?.closest('[data-note-id]');
+      const nid = card?.dataset.noteId;
+      if (nid && nid !== touchNoteRef.current.id) setDragOverId('note-' + nid);
+      else setDragOverId(null);
+    }
+  };
+  const onNoteTouchEnd = (e) => {
+    clearTimeout(longPressTimer.current);
+    if (!touchNoteRef.current) return;
+    if (touchNoteRef.current.dragging) {
+      didTouchDrag.current = true;
+      const touch = e.changedTouches[0];
+      const el = document.elementFromPoint(touch.clientX, touch.clientY);
+      const card = el?.closest('[data-note-id]');
+      const tid = card?.dataset.noteId;
+      const fromId = touchNoteRef.current.id;
+      if (tid && tid !== fromId && activeSection) {
+        const ordered = getOrderedNotes(activeSection);
+        const ids = ordered.map(n => String(n.id));
+        const fi = ids.indexOf(String(fromId)), to = ids.indexOf(String(tid));
+        if (fi !== -1 && to !== -1) { const [m] = ids.splice(fi, 1); ids.splice(to, 0, m); saveNoteOrder({ ...noteOrder, [activeSection]: ids }); }
+      }
+      setDragNoteId(null); setDragOverId(null);
+    }
+    touchNoteRef.current = null;
+  };
+
   const currentNote    = allNotes.find(n => n.id === activeNote);
   const currentNB      = notebooks.find(n => n.id === activeNB);
   const currentSection = currentNB?.sections.find(s => s.id === activeSection);
@@ -966,10 +1022,12 @@ export default function Notes({ user }) {
           <div key={n.id}
             className={`note-list-item${activeNote===n.id?' active':''}${dragOverId==='note-'+n.id?' note-drag-over':''}${dragNoteId===n.id?' note-dragging':''}`}
             draggable
+            data-note-id={n.id}
             onDragStart={e=>onNoteDragStart(e,n.id)} onDragOver={e=>onNoteDragOver(e,n.id)}
             onDragLeave={()=>setDragOverId(null)} onDrop={e=>onNoteDrop(e,n.id)}
             onDragEnd={()=>{setDragNoteId(null);setDragOverId(null);}}
-            onClick={()=>openNote(n)}
+            onTouchStart={e=>onNoteTouchStart(e,n)} onTouchMove={onNoteTouchMove} onTouchEnd={onNoteTouchEnd}
+            onClick={()=>{ if (didTouchDrag.current) { didTouchDrag.current = false; return; } openNote(n); }}
             onContextMenu={e=>{e.preventDefault();setNoteMenu({id:n.id,x:e.clientX,y:e.clientY});}}
           >
             <div className="nli-row">

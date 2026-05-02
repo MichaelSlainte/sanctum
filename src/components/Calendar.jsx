@@ -197,6 +197,26 @@ const getEventsForDate = (events, dateStr) => {
   return results;
 };
 
+const getTzOffsetMins = (tz, ref) => {
+  try {
+    const utc = new Date(ref.toLocaleString('en-US', { timeZone: 'UTC' }));
+    const local = new Date(ref.toLocaleString('en-US', { timeZone: tz }));
+    return (local - utc) / 60000;
+  } catch { return 0; }
+};
+
+const convertTimeToTz = (timeStr, fromTz, toTz) => {
+  if (!timeStr || !fromTz || !toTz || fromTz === toTz) return timeStr;
+  try {
+    const [h, m] = timeStr.split(':').map(Number);
+    const ref = new Date();
+    const diff = getTzOffsetMins(toTz, ref) - getTzOffsetMins(fromTz, ref);
+    const total = h * 60 + m + diff;
+    const adj = ((total % 1440) + 1440) % 1440;
+    return `${String(Math.floor(adj / 60)).padStart(2, '0')}:${String(adj % 60).padStart(2, '0')}`;
+  } catch { return timeStr; }
+};
+
 export default function Calendar({ user, initialDate, refreshKey }) {
   const now = new Date();
   const [currentDate, setCurrentDate] = useState(initialDate || now);
@@ -209,12 +229,21 @@ export default function Calendar({ user, initialDate, refreshKey }) {
   const [formData,    setFormData]    = useState(makeBlank);
   const [activeEvent, setActiveEvent] = useState(null);
   const [allDay,      setAllDay]      = useState(false);
+  const [userTz,      setUserTz]      = useState(() => localStorage.getItem("sanctum_timezone") || "Europe/Dublin");
 
   // Derived
   const year  = currentDate.getFullYear();
   const month = currentDate.getMonth();
 
   useEffect(() => { loadEvents(); }, [refreshKey]);
+
+  // Load user's preferred timezone from ozzy_profile
+  useEffect(() => {
+    if (!user?.id) return;
+    sb.from("ozzy_profile").select("value", `&key=eq.timezone&user_id=eq.${user.id}`, "")
+      .then(rows => { if (Array.isArray(rows) && rows[0]?.value) setUserTz(rows[0].value); })
+      .catch(() => {});
+  }, [user?.id]);
 
   useEffect(() => {
     const id = setInterval(() => setCurrentTime(new Date()), 60000);
@@ -885,13 +914,16 @@ export default function Calendar({ user, initialDate, refreshKey }) {
         </div>
       </div>
 
-      {/* Category legend */}
-      <div style={{ display: "flex", gap: 14, marginBottom: 18, flexWrap: "wrap" }}>
+      {/* Category legend + timezone badge */}
+      <div style={{ display: "flex", gap: 14, marginBottom: 18, flexWrap: "wrap", alignItems: "center" }}>
         {CATS.map(c => (
           <div key={c.id} style={{ display: "flex", alignItems: "center", gap: 5, fontSize: 11, color: "var(--t3)", fontWeight: 500 }}>
             <div style={{ width: 8, height: 8, borderRadius: "50%", background: c.color }} />{c.label}
           </div>
         ))}
+        <div style={{ marginLeft: "auto", display: "flex", alignItems: "center", gap: 5, fontSize: 10, color: "var(--t3)", fontFamily: "var(--mono)", background: "var(--bg2)", border: "1px solid var(--b1)", borderRadius: 6, padding: "2px 8px" }}>
+          🕐 {TIMEZONES.find(t => t.id === userTz)?.label || userTz}
+        </div>
       </div>
 
       {/* ── Month view ── */}
@@ -1272,6 +1304,9 @@ export default function Calendar({ user, initialDate, refreshKey }) {
           visibleEvents.map(ev => {
             const c      = catOf(ev);
             const startT = ev.start_time || ev.time || "";
+            const evTz   = ev.timezone || userTz;
+            const displayT = startT && evTz !== userTz ? convertTimeToTz(startT, evTz, userTz) : startT;
+            const tzDiffers = startT && evTz !== userTz;
             return (
               <div key={ev.id} className="fin-row"
                 style={{ cursor: "pointer", borderLeft: `3px solid ${c.color}`, paddingLeft: 14, marginLeft: -1 }}
@@ -1280,7 +1315,9 @@ export default function Calendar({ user, initialDate, refreshKey }) {
                   <div>
                     <div style={{ fontSize: 13, fontWeight: 600, color: "var(--t1)" }}>{ev.title}</div>
                     <div style={{ fontSize: 11, color: "var(--t3)", fontFamily: "var(--mono)", marginTop: 2 }}>
-                      {fmtEvDate(ev.date)}{startT ? ` · ${fmtTime12h(startT)}` : ""}
+                      {fmtEvDate(ev.date)}
+                      {displayT ? ` · ${fmtTime12h(displayT)}` : ""}
+                      {tzDiffers && <span style={{ opacity: .65 }}> ({evTz.split("/")[1]?.replace(/_/g," ")})</span>}
                       {ev.location ? ` · 📍 ${ev.location}` : ""}
                     </div>
                   </div>

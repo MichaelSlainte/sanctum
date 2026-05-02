@@ -2,7 +2,7 @@
 // Sanctum — Private and confidential. Unauthorised use prohibited.
 // https://sanctum.app
 import { useState, useEffect } from "react";
-import { auth } from "../lib/supabase";
+import { auth, sb } from "../lib/supabase";
 import { Icon } from "./shared";
 
 const TIMEZONES = [
@@ -28,7 +28,10 @@ export default function Settings({ user, onLogout, theme, onThemeChange, font, o
   useEffect(() => {
     (async () => {
       try {
-        const profile = await sb.from("profiles").select("display_name,timezone", `&user_id=eq.${user?.id}`, "");
+        const [profile, tzRow] = await Promise.all([
+          sb.from("profiles").select("display_name,timezone", `&user_id=eq.${user?.id}`, ""),
+          sb.from("ozzy_profile").select("value", `&key=eq.timezone&user_id=eq.${user?.id}`, ""),
+        ]);
         if (Array.isArray(profile) && profile[0]) {
           if (profile[0].display_name) {
             setDisplayName(profile[0].display_name);
@@ -36,6 +39,8 @@ export default function Settings({ user, onLogout, theme, onThemeChange, font, o
           }
           if (profile[0].timezone) setTimezone(profile[0].timezone);
         }
+        // ozzy_profile takes precedence for timezone
+        if (Array.isArray(tzRow) && tzRow[0]?.value) setTimezone(tzRow[0].value);
       } catch {}
     })();
   }, []);
@@ -55,6 +60,10 @@ export default function Settings({ user, onLogout, theme, onThemeChange, font, o
     // Upsert to profiles table as a second backup
     try {
       await sb.from('profiles').upsert({ id: user?.id, user_id: user?.id, display_name: displayName, timezone }, 'id');
+    } catch {}
+    // Canonical timezone store — used by Calendar and other components
+    try {
+      await sb.from('ozzy_profile').upsert({ key: 'timezone', value: timezone, user_id: user?.id }, 'key,user_id');
     } catch {}
     if (result?.id) {
       setSaved(true);
