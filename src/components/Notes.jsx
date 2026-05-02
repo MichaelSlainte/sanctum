@@ -666,10 +666,12 @@ export default function Notes({ user }) {
   };
   const deleteSection = async (secId, parentId) => {
     const nb=notebooks.find(n=>n.id===parentId); if(!nb||nb.sections.length<=1) return;
+    // Capture IDs before state update — local state is normalised to IDs, DB may store labels
+    const noteIdsToDelete = allNotes.filter(n => n.section === secId).map(n => n.id);
     saveNotebooks(notebooks.map(n=>n.id!==parentId?n:{...n,sections:n.sections.filter(s=>s.id!==secId)}));
     if (activeSection===secId) { const rem=nb.sections.filter(s=>s.id!==secId); if(rem[0]) selectSection(rem[0].id,parentId); }
     setAllNotes(prev => prev.filter(n => n.section !== secId));
-    try { await sb.from("notes").delete({ section: secId, notebook: parentId }); } catch {}
+    try { await Promise.all(noteIdsToDelete.map(id => sb.from("notes").delete({ id }))); } catch {}
     setNbMenu(null);
   };
   const commitRename = async () => {
@@ -781,6 +783,7 @@ export default function Notes({ user }) {
           )}
         </div>
 
+        <div className="notes-sidebar-scroll">
         {notebooks.map(nb => {
           const isExpanded = expandedNBs.has(nb.id);
           return (
@@ -851,6 +854,7 @@ export default function Notes({ user }) {
             </div>
           );
         })}
+        </div>
 
         {/* New notebook button */}
         <div style={{padding:'10px',marginTop:'auto',borderTop:'1px solid rgba(255,255,255,0.06)',flexShrink:0}}>
@@ -951,6 +955,23 @@ export default function Notes({ user }) {
               {/* Mobile back button */}
               <button className="mobile-back-btn" style={{marginRight:6}} onClick={()=>setMobilePanel('list')}>‹ Notes</button>
               <span className="enc-badge" style={{flexShrink:0}}><Icon name="lock" size={8} color="var(--grn)"/> enc</span>
+              <button
+                className="note-tool-btn"
+                title={currentNote?.locked ? 'Unlock note' : 'Lock note'}
+                onClick={toggleNoteLock}
+                style={{color: currentNote?.locked ? 'var(--amber)' : 'var(--t3)', flexShrink:0}}>
+                {currentNote?.locked ? (
+                  <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
+                    <rect x="3" y="11" width="18" height="11" rx="2"/>
+                    <path d="M7 11V7a5 5 0 0 1 10 0v4"/>
+                  </svg>
+                ) : (
+                  <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
+                    <rect x="3" y="11" width="18" height="11" rx="2"/>
+                    <path d="M7 11V7a5 5 0 0 1 9.9-1"/>
+                  </svg>
+                )}
+              </button>
               <div style={{flex:1}}/>
               <select
                 className="note-format-select"
@@ -977,24 +998,6 @@ export default function Notes({ user }) {
               <span style={{fontSize:10,color:'var(--t3)',fontFamily:'var(--mono)',padding:'0 3px',flexShrink:0}}>
                 {editBody.split(/\s+/).filter(Boolean).length}w
               </span>
-              <div className="note-toolbar-sep"/>
-              <button
-                className="note-tool-btn"
-                title={currentNote?.locked ? 'Unlock note' : 'Lock note'}
-                onClick={toggleNoteLock}
-                style={{color: currentNote?.locked ? 'var(--amber)' : 'var(--t3)'}}>
-                {currentNote?.locked ? (
-                  <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
-                    <rect x="3" y="11" width="18" height="11" rx="2"/>
-                    <path d="M7 11V7a5 5 0 0 1 10 0v4"/>
-                  </svg>
-                ) : (
-                  <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
-                    <rect x="3" y="11" width="18" height="11" rx="2"/>
-                    <path d="M7 11V7a5 5 0 0 1 9.9-1"/>
-                  </svg>
-                )}
-              </button>
             </div>
 
             {/* Fullscreen expand/exit button — top-right corner of editor */}

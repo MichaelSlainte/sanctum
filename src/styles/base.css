@@ -1124,6 +1124,9 @@
     .notes-list-header-mobile { display: flex; align-items: center; gap: 8px; padding: 8px 12px; border-bottom: 1px solid var(--b1); flex-shrink: 0; background: var(--bg1); }
     .notebook-item { min-height: 44px; font-size: 15px; padding: 10px 12px; }
     .section-item { min-height: 44px; font-size: 14px; padding: 10px 12px; }
+    .nb-dot-btn { opacity: 1; width: 34px; height: 34px; }
+    .notes-sidebar { overflow: visible; }
+    .notes-sidebar-scroll { flex: 1; overflow-y: auto; }
     .pmbok-topic-row { min-height: 44px; }
     .cal-grid { padding-bottom: 80px; }
     .cal-event { overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
