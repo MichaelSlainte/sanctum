@@ -913,7 +913,7 @@ export default function Notes({ user }) {
         </div>
 
         {/* New notebook button */}
-        <div style={{padding:'10px',marginTop:'auto',borderTop:'1px solid rgba(255,255,255,0.06)',flexShrink:0}}>
+        <div style={{padding:'10px',marginTop:'auto',borderTop:'1px solid rgba(255,255,255,0.06)',flexShrink:0,minHeight:'44px',position:'relative',zIndex:10}}>
           {showNewNB ? (
             <div style={{display:'flex',gap:6,alignItems:'center'}}>
               <input className="nb-new-input" autoFocus placeholder="Notebook name" value={newNBValue}
@@ -923,7 +923,7 @@ export default function Notes({ user }) {
               <button className="btn xs primary" onClick={addNotebook}>Add</button>
             </div>
           ) : (
-            <button style={{display:'flex',alignItems:'center',gap:6,background:'none',border:'1px dashed rgba(255,255,255,0.12)',borderRadius:7,color:'var(--t3)',cursor:'pointer',padding:'6px 10px',width:'100%',fontSize:11,fontFamily:'var(--sans)',transition:'all .15s',boxSizing:'border-box'}}
+            <button style={{display:'flex',alignItems:'center',gap:6,background:'none',border:'1px dashed rgba(255,255,255,0.12)',borderRadius:7,color:'var(--t3)',cursor:'pointer',padding:'6px 10px',width:'100%',fontSize:11,fontFamily:'var(--sans)',transition:'all .15s',boxSizing:'border-box',minHeight:'44px'}}
               onMouseEnter={e=>{e.currentTarget.style.color='var(--t2)';e.currentTarget.style.borderColor='rgba(255,255,255,0.22)';}}
               onMouseLeave={e=>{e.currentTarget.style.color='var(--t3)';e.currentTarget.style.borderColor='rgba(255,255,255,0.12)';}}
               onClick={()=>setShowNewNB(true)}>
@@ -1186,7 +1186,7 @@ export default function Notes({ user }) {
       {/* ── Set PIN modal ── */}
       {pinModal === 'set' && (
         <div className="modal-overlay" onClick={()=>{setPinModal(null);setPinInput('');setPinConfirm('');}}>
-          <div className="modal" onClick={e=>e.stopPropagation()} style={{maxWidth:340}}>
+          <div className="modal pin-modal-sheet" onClick={e=>e.stopPropagation()} style={{maxWidth:340}}>
             <div style={{fontSize:15,fontWeight:600,color:'var(--t1)',marginBottom:8}}>Lock this note</div>
             <div style={{fontSize:13,color:'var(--t3)',marginBottom:16}}>Set a 4–6 digit PIN. You'll need it to read this note.</div>
             <input
@@ -1220,7 +1220,7 @@ export default function Notes({ user }) {
       {/* ── Remove PIN modal ── */}
       {pinModal === 'remove' && (
         <div className="modal-overlay" onClick={()=>{setPinModal(null);setPinInput('');setPinError(false);}}>
-          <div className="modal" onClick={e=>e.stopPropagation()} style={{maxWidth:340}}>
+          <div className="modal pin-modal-sheet" onClick={e=>e.stopPropagation()} style={{maxWidth:340}}>
             <div style={{fontSize:15,fontWeight:600,color:'var(--t1)',marginBottom:8}}>Remove lock</div>
             <div style={{fontSize:13,color:'var(--t3)',marginBottom:16}}>Enter your current PIN to remove the lock from this note.</div>
             <input
