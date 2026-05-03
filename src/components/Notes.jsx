@@ -625,6 +625,7 @@ export default function Notes({ user }) {
       r.setStart(newEl, offset);
     }
     r.collapse(true);
+    editorRef.current.focus();
     sel.removeAllRanges(); sel.addRange(r);
     syncBody();
   }, [syncBody]);
