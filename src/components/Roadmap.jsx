@@ -60,7 +60,8 @@ async function seedPhoenix(userId) {
   return projId;
 }
 
-function Timeline({ project, tracks, milestones, onEditMs, onAddMs }) {
+function Timeline({ project, tracks, milestones, onEditMs, onAddMs, onDeleteTrack }) {
+  const [confirmTrackDelete, setConfirmTrackDelete] = useState(null);
   const startD = new Date(project.start_date + "T00:00:00");
   const endD   = new Date(project.end_date   + "T00:00:00");
   const span   = endD - startD;
@@ -94,10 +95,26 @@ function Timeline({ project, tracks, milestones, onEditMs, onAddMs }) {
             <div style={{ display: "flex", alignItems: "center", gap: 8, marginBottom: 8 }}>
               <div style={{ width: 10, height: 10, borderRadius: "50%", background: track.color, flexShrink: 0 }} />
               <span style={{ fontSize: 13, fontWeight: 600, color: track.color }}>{track.label}</span>
-              <button className="btn xs ghost" title="Add milestone" onClick={() => onAddMs(track.id)}
-                style={{ marginLeft: "auto", opacity: 0.6, padding: "2px 6px" }}>
-                + Add
-              </button>
+              <div style={{ marginLeft: "auto", display: "flex", alignItems: "center", gap: 4 }}>
+                {confirmTrackDelete === track.id ? (
+                  <>
+                    <span style={{ fontSize: 11, color: "var(--t2)" }}>Delete?</span>
+                    <button className="btn xs danger" style={{ padding: "1px 6px" }}
+                      onClick={() => { setConfirmTrackDelete(null); onDeleteTrack(track.id); }}>Yes</button>
+                    <button className="btn xs ghost" style={{ padding: "1px 6px" }}
+                      onClick={() => setConfirmTrackDelete(null)}>No</button>
+                  </>
+                ) : (
+                  <>
+                    <button className="btn xs ghost" title="Add milestone" onClick={() => onAddMs(track.id)}
+                      style={{ opacity: 0.6, padding: "2px 6px" }}>+ Add</button>
+                    <button title="Delete track" onClick={() => setConfirmTrackDelete(track.id)}
+                      style={{ background: "none", border: "none", cursor: "pointer", color: "var(--t3)", fontSize: 14, padding: "0 2px", lineHeight: 1, opacity: 0.5 }}
+                      onMouseEnter={e => { e.currentTarget.style.opacity = "1"; e.currentTarget.style.color = "var(--red, #ef4444)"; }}
+                      onMouseLeave={e => { e.currentTarget.style.opacity = "0.5"; e.currentTarget.style.color = "var(--t3)"; }}>✕</button>
+                  </>
+                )}
+              </div>
             </div>
             <div style={{ paddingLeft: 18 }}>
               {tms.length === 0 && (
@@ -157,13 +174,40 @@ function Timeline({ project, tracks, milestones, onEditMs, onAddMs }) {
             .filter(m => m.track_id === track.id)
             .sort((a, b) => a.date.localeCompare(b.date));
 
+          // Greedy stagger: assign each label to whichever row (above/below) is farther from its last occupant
+          const msLevels = {};
+          let lastAboveX = -Infinity, lastBelowX = -Infinity;
+          for (const ms of tms) {
+            const x = toPct(ms.date);
+            if (x < 0 || x > 101) continue;
+            const above = (x - lastAboveX) >= (x - lastBelowX);
+            msLevels[ms.id] = above;
+            if (above) lastAboveX = x; else lastBelowX = x;
+          }
+
           return (
             <div key={track.id} style={{ display: "flex", borderBottom: "1px solid var(--b1)" }}>
               {/* Label column */}
-              <div style={{ width: LW, flexShrink: 0, display: "flex", alignItems: "center", padding: "0 10px 0 4px", height: 56 }}>
-                <span style={{ fontSize: 11, color: track.color, fontWeight: 600, whiteSpace: "nowrap", overflow: "hidden", textOverflow: "ellipsis" }}>
-                  {track.label}
-                </span>
+              <div style={{ width: LW, flexShrink: 0, display: "flex", alignItems: "center", padding: "0 4px 0 4px", height: 56, gap: 3 }}>
+                {confirmTrackDelete === track.id ? (
+                  <>
+                    <span style={{ fontSize: 10, color: "var(--t2)", flexShrink: 0 }}>Delete?</span>
+                    <button className="btn xs danger" style={{ padding: "1px 5px", fontSize: 10 }}
+                      onClick={() => { setConfirmTrackDelete(null); onDeleteTrack(track.id); }}>Yes</button>
+                    <button className="btn xs ghost" style={{ padding: "1px 5px", fontSize: 10 }}
+                      onClick={() => setConfirmTrackDelete(null)}>No</button>
+                  </>
+                ) : (
+                  <>
+                    <span style={{ fontSize: 11, color: track.color, fontWeight: 600, overflow: "hidden", textOverflow: "ellipsis", flex: 1, minWidth: 0, whiteSpace: "nowrap" }}>
+                      {track.label}
+                    </span>
+                    <button title={`Delete "${track.label}"`} onClick={() => setConfirmTrackDelete(track.id)}
+                      style={{ flexShrink: 0, background: "none", border: "none", cursor: "pointer", color: "var(--t3)", fontSize: 12, padding: 2, lineHeight: 1, opacity: 0.45, transition: "opacity 0.15s, color 0.15s" }}
+                      onMouseEnter={e => { e.currentTarget.style.opacity = "1"; e.currentTarget.style.color = "var(--red, #ef4444)"; }}
+                      onMouseLeave={e => { e.currentTarget.style.opacity = "0.45"; e.currentTarget.style.color = "var(--t3)"; }}>✕</button>
+                  </>
+                )}
               </div>
 
               {/* Timeline area */}
@@ -187,7 +231,7 @@ function Timeline({ project, tracks, milestones, onEditMs, onAddMs }) {
                 {tms.map((ms, idx) => {
                   const x = toPct(ms.date);
                   if (x < 0 || x > 101) return null;
-                  const above = idx % 2 === 0;
+                  const above = msLevels[ms.id] ?? (idx % 2 === 0);
                   return (
                     <div key={ms.id} style={{ position: "absolute", left: `${x}%`, top: 0, bottom: 0, zIndex: 5 }}>
                       <div
@@ -418,6 +462,18 @@ export default function Roadmap() {
     setMilestones(prev => prev.filter(m => m.id !== editMs.id));
     setEditMs(null);
     try { await sb.from("roadmap_milestones").delete({ id: editMs.id }); } catch {}
+  };
+
+  const deleteTrack = async (trackId) => {
+    setTracks(prev => prev.filter(t => t.id !== trackId));
+    setMilestones(prev => prev.filter(m => m.track_id !== trackId));
+    try {
+      await sb.from("roadmap_milestones").delete({ track_id: trackId });
+      await sb.from("roadmap_tracks").delete({ id: trackId });
+    } catch (err) {
+      console.error("[deleteTrack] Error:", err);
+      if (activeId) await loadProjectData(activeId);
+    }
   };
 
   const deleteProject = async (projId, projName, e) => {
@@ -706,6 +762,7 @@ export default function Roadmap() {
                     milestones={milestones}
                     onEditMs={openEditMs}
                     onAddMs={(trackId) => { setNewMsTrackId(trackId); setNewMsForm({ label: "", date: "" }); }}
+                    onDeleteTrack={deleteTrack}
                   />
                 )}
                 <div style={{ display: "flex", justifyContent: "flex-end", marginTop: 10, paddingTop: 8, borderTop: "1px solid var(--b1)" }}>
