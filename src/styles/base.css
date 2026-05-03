@@ -15,8 +15,8 @@
     --b3:    #484f58;
     /* Text — WCAG-AA contrast on dark backgrounds */
     --t1:    #f1f5f9;
-    --t2:    #cbd5e1;
-    --t3:    #a8b4c8;
+    --t2:    #d8e0ee;
+    --t3:    #b8c4d8;
     /* Accent */
     --blue:  #7b8ec8;
     --blue2: #6a7db8;
@@ -53,7 +53,7 @@
     --b3:    #9ca3af;
     --t1:    #1f2937;
     --t2:    #4b5563;
-    --t3:    #6b7280;
+    --t3:    #5a6270;
     --blue:  #0969da;
     --blue2: #0550ae;
     --bluem: rgba(9,105,218,0.08);
@@ -82,8 +82,8 @@
     --b3:    #564040;
     /* Text — same WCAG contrast targets as Midnight */
     --t1:    #f1f5f9;
-    --t2:    #cbd5e1;
-    --t3:    #a8b4c8;
+    --t2:    #d8e0ee;
+    --t3:    #b8c4d8;
     /* Accent — blush rose */
     --blue:  #fbc4d4;
     --blue2: #f9a8d4;
@@ -1151,6 +1151,10 @@
     .notes-sidebar { overflow: visible; }
     .notes-sidebar-scroll { flex: 1; overflow-y: auto; }
     .nb-footer { padding-bottom: 140px !important; }
+    .notes-list { touch-action: pan-y; }
+    .note-list-item { touch-action: none; }
+    .note-ctx-menu { left: auto !important; right: 16px; }
+    .note-ctx-menu button { min-height: 44px; font-size: 14px; }
     .pmbok-topic-row { min-height: 44px; }
     .cal-grid { padding-bottom: 80px; }
     .cal-event { overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
