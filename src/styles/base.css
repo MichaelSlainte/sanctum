@@ -1150,7 +1150,7 @@
     .nb-dot-btn { opacity: 1; width: 34px; height: 34px; }
     .notes-sidebar { overflow: visible; }
     .notes-sidebar-scroll { flex: 1; overflow-y: auto; }
-    .nb-footer { padding-bottom: 80px !important; }
+    .nb-footer { padding-bottom: 140px !important; }
     .pmbok-topic-row { min-height: 44px; }
     .cal-grid { padding-bottom: 80px; }
     .cal-event { overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
@@ -1196,8 +1196,8 @@
 
   /* Tracker card drag states */
   .tracker-card[draggable="true"] { cursor: default; }
-  .tracker-card.is-dragging { opacity: .3; transform: scale(0.97) !important; transition: opacity .15s, transform .15s; }
-  .tracker-card.drag-over { border-color: var(--blueb) !important; box-shadow: 0 0 0 3px rgba(59,130,246,0.08), 0 8px 32px rgba(0,0,0,0.3) !important; transform: translateY(-2px) !important; }
+  .tracker-card.is-dragging { opacity: 0.5; transform: scale(0.97) !important; transition: none; }
+  .tracker-card.drag-over { outline: 2px solid var(--blue); border-color: var(--blueb) !important; box-shadow: 0 0 0 3px rgba(59,130,246,0.08), 0 8px 32px rgba(0,0,0,0.3) !important; transform: translateY(-2px) !important; }
 
   /* Tracker card archive button */
   .tracker-archive-btn {

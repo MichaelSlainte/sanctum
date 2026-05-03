@@ -107,6 +107,9 @@ const htmlToMd = (el) => {
 };
 
 
+// Persists across Notes unmount/remount within the same browser session
+const _sessionUnlockedNotes = new Set();
+
 // ─── NOTES ───────────────────────────────────────────────────────────────────
 export default function Notes({ user }) {
   const { key: cryptoKey, keyLoading } = useCrypto();
@@ -281,7 +284,8 @@ export default function Notes({ user }) {
 
   // ── Reset PIN state on note switch ────────────────────────────────────
   useEffect(() => {
-    setNoteUnlocked(false);
+    // Restore unlock state from session cache so user doesn't re-enter PIN on navigation
+    setNoteUnlocked(_sessionUnlockedNotes.has(String(activeNote)));
     setUnlockPin('');
     setPinError(false);
     setFailedAttempts(0);
@@ -519,6 +523,7 @@ export default function Notes({ user }) {
     const hash = await hashPin(pinInput);
     await sb.from('notes').update({ locked: true, pin_hash: hash }, { id: activeNote });
     setAllNotes(prev => prev.map(n => n.id === activeNote ? { ...n, locked: true, pin_hash: hash } : n));
+    _sessionUnlockedNotes.delete(String(activeNote));
     setNoteUnlocked(false);
     setPinModal(null); setPinInput(''); setPinConfirm('');
   };
@@ -527,6 +532,7 @@ export default function Notes({ user }) {
     if (typeof pinError === 'string') return;
     const hash = await hashPin(unlockPin);
     if (hash === currentNote?.pin_hash) {
+      _sessionUnlockedNotes.add(String(activeNote));
       setNoteUnlocked(true); setUnlockPin(''); setPinError(false); setFailedAttempts(0);
     } else {
       const next = failedAttempts + 1;
@@ -546,6 +552,7 @@ export default function Notes({ user }) {
     if (hash !== currentNote?.pin_hash) { setPinError(true); return; }
     await sb.from('notes').update({ locked: false, pin_hash: null }, { id: activeNote });
     setAllNotes(prev => prev.map(n => n.id === activeNote ? { ...n, locked: false, pin_hash: null } : n));
+    _sessionUnlockedNotes.delete(String(activeNote));
     setNoteUnlocked(false); setPinModal(null); setPinInput(''); setPinError(false);
   };
 

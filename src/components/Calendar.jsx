@@ -300,7 +300,7 @@ export default function Calendar({ user, initialDate, refreshKey }) {
     });
   }, [calView]);
 
-  const goToToday = useCallback(() => setCurrentDate(new Date()), []);
+  const goToToday = useCallback(() => { setCurrentDate(new Date()); changeView("day"); }, []);
 
   useEffect(() => {
     const handleKey = (e) => {
