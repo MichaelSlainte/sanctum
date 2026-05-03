@@ -969,7 +969,7 @@ export default function Notes({ user }) {
         </div>
 
         {/* New notebook button */}
-        <div style={{padding:'10px',marginTop:'auto',borderTop:'1px solid rgba(255,255,255,0.06)',flexShrink:0,minHeight:'44px',position:'relative',zIndex:10}}>
+        <div className="nb-footer" style={{padding:'10px',marginTop:'auto',borderTop:'1px solid rgba(255,255,255,0.06)',flexShrink:0,minHeight:'44px',position:'relative',zIndex:10}}>
           {showNewNB ? (
             <div style={{display:'flex',gap:6,alignItems:'center'}}>
               <input className="nb-new-input" autoFocus placeholder="Notebook name" value={newNBValue}

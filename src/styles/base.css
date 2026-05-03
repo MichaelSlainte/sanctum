@@ -1150,6 +1150,7 @@
     .nb-dot-btn { opacity: 1; width: 34px; height: 34px; }
     .notes-sidebar { overflow: visible; }
     .notes-sidebar-scroll { flex: 1; overflow-y: auto; }
+    .nb-footer { padding-bottom: 80px !important; }
     .pmbok-topic-row { min-height: 44px; }
     .cal-grid { padding-bottom: 80px; }
     .cal-event { overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
