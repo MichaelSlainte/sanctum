@@ -801,18 +801,11 @@ export default function Notes({ user }) {
     saveNoteOrder({...noteOrder,[activeSection]:ids}); setDragNoteId(null); setDragOverId(null);
   };
 
-  // ── Note touch drag + long-press ─────────────────────────────────────
+  // ── Note touch drag ──────────────────────────────────────────────────
   const onNoteTouchStart = (e, n) => {
     didTouchDrag.current = false;
     const touch = e.touches[0];
     touchNoteRef.current = { id: n.id, startX: touch.clientX, startY: touch.clientY, dragging: false };
-    longPressTimer.current = setTimeout(() => {
-      if (touchNoteRef.current && !touchNoteRef.current.dragging) {
-        didTouchDrag.current = true;
-        setNoteMenu({ id: n.id, x: touchNoteRef.current.startX, y: touchNoteRef.current.startY });
-        touchNoteRef.current = null;
-      }
-    }, 600);
   };
   const onNoteTouchMove = (e) => {
     if (!touchNoteRef.current) return;
@@ -1048,7 +1041,14 @@ export default function Notes({ user }) {
                 )}
                 {n.title||'Untitled'}
               </div>
-              <button className="nb-dot-btn" onClick={e=>{e.stopPropagation();setNoteMenu(m=>m?.id===n.id?null:{id:n.id,x:e.clientX,y:e.clientY});}}>···</button>
+              <div style={{display:'flex',alignItems:'center',gap:2,flexShrink:0}}>
+                <button className="nli-delete-btn" title="Delete note" onClick={e=>{e.stopPropagation();if(window.confirm('Delete this note?'))deleteNote(n.id);}}>
+                  <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+                    <polyline points="3 6 5 6 21 6"/><path d="M19 6l-1 14a2 2 0 01-2 2H8a2 2 0 01-2-2L5 6"/><path d="M10 11v6M14 11v6M9 6V4a1 1 0 011-1h4a1 1 0 011 1v2"/>
+                  </svg>
+                </button>
+                <button className="nb-dot-btn" onClick={e=>{e.stopPropagation();setNoteMenu(m=>m?.id===n.id?null:{id:n.id,x:e.clientX,y:e.clientY});}}>···</button>
+              </div>
             </div>
             <div className="nli-preview" style={n.locked?{color:'var(--t3)',letterSpacing:2}:undefined}>{n.locked ? '••••••' : (n.body||'').startsWith('ENC:v1:') ? '🔒 Encrypted' : (() => { const d = document.createElement('div'); d.innerHTML = n.body || ''; return (d.textContent || d.innerText || '').replace(/\s+/g,' ').trim().slice(0,60) || 'No content'; })()}</div>
             {n.tags&&<div className="nli-tags">{n.tags.split(',').filter(Boolean).slice(0,3).map(t=><span key={t} className="nli-tag">{t.trim()}</span>)}</div>}

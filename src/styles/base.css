@@ -416,6 +416,14 @@
   }
   .notebook-item:hover .nb-dot-btn, .section-item:hover .nb-dot-btn, .note-list-item:hover .nb-dot-btn { opacity: 1; }
   .nb-dot-btn:hover { background: rgba(255,255,255,0.10); color: var(--t1); opacity: 1; }
+  .nli-delete-btn {
+    width: 22px; height: 22px; border-radius: 5px; border: none;
+    background: transparent; color: var(--red, #ef4444); cursor: pointer;
+    display: flex; align-items: center; justify-content: center;
+    opacity: 0; transition: opacity .12s, background .12s; flex-shrink: 0; padding: 0;
+  }
+  .note-list-item:hover .nli-delete-btn { opacity: 0.7; }
+  .nli-delete-btn:hover { opacity: 1 !important; background: rgba(239,68,68,0.12); }
   .nb-dropdown {
     position: absolute; z-index: 120; right: 4px; top: calc(100% + 2px);
     background: var(--bg1); border: 1px solid var(--b2); border-radius: 10px;
@@ -1148,6 +1156,7 @@
     .notebook-item { min-height: 44px; font-size: 15px; padding: 10px 12px; }
     .section-item { min-height: 44px; font-size: 14px; padding: 10px 12px; }
     .nb-dot-btn { opacity: 1; width: 34px; height: 34px; }
+    .nli-delete-btn { opacity: 0.6 !important; width: 34px; height: 34px; }
     .notes-sidebar { overflow: visible; }
     .notes-sidebar-scroll { flex: 1; overflow-y: auto; }
     .nb-footer { padding-bottom: 140px !important; }

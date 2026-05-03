@@ -60,7 +60,7 @@ async function seedPhoenix(userId) {
   return projId;
 }
 
-function Timeline({ project, tracks, milestones, onEditMs, onAddMs, onDeleteTrack }) {
+function Timeline({ project, tracks, milestones, onEditMs, onAddMs, onDeleteTrack, onArchiveTrack, showArchived }) {
   const [confirmTrackDelete, setConfirmTrackDelete] = useState(null);
   const startD = new Date(project.start_date + "T00:00:00");
   const endD   = new Date(project.end_date   + "T00:00:00");
@@ -79,7 +79,9 @@ function Timeline({ project, tracks, milestones, onEditMs, onAddMs, onDeleteTrac
     cur.setMonth(cur.getMonth() + 1);
   }
 
-  const sortedTracks = [...tracks].sort((a, b) => a.position - b.position);
+  const sortedTracks = [...tracks]
+    .filter(t => showArchived || t.status !== "archived")
+    .sort((a, b) => a.position - b.position);
   const LW = 128;
 
   return (
@@ -108,10 +110,15 @@ function Timeline({ project, tracks, milestones, onEditMs, onAddMs, onDeleteTrac
                   <>
                     <button className="btn xs ghost" title="Add milestone" onClick={() => onAddMs(track.id)}
                       style={{ opacity: 0.6, padding: "2px 6px" }}>+ Add</button>
+                    {track.status === "archived" ? (
+                      <button title="Unarchive track" onClick={() => onArchiveTrack(track.id, false)}
+                        style={{ background: "none", border: "none", cursor: "pointer", color: "var(--blue)", fontSize: 11, padding: "0 3px", lineHeight: 1, opacity: 0.8 }}>↩</button>
+                    ) : (
+                      <button title="Archive track" onClick={() => onArchiveTrack(track.id, true)}
+                        style={{ background: "none", border: "none", cursor: "pointer", color: "var(--t2)", fontSize: 11, padding: "0 3px", lineHeight: 1, opacity: 0.7 }}>⊡</button>
+                    )}
                     <button title="Delete track" onClick={() => setConfirmTrackDelete(track.id)}
-                      style={{ background: "none", border: "none", cursor: "pointer", color: "var(--t3)", fontSize: 14, padding: "0 2px", lineHeight: 1, opacity: 0.5 }}
-                      onMouseEnter={e => { e.currentTarget.style.opacity = "1"; e.currentTarget.style.color = "var(--red, #ef4444)"; }}
-                      onMouseLeave={e => { e.currentTarget.style.opacity = "0.5"; e.currentTarget.style.color = "var(--t3)"; }}>✕</button>
+                      style={{ background: "none", border: "none", cursor: "pointer", color: "var(--red, #ef4444)", fontSize: 14, padding: "0 2px", lineHeight: 1, opacity: 0.8, minWidth: 24, minHeight: 24 }}>✕</button>
                   </>
                 )}
               </div>
@@ -202,10 +209,15 @@ function Timeline({ project, tracks, milestones, onEditMs, onAddMs, onDeleteTrac
                     <span style={{ fontSize: 11, color: track.color, fontWeight: 600, overflow: "hidden", textOverflow: "ellipsis", flex: 1, minWidth: 0, whiteSpace: "nowrap" }}>
                       {track.label}
                     </span>
+                    {track.status === "archived" ? (
+                      <button title="Unarchive track" onClick={() => onArchiveTrack(track.id, false)}
+                        style={{ flexShrink: 0, background: "none", border: "none", cursor: "pointer", color: "var(--blue)", fontSize: 11, padding: 2, lineHeight: 1, opacity: 0.8 }}>↩</button>
+                    ) : (
+                      <button title="Archive track" onClick={() => onArchiveTrack(track.id, true)}
+                        style={{ flexShrink: 0, background: "none", border: "none", cursor: "pointer", color: "var(--t2)", fontSize: 11, padding: 2, lineHeight: 1, opacity: 0.7 }}>⊡</button>
+                    )}
                     <button title={`Delete "${track.label}"`} onClick={() => setConfirmTrackDelete(track.id)}
-                      style={{ flexShrink: 0, background: "none", border: "none", cursor: "pointer", color: "var(--t3)", fontSize: 12, padding: 2, lineHeight: 1, opacity: 0.45, transition: "opacity 0.15s, color 0.15s" }}
-                      onMouseEnter={e => { e.currentTarget.style.opacity = "1"; e.currentTarget.style.color = "var(--red, #ef4444)"; }}
-                      onMouseLeave={e => { e.currentTarget.style.opacity = "0.45"; e.currentTarget.style.color = "var(--t3)"; }}>✕</button>
+                      style={{ flexShrink: 0, background: "none", border: "none", cursor: "pointer", color: "var(--red, #ef4444)", fontSize: 12, padding: 2, lineHeight: 1, opacity: 0.8, minWidth: 24, minHeight: 24 }}>✕</button>
                   </>
                 )}
               </div>
@@ -337,6 +349,7 @@ export default function Roadmap() {
   const [showNewProject,   setShowNewProject]   = useState(false);
   const [showNewTrack,     setShowNewTrack]     = useState(false);
   const [newMsTrackId,     setNewMsTrackId]     = useState(null);
+  const [showArchived,     setShowArchived]     = useState(false);
 
   const [newProjForm,  setNewProjForm]  = useState({ name: "", start_date: "", end_date: "" });
   const [newTrackForm, setNewTrackForm] = useState({ label: "", color: COLORS[0] });
@@ -474,6 +487,12 @@ export default function Roadmap() {
       console.error("[deleteTrack] Error:", err);
       if (activeId) await loadProjectData(activeId);
     }
+  };
+
+  const archiveTrack = async (trackId, archive) => {
+    setTracks(prev => prev.map(t => t.id === trackId ? { ...t, status: archive ? "archived" : null } : t));
+    try { await sb.from("roadmap_tracks").update({ status: archive ? "archived" : null }, { id: trackId }); }
+    catch (err) { console.error("[archiveTrack] Error:", err); if (activeId) await loadProjectData(activeId); }
   };
 
   const deleteProject = async (projId, projName, e) => {
@@ -763,9 +782,16 @@ export default function Roadmap() {
                     onEditMs={openEditMs}
                     onAddMs={(trackId) => { setNewMsTrackId(trackId); setNewMsForm({ label: "", date: "" }); }}
                     onDeleteTrack={deleteTrack}
+                    onArchiveTrack={archiveTrack}
+                    showArchived={showArchived}
                   />
                 )}
-                <div style={{ display: "flex", justifyContent: "flex-end", marginTop: 10, paddingTop: 8, borderTop: "1px solid var(--b1)" }}>
+                <div style={{ display: "flex", justifyContent: "flex-end", alignItems: "center", gap: 6, marginTop: 10, paddingTop: 8, borderTop: "1px solid var(--b1)" }}>
+                  {tracks.some(t => t.status === "archived") && (
+                    <button className="btn xs ghost" onClick={() => setShowArchived(v => !v)} style={{ opacity: 0.7 }}>
+                      {showArchived ? "Hide archived" : "Show archived"}
+                    </button>
+                  )}
                   <button className="btn xs ghost" onClick={() => { setShowNewTrack(true); setNewTrackForm({ label: "", color: COLORS[tracks.length % COLORS.length] }); }}>
                     <Icon name="plus" size={11} /> Add track
                   </button>
