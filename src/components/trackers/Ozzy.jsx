@@ -98,6 +98,7 @@ export default function Ozzy({ user }) {
       const merged = { ...DEFAULT_PROFILE };
       const custom = [];
       data.forEach(row => {
+        if (row.key.startsWith('study_config')) return; // study tracker keys — not custom fields
         if (row.key === "photo_url" && row.value) {
           setOzzyPhoto(storage.getPublicUrl("pets", row.value));
         } else if (row.key === "diet") {
@@ -206,6 +207,12 @@ export default function Ozzy({ user }) {
     saveCustomFields(updated);
     setEditingField(null);
     try { sb.from("ozzy_profile").upsert({ key: updated[idx].key, value: updated[idx].value, user_id: user?.id }, "key,user_id"); } catch {}
+  };
+
+  const deleteCustomField = async (field) => {
+    const updated = customFields.filter(f => f.id !== field.id);
+    saveCustomFields(updated);
+    try { await sb.from('ozzy_profile').delete({ key: field.key, user_id: user?.id }); } catch {}
   };
 
   const addCustomField = () => {
@@ -407,13 +414,18 @@ export default function Ozzy({ user }) {
                     <button className="btn xs primary" onClick={() => commitCustomField(idx)}><Icon name="check" size={11} /></button>
                   </div>
                 ) : (
-                  <span
-                    style={{ fontSize: 13, color: "var(--t1)", fontWeight: 500, cursor: "pointer", padding: "2px 6px", borderRadius: 6 }}
-                    onClick={() => { setEditingField(`custom_${idx}`); setEditValue(field.value); setEditCustomKey(field.key); }}
-                    title="Click to edit"
-                  >
-                    {field.value || <span style={{ color: "var(--t3)" }}>—</span>}
-                  </span>
+                  <div style={{ display: "flex", alignItems: "center", gap: 4 }}>
+                    <span
+                      style={{ fontSize: 13, color: "var(--t1)", fontWeight: 500, cursor: "pointer", padding: "2px 6px", borderRadius: 6 }}
+                      onClick={() => { setEditingField(`custom_${idx}`); setEditValue(field.value); setEditCustomKey(field.key); }}
+                      title="Click to edit"
+                    >
+                      {field.value || <span style={{ color: "var(--t3)" }}>—</span>}
+                    </span>
+                    <button className="btn xs danger" title="Delete field" onClick={() => deleteCustomField(field)}>
+                      <Icon name="trash" size={11} />
+                    </button>
+                  </div>
                 )}
               </div>
             ))}

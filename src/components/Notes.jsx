@@ -2,7 +2,7 @@
 // Sanctum — Private and confidential. Unauthorised use prohibited.
 // https://sanctum.app
 import { useState, useEffect, useRef, useCallback } from "react";
-import { sb } from "../lib/supabase";
+import { sb, auth } from "../lib/supabase";
 import { Icon, Modal, DEFAULT_NOTEBOOKS } from "./shared";
 import { useCrypto } from "../lib/CryptoContext.jsx";
 import { encrypt, decrypt, isEncrypted } from "../lib/crypto.js";
@@ -138,10 +138,12 @@ export default function Notes({ user }) {
   const saveNotebooks = useCallback(async (nbs) => {
     setNotebooks(nbs);
     localStorage.setItem('sanctum_notebooks_v2', JSON.stringify(nbs));
+    console.log('[saveNotebooks] saving:', nbs.map(nb => ({ id: nb.id, sections: nb.sections.map(s => s.id) })));
     try {
       await sb.from('notebooks').upsert({ id: `singleton_${user?.id || 'default'}`, user_id: user?.id, data: nbs, updated_at: new Date().toISOString() }, 'id');
+      console.log('[saveNotebooks] Supabase upsert OK');
     } catch (err) {
-      console.error('Failed to save notebooks to Supabase:', err);
+      console.error('[saveNotebooks] Supabase upsert FAILED:', err);
     }
   }, [user]);
   const [expandedNBs, setExpandedNBs] = useState(() => {
@@ -228,6 +230,9 @@ export default function Notes({ user }) {
   const [noteUnlocked,   setNoteUnlocked]   = useState(false);
   const [pinError,       setPinError]       = useState(false);
   const [failedAttempts, setFailedAttempts] = useState(0);
+  const [showPinRecovery, setShowPinRecovery] = useState(false);
+  const [recoveryPwd,     setRecoveryPwd]     = useState('');
+  const [recoveryError,   setRecoveryError]   = useState('');
 
   // ── Close menus on outside click ──────────────────────────────────────
   useEffect(() => {
@@ -289,6 +294,9 @@ export default function Notes({ user }) {
     setUnlockPin('');
     setPinError(false);
     setFailedAttempts(0);
+    setShowPinRecovery(false);
+    setRecoveryPwd('');
+    setRecoveryError('');
   }, [activeNote]);
 
   // ── Load ──────────────────────────────────────────────────────────────
@@ -465,6 +473,8 @@ export default function Notes({ user }) {
 
   const deleteNote = async (id) => {
     const nid = id || activeNote; if (!nid) return;
+    const target = allNotes.find(n => n.id === nid);
+    if (target?.locked && !_sessionUnlockedNotes.has(String(nid))) return;
     const remaining = allNotes.filter(n => n.id !== nid); setAllNotes(remaining);
     if (nid === activeNote) {
       const _secL = activeSection?.toLowerCase().trim() || '';
@@ -544,6 +554,26 @@ export default function Notes({ user }) {
       } else {
         setPinError(true);
       }
+    }
+  };
+
+  const recoverWithPassword = async () => {
+    if (!recoveryPwd.trim()) return;
+    setRecoveryError('');
+    try {
+      const res = await auth.signIn(user.email, recoveryPwd);
+      if (res.access_token) {
+        await sb.from('notes').update({ locked: false, pin_hash: null }, { id: activeNote });
+        setAllNotes(prev => prev.map(n => n.id === activeNote ? { ...n, locked: false, pin_hash: null } : n));
+        _sessionUnlockedNotes.add(String(activeNote));
+        setNoteUnlocked(true);
+        setShowPinRecovery(false);
+        setRecoveryPwd('');
+      } else {
+        setRecoveryError(res.error_description || 'Incorrect password');
+      }
+    } catch {
+      setRecoveryError('Could not verify. Please try again.');
     }
   };
 
@@ -733,9 +763,11 @@ export default function Notes({ user }) {
   };
   const deleteSection = async (secId, parentId) => {
     const nb=notebooks.find(n=>n.id===parentId); if(!nb||nb.sections.length<=1) return;
-    // Capture IDs before state update — local state is normalised to IDs, DB may store labels
     const noteIdsToDelete = allNotes.filter(n => n.section === secId).map(n => n.id);
-    saveNotebooks(notebooks.map(n=>n.id!==parentId?n:{...n,sections:n.sections.filter(s=>s.id!==secId)}));
+    const updatedNBs = notebooks.map(n=>n.id!==parentId?n:{...n,sections:n.sections.filter(s=>s.id!==secId)});
+    console.log('[deleteSection] removing secId:', secId, 'from notebook:', parentId);
+    console.log('[deleteSection] updated structure:', updatedNBs.map(nb => ({ id: nb.id, sections: nb.sections.map(s => s.id) })));
+    saveNotebooks(updatedNBs);
     if (activeSection===secId) { const rem=nb.sections.filter(s=>s.id!==secId); if(rem[0]) selectSection(rem[0].id,parentId); }
     setAllNotes(prev => prev.filter(n => n.section !== secId));
     try { await Promise.all(noteIdsToDelete.map(id => sb.from("notes").delete({ id }))); } catch {}
@@ -1042,11 +1074,12 @@ export default function Notes({ user }) {
                 {n.title||'Untitled'}
               </div>
               <div style={{display:'flex',alignItems:'center',gap:2,flexShrink:0}}>
-                <button className="nli-delete-btn" title="Delete note" onClick={e=>{e.stopPropagation();if(window.confirm('Delete this note?'))deleteNote(n.id);}}>
+                {(()=>{const isLocked=n.locked&&!_sessionUnlockedNotes.has(String(n.id));return(
+                <button className="nli-delete-btn" title={isLocked?'Unlock note first':'Delete note'} disabled={isLocked} onClick={e=>{e.stopPropagation();if(!isLocked&&window.confirm('Delete this note?'))deleteNote(n.id);}}>
                   <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
                     <polyline points="3 6 5 6 21 6"/><path d="M19 6l-1 14a2 2 0 01-2 2H8a2 2 0 01-2-2L5 6"/><path d="M10 11v6M14 11v6M9 6V4a1 1 0 011-1h4a1 1 0 011 1v2"/>
                   </svg>
-                </button>
+                </button>);})()}
                 <button className="nb-dot-btn" onClick={e=>{e.stopPropagation();setNoteMenu(m=>m?.id===n.id?null:{id:n.id,x:e.clientX,y:e.clientY});}}>···</button>
               </div>
             </div>
@@ -1064,7 +1097,7 @@ export default function Notes({ user }) {
           <button onClick={()=>duplicateNote(noteMenu.id)}>Duplicate</button>
           <button onClick={()=>{setMoveModal({noteId:noteMenu.id});setNoteMenu(null);}}>Move to section</button>
           <div className="ctx-sep"/>
-          <button className="danger" onClick={()=>deleteNote(noteMenu.id)}>Delete</button>
+          {(()=>{const mn=allNotes.find(x=>x.id===noteMenu.id);const isLocked=mn?.locked&&!_sessionUnlockedNotes.has(String(noteMenu.id));return(<button className="danger" disabled={isLocked} title={isLocked?'Unlock note first':undefined} onClick={()=>deleteNote(noteMenu.id)}>Delete</button>);})()}
         </div>
       )}
 
@@ -1155,7 +1188,25 @@ export default function Notes({ user }) {
                   </div>
                 )}
                 <button className="btn primary" onClick={verifyPin} disabled={typeof pinError === 'string' || unlockPin.length < 4}>Unlock</button>
-                <button className="btn" style={{fontSize:11,color:'var(--t3)',marginTop:4}} onClick={()=>{setPinModal('remove');setPinInput('');setPinError(false);}}>Forgot PIN? Remove lock</button>
+                {showPinRecovery ? (
+                  <div style={{display:'flex',flexDirection:'column',alignItems:'center',gap:10,width:'100%',maxWidth:300,marginTop:4}}>
+                    <div style={{fontSize:13,color:'var(--t2)',textAlign:'center'}}>Enter your account password to bypass the PIN and clear it</div>
+                    <input
+                      type="password"
+                      placeholder="Account password"
+                      value={recoveryPwd}
+                      onChange={e=>setRecoveryPwd(e.target.value)}
+                      onKeyDown={e=>{if(e.key==='Enter')recoverWithPassword();if(e.key==='Escape'){setShowPinRecovery(false);setRecoveryPwd('');setRecoveryError('');}}}
+                      style={{textAlign:'center',fontSize:16,background:'var(--bg2)',border:'1px solid var(--b2)',borderRadius:10,padding:'10px 16px',color:'var(--t1)',width:220}}
+                      autoFocus
+                    />
+                    {recoveryError&&<div style={{fontSize:12,color:'var(--red)'}}>{recoveryError}</div>}
+                    <button className="btn primary" onClick={recoverWithPassword} disabled={!recoveryPwd.trim()}>Verify &amp; Unlock</button>
+                    <button className="btn ghost" style={{fontSize:12}} onClick={()=>{setShowPinRecovery(false);setRecoveryPwd('');setRecoveryError('');}}>Cancel</button>
+                  </div>
+                ) : (
+                  <button className="btn" style={{fontSize:11,color:'var(--t3)',marginTop:4}} onClick={()=>setShowPinRecovery(true)}>Forgot PIN?</button>
+                )}
                 <div style={{fontSize:11,color:'var(--t3)',marginTop:4}}>Locked notes are private and only visible to you</div>
               </div>
             ) : (
