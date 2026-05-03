@@ -1016,18 +1016,21 @@ export default function Calendar({ user, initialDate, refreshKey }) {
                         onClick={() => openAdd(fmtDateStr(d), `${String(h).padStart(2,"0")}:00`)} />
                     ))}
                     {timedEvs.map(ev => {
-                      const c   = catOf(ev);
-                      const st  = ev.start_time || ev.time || "";
-                      const top = evTop(st);
+                      const c     = catOf(ev);
+                      const evTz  = ev.timezone || userTz;
+                      const rawSt = ev.start_time || ev.time || "";
+                      const st    = (rawSt && evTz !== userTz) ? convertTimeToTz(rawSt, evTz, userTz) : rawSt;
+                      const et    = (ev.end_time && evTz !== userTz) ? convertTimeToTz(ev.end_time, evTz, userTz) : ev.end_time;
+                      const top   = evTop(st);
                       if (top >= HOURS.length * 48 || top < -48) return null;
                       const clampedTop = Math.max(0, top);
-                      const height = evHeight(st, ev.end_time);
+                      const height = evHeight(st, et);
                       return (
                         <div key={ev.id} className="week-grid-event"
                           style={{ top: clampedTop, height, background: c.bg, color: c.color, border: `1px solid ${c.color}50` }}
                           onClick={() => setActiveEvent(ev)}>
                           <div style={{ fontSize: 9, opacity: .75, fontFamily: "var(--mono)", whiteSpace: "nowrap" }}>
-                            {st}{ev.end_time ? ` – ${ev.end_time}` : ""}
+                            {st}{et ? ` – ${et}` : ""}
                           </div>
                           <div style={{ fontSize: 10, fontWeight: 600, overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }}>
                             {ev.title}
@@ -1101,18 +1104,21 @@ export default function Calendar({ user, initialDate, refreshKey }) {
                         onClick={() => openAdd(fmtDateStr(d), `${String(h).padStart(2,"0")}:00`)} />
                     ))}
                     {timedEvs.map(ev => {
-                      const c   = catOf(ev);
-                      const st  = ev.start_time || ev.time || "";
-                      const top = evTop(st);
+                      const c     = catOf(ev);
+                      const evTz  = ev.timezone || userTz;
+                      const rawSt = ev.start_time || ev.time || "";
+                      const st    = (rawSt && evTz !== userTz) ? convertTimeToTz(rawSt, evTz, userTz) : rawSt;
+                      const et    = (ev.end_time && evTz !== userTz) ? convertTimeToTz(ev.end_time, evTz, userTz) : ev.end_time;
+                      const top   = evTop(st);
                       if (top >= HOURS.length * 48 || top < -48) return null;
                       const clampedTop = Math.max(0, top);
-                      const height = evHeight(st, ev.end_time);
+                      const height = evHeight(st, et);
                       return (
                         <div key={ev.id} className="week-grid-event"
                           style={{ top: clampedTop, height, background: c.bg, color: c.color, border: `1px solid ${c.color}50` }}
                           onClick={() => setActiveEvent(ev)}>
                           <div style={{ fontSize: 9, opacity: .75, fontFamily: "var(--mono)", whiteSpace: "nowrap" }}>
-                            {st}{ev.end_time ? ` – ${ev.end_time}` : ""}
+                            {st}{et ? ` – ${et}` : ""}
                           </div>
                           <div style={{ fontSize: 10, fontWeight: 600, overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }}>
                             {ev.title}
@@ -1174,18 +1180,21 @@ export default function Calendar({ user, initialDate, refreshKey }) {
                     onClick={() => openAdd(fmtDateStr(currentDate), `${String(h).padStart(2,"0")}:00`)} />
                 ))}
                 {getEventsForDate(events, fmtDateStr(currentDate)).filter(ev => !ev.all_day && (ev.start_time || ev.time)).map(ev => {
-                  const c  = catOf(ev);
-                  const st = ev.start_time || ev.time || "";
-                  const top = evTop(st);
+                  const c     = catOf(ev);
+                  const evTz  = ev.timezone || userTz;
+                  const rawSt = ev.start_time || ev.time || "";
+                  const st    = (rawSt && evTz !== userTz) ? convertTimeToTz(rawSt, evTz, userTz) : rawSt;
+                  const et    = (ev.end_time && evTz !== userTz) ? convertTimeToTz(ev.end_time, evTz, userTz) : ev.end_time;
+                  const top   = evTop(st);
                   if (top >= HOURS.length * 48 || top < -48) return null;
                   const clampedTop = Math.max(0, top);
-                  const height = evHeight(st, ev.end_time);
+                  const height = evHeight(st, et);
                   return (
                     <div key={ev.id} className="week-grid-event"
                       style={{ top: clampedTop, height, background: c.bg, color: c.color, border: `1px solid ${c.color}50` }}
                       onClick={() => setActiveEvent(ev)}>
                       <div style={{ fontSize: 9, opacity: .75, fontFamily: "var(--mono)", whiteSpace: "nowrap" }}>
-                        {st}{ev.end_time ? ` – ${ev.end_time}` : ""}
+                        {st}{et ? ` – ${et}` : ""}
                       </div>
                       <div style={{ fontSize: 10, fontWeight: 600, overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }}>
                         {ev.title}
