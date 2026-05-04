@@ -19,11 +19,11 @@ const VIEWS = [
 ];
 
 const CATS = [
-  { id: "personal", label: "Personal", color: "#3b82f6", bg: "rgba(59,130,246,0.22)"  },
-  { id: "career",   label: "Career",   color: "#f59e0b", bg: "rgba(245,158,11,0.22)"  },
-  { id: "travel",   label: "Travel",   color: "#10b981", bg: "rgba(16,185,129,0.22)"  },
-  { id: "study",    label: "Study",    color: "#8b5cf6", bg: "rgba(139,92,246,0.22)"  },
-  { id: "family",   label: "Family",   color: "#ec4899", bg: "rgba(236,72,153,0.22)"  },
+  { id: "personal", label: "Personal", color: "#3b82f6", bg: "rgba(59,130,246,0.10)"  },
+  { id: "career",   label: "Career",   color: "#f59e0b", bg: "rgba(245,158,11,0.10)"  },
+  { id: "travel",   label: "Travel",   color: "#10b981", bg: "rgba(16,185,129,0.10)"  },
+  { id: "study",    label: "Study",    color: "#8b5cf6", bg: "rgba(139,92,246,0.10)"  },
+  { id: "family",   label: "Family",   color: "#ec4899", bg: "rgba(236,72,153,0.10)"  },
 ];
 
 const TIMEZONES = [
@@ -942,12 +942,13 @@ export default function Calendar({ user, initialDate, refreshKey }) {
           </div>
           <button className="btn sm" onClick={goToNext}><Icon name="chevR" size={14} /></button>
         </div>
-        <div style={{ display: "flex", gap: 8, alignItems: "center", flexDirection: "column", alignItems: "flex-end" }}>
+        <div className="cal-header-right">
           <div style={{ display: "flex", gap: 8, alignItems: "center" }}>
             <button className="btn sm" onClick={goToToday}>Today</button>
-            <div style={{ display: "flex", background: "var(--bg2)", padding: 4, borderRadius: 10, gap: 2 }}>
+            <div className="cal-view-switcher">
               {VIEWS.map(v => (
                 <button key={v.id}
+                  className="cal-view-btn"
                   onClick={() => changeView(v.id)}
                   style={{
                     padding: "5px 12px", borderRadius: 7, border: "none",
@@ -963,7 +964,7 @@ export default function Calendar({ user, initialDate, refreshKey }) {
               ))}
             </div>
           </div>
-          <div style={{ fontSize: 10, color: "var(--t3)" }}>
+          <div className="cal-shortcuts-hint" style={{ fontSize: 10, color: "var(--t3)" }}>
             1 Month · 2 Week · 3 Days · 4 Day · 5 Year · ← → Navigate · T Today · N New
           </div>
         </div>
@@ -983,7 +984,7 @@ export default function Calendar({ user, initialDate, refreshKey }) {
 
       {/* ── Month view ── */}
       {calView === "month" && (
-        <div className="card mb18">
+        <div className="card mb18 cal-view-enter">
           <div className="cal-grid-header">
             {DAYS_S.map(d => <div key={d} className="cal-day-header">{d}</div>)}
           </div>
@@ -1001,7 +1002,7 @@ export default function Calendar({ user, initialDate, refreshKey }) {
                       const startT = ev.start_time || ev.time || "";
                       return (
                         <div key={ev.id} className="event-chip"
-                          style={{ background: c.bg, color: c.color }}
+                          style={{ background: c.bg, borderLeftColor: c.color, color: c.color }}
                           onClick={e => { e.stopPropagation(); setActiveEvent(ev); }}>
                           {startT && <span className="event-time">{startT}</span>}
                           <span style={{ overflow: "hidden", textOverflow: "ellipsis", flex: 1, minWidth: 0 }}>{ev.title}</span>
@@ -1021,7 +1022,7 @@ export default function Calendar({ user, initialDate, refreshKey }) {
 
       {/* ── Week view ── */}
       {calView === "week" && (
-        <div className="card mb18" style={{ padding: 0, overflow: "hidden" }}>
+        <div className="card mb18 cal-view-enter" style={{ padding: 0, overflow: "hidden" }}>
           <div className="week-time-grid-header">
             <div className="time-col-spacer" />
             {weekDays.map((d, i) => (
@@ -1042,7 +1043,7 @@ export default function Calendar({ user, initialDate, refreshKey }) {
                     const c = catOf(ev);
                     return (
                       <div key={ev.id} className="event-chip"
-                        style={{ background: c.bg, color: c.color, width: "100%", maxWidth: "100%" }}
+                        style={{ background: c.bg, borderLeftColor: c.color, color: c.color, width: "100%", maxWidth: "100%" }}
                         onClick={() => setActiveEvent(ev)}>
                         {ev.shared && <span className="event-badge-s">S</span>}
                         <span style={{ overflow: "hidden", textOverflow: "ellipsis", flex: 1, minWidth: 0 }}>{ev.title}</span>
@@ -1082,12 +1083,12 @@ export default function Calendar({ user, initialDate, refreshKey }) {
                       const height = evHeight(st, et);
                       return (
                         <div key={ev.id} className="week-grid-event"
-                          style={{ top: clampedTop, height, background: c.bg, color: c.color, border: `1px solid ${c.color}50` }}
+                          style={{ top: clampedTop, height, background: c.bg, color: c.color, borderLeftColor: c.color }}
                           onClick={() => setActiveEvent(ev)}>
-                          <div style={{ fontSize: 9, opacity: .75, fontFamily: "var(--mono)", whiteSpace: "nowrap" }}>
+                          <div style={{ fontSize: 9, opacity: .8, fontFamily: "var(--mono)", whiteSpace: "nowrap" }}>
                             {st}{et ? ` – ${et}` : ""}
                           </div>
-                          <div style={{ fontSize: 10, fontWeight: 600, overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }}>
+                          <div style={{ fontWeight: 600, overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }}>
                             {ev.title}
                           </div>
                         </div>
@@ -1109,7 +1110,7 @@ export default function Calendar({ user, initialDate, refreshKey }) {
 
       {/* ── 3-day view ── */}
       {calView === "3day" && (
-        <div className="card mb18" style={{ padding: 0, overflow: "hidden" }}>
+        <div className="card mb18 cal-view-enter" style={{ padding: 0, overflow: "hidden" }}>
           <div className="week-time-grid-header">
             <div className="time-col-spacer" />
             {threeDays.map((d, i) => (
@@ -1130,7 +1131,7 @@ export default function Calendar({ user, initialDate, refreshKey }) {
                     const c = catOf(ev);
                     return (
                       <div key={ev.id} className="event-chip"
-                        style={{ background: c.bg, color: c.color, width: "100%", maxWidth: "100%" }}
+                        style={{ background: c.bg, borderLeftColor: c.color, color: c.color, width: "100%", maxWidth: "100%" }}
                         onClick={() => setActiveEvent(ev)}>
                         {ev.shared && <span className="event-badge-s">S</span>}
                         <span style={{ overflow: "hidden", textOverflow: "ellipsis", flex: 1, minWidth: 0 }}>{ev.title}</span>
@@ -1170,12 +1171,12 @@ export default function Calendar({ user, initialDate, refreshKey }) {
                       const height = evHeight(st, et);
                       return (
                         <div key={ev.id} className="week-grid-event"
-                          style={{ top: clampedTop, height, background: c.bg, color: c.color, border: `1px solid ${c.color}50` }}
+                          style={{ top: clampedTop, height, background: c.bg, color: c.color, borderLeftColor: c.color }}
                           onClick={() => setActiveEvent(ev)}>
-                          <div style={{ fontSize: 9, opacity: .75, fontFamily: "var(--mono)", whiteSpace: "nowrap" }}>
+                          <div style={{ fontSize: 9, opacity: .8, fontFamily: "var(--mono)", whiteSpace: "nowrap" }}>
                             {st}{et ? ` – ${et}` : ""}
                           </div>
-                          <div style={{ fontSize: 10, fontWeight: 600, overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }}>
+                          <div style={{ fontWeight: 600, overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }}>
                             {ev.title}
                           </div>
                         </div>
@@ -1197,7 +1198,7 @@ export default function Calendar({ user, initialDate, refreshKey }) {
 
       {/* ── Day view ── */}
       {calView === "day" && (
-        <div className="card mb18" style={{ padding: 0, overflow: "hidden" }}>
+        <div className="card mb18 cal-view-enter" style={{ padding: 0, overflow: "hidden" }}>
           <div className="week-time-grid-header">
             <div className="time-col-spacer" />
             <div className={`week-time-grid-day-head${currentDate.toDateString() === now.toDateString() ? " today" : ""}`} style={{ flex: 1 }}>
@@ -1246,12 +1247,12 @@ export default function Calendar({ user, initialDate, refreshKey }) {
                   const height = evHeight(st, et);
                   return (
                     <div key={ev.id} className="week-grid-event"
-                      style={{ top: clampedTop, height, background: c.bg, color: c.color, border: `1px solid ${c.color}50` }}
+                      style={{ top: clampedTop, height, background: c.bg, color: c.color, borderLeftColor: c.color }}
                       onClick={() => setActiveEvent(ev)}>
-                      <div style={{ fontSize: 9, opacity: .75, fontFamily: "var(--mono)", whiteSpace: "nowrap" }}>
+                      <div style={{ fontSize: 9, opacity: .8, fontFamily: "var(--mono)", whiteSpace: "nowrap" }}>
                         {st}{et ? ` – ${et}` : ""}
                       </div>
-                      <div style={{ fontSize: 10, fontWeight: 600, overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }}>
+                      <div style={{ fontWeight: 600, overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }}>
                         {ev.title}
                       </div>
                     </div>
@@ -1277,7 +1278,7 @@ export default function Calendar({ user, initialDate, refreshKey }) {
           gap: 12,
           marginBottom: 18,
         }}
-          className="year-grid">
+          className="year-grid cal-view-enter">
           {Array.from({ length: 12 }, (_, i) => {
             const mDate      = new Date(year, i, 1);
             const mDaysIn    = new Date(year, i+1, 0).getDate();

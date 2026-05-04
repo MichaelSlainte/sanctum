@@ -718,7 +718,7 @@
     color: var(--t2); margin-bottom: 5px; width: 22px; height: 22px;
     display: flex; align-items: center; justify-content: center; border-radius: 6px;
   }
-  .cal-cell.today .cal-day-num { background: var(--blue); color: #fff; font-weight: 700; }
+  .cal-cell.today .cal-day-num { background: var(--blue); color: #fff; font-weight: 700; width: 26px; height: 26px; font-size: 13px; box-shadow: 0 2px 8px var(--blueb); }
   .cal-events { display: flex; flex-direction: column; gap: 3px; flex: 1; overflow: hidden; }
   .cal-event {
     font-size: 10px; font-weight: 600; padding: 3px 6px;
@@ -764,11 +764,12 @@
   /* ── Event chips (month grid) ── */
   .event-chip {
     display: flex; align-items: center; gap: 4px;
-    padding: 2px 6px; border-radius: 4px;
+    padding: 3px 7px; border-radius: 6px;
     font-size: 11px; font-weight: 600; cursor: pointer;
     white-space: nowrap; overflow: hidden;
     text-overflow: ellipsis; max-width: 100%;
     transition: opacity .15s; line-height: 1.4;
+    border-left-width: 3px; border-left-style: solid;
   }
   .event-chip:hover { opacity: .82; }
   .event-time { font-size: 10px; opacity: 0.75; font-family: var(--mono); flex-shrink: 0; }
@@ -821,12 +822,22 @@
   .time-slot:hover { background: var(--bg2); }
   .week-grid-event {
     position: absolute; left: 2px; right: 2px;
-    border-radius: 5px; padding: 2px 5px;
-    font-size: 10px; cursor: pointer; z-index: 2;
-    overflow: hidden; min-height: 20px; line-height: 1.3;
-    box-sizing: border-box;
+    border-radius: 8px; padding: 3px 7px 3px 9px;
+    font-size: 11px; cursor: pointer; z-index: 2;
+    overflow: hidden; min-height: 22px; line-height: 1.35;
+    box-sizing: border-box; transition: opacity .15s;
+    border-left-width: 3px; border-left-style: solid;
   }
-  .week-grid-event:hover { opacity: .85; }
+  .week-grid-event:hover { opacity: .82; }
+
+  /* ── Calendar layout helpers ── */
+  .cal-header-right { display: flex; flex-direction: column; align-items: flex-end; gap: 8px; }
+  .cal-view-switcher { display: flex; background: var(--bg2); padding: 4px; border-radius: 10px; gap: 2px; }
+  .cal-view-btn { flex-shrink: 0; white-space: nowrap; }
+
+  /* ── Calendar view enter transition ── */
+  @keyframes calViewIn { from { opacity: 0; transform: translateY(6px); } to { opacity: 1; transform: translateY(0); } }
+  .cal-view-enter { animation: calViewIn .2s ease both; }
 
   /* ── Career ── */
   .app-table { width: 100%; border-collapse: collapse; }
@@ -1129,7 +1140,7 @@
     .app-table th:nth-child(4), .app-table td:nth-child(4),
     .app-table th:nth-child(5), .app-table td:nth-child(5) { display: none; }
     .topbar { padding: 0 16px; }
-    .cal-cell { min-height: 55px; }
+    .cal-cell { min-height: 80px; }
     .cal-grid { padding-bottom: 70px; }
     .ring-card { display: flex; flex-direction: column; align-items: center; justify-content: center; padding: 14px 10px; text-align: center; flex-shrink: 0; min-width: 130px; }
     .ring-card svg { display: block; margin: 0 auto; }
@@ -1168,6 +1179,21 @@
     .pmbok-topic-row { min-height: 44px; }
     .cal-grid { padding-bottom: 80px; }
     .cal-event { overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+    /* Calendar header — stack vertically, full-width view switcher */
+    .cal-header { flex-direction: column; align-items: stretch; gap: 10px; }
+    .cal-month-nav { justify-content: space-between; }
+    .cal-header-right { align-items: stretch; width: 100%; }
+    .cal-header-right > div:first-child { width: 100%; }
+    .cal-shortcuts-hint { display: none; }
+    .cal-view-switcher { flex: 1; overflow-x: auto; -webkit-overflow-scrolling: touch; scrollbar-width: none; }
+    .cal-view-switcher::-webkit-scrollbar { display: none; }
+    /* Time grid — narrower time column on small screens */
+    .week-time-col { width: 40px; }
+    .time-col-spacer { width: 40px; }
+    .week-allday-label { width: 40px; }
+    .week-hour-label { font-size: 8px; padding-right: 4px; }
+    .week-time-grid-scroll { max-height: calc(100vh - 290px); }
+    .week-grid-event { font-size: 10px; padding: 2px 5px 2px 7px; }
   }
   @media (min-width: 769px) {
     .mobile-back-btn { display: none; }
