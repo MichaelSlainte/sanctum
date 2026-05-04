@@ -119,23 +119,23 @@ export default function Study({ user }) {
   const [pmpGoals, setPmpGoals] = useState({
     examDate:    localStorage.getItem("sanctum_pmp_date")    || "2026-07-07",
     weeklyGoal:  localStorage.getItem("sanctum_study_goal")  || "10",
-    targetHours: localStorage.getItem("sanctum_pmp_target")  || "150",
+    targetTotal: localStorage.getItem("sanctum_pmp_target")  || "150",
   });
   const savePmpGoal = (key, val) => {
-    const lsKeys = { examDate: "sanctum_pmp_date", weeklyGoal: "sanctum_study_goal", targetHours: "sanctum_pmp_target" };
+    const lsKeys = { examDate: "sanctum_pmp_date", weeklyGoal: "sanctum_study_goal", targetTotal: "sanctum_pmp_target" };
     localStorage.setItem(lsKeys[key], val);
     const updated = { ...pmpGoals, [key]: val };
     setPmpGoals(updated);
     sb.from('ozzy_profile').upsert({
       key: 'study_config_' + user?.id,
-      value: JSON.stringify({ weeklyGoal: updated.weeklyGoal, targetTotal: updated.targetHours, examDate: updated.examDate }),
+      value: JSON.stringify({ weeklyGoal: updated.weeklyGoal, targetTotal: updated.targetTotal, examDate: updated.examDate }),
       user_id: user?.id,
     }, 'key,user_id').catch(() => {});
   };
   const EXAM_DATE  = new Date(pmpGoals.examDate + "T13:30");
   const daysLeft   = Math.ceil((EXAM_DATE - today) / (1000 * 60 * 60 * 24));
   const weeklyGoal = parseFloat(pmpGoals.weeklyGoal) || 10;
-  const targetHours = parseFloat(pmpGoals.targetHours) || 150;
+  const targetHours = parseFloat(pmpGoals.targetTotal) || 150;
 
   // Subjects (localStorage — each subject has its own topics array)
   const [subjects, setSubjects] = useState(() => {
@@ -230,7 +230,7 @@ export default function Study({ user }) {
           const cfg = JSON.parse(rows[0].value);
           setPmpGoals(g => ({
             weeklyGoal:  cfg.weeklyGoal  || g.weeklyGoal,
-            targetHours: cfg.targetTotal || g.targetHours,
+            targetTotal: cfg.targetTotal || g.targetTotal,
             examDate:    cfg.examDate    || g.examDate,
           }));
         } catch {}
@@ -497,7 +497,7 @@ export default function Study({ user }) {
         <div style={{ display: "flex", alignItems: "center", gap: 6 }}>
           <span style={{ fontSize: 11, color: "var(--t3)", fontWeight: 600, whiteSpace: "nowrap" }}>Target total (h)</span>
           <input type="number" className="inp" style={{ padding: "4px 8px", fontSize: 12, width: 80 }}
-            min="1" max="999" value={pmpGoals.targetHours} onChange={e => savePmpGoal("targetHours", e.target.value)} />
+            min="1" max="999" value={pmpGoals.targetTotal} onChange={e => savePmpGoal("targetTotal", e.target.value)} />
         </div>
         <button className="btn sm primary" style={{ marginLeft: "auto" }} onClick={openSessionModal}>
           <Icon name="plus" size={13} /> Log session
