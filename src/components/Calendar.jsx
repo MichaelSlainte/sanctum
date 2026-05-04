@@ -167,8 +167,8 @@ const getEventsForDate = (events, dateStr) => {
     const target = new Date(dateStr + "T00:00:00");
     if (target <= base) continue;
 
-    if (ev.repeatEnd === "until" && ev.repeatEndDate) {
-      if (target > new Date(ev.repeatEndDate + "T00:00:00")) continue;
+    if (ev.repeat_end === "until" && ev.repeat_end_date) {
+      if (target > new Date(ev.repeat_end_date + "T00:00:00")) continue;
     }
     if (ev.end_date && !ev.all_day && target > new Date(ev.end_date + "T00:00:00")) continue;
     if (Array.isArray(ev.exceptions) && ev.exceptions.includes(dateStr)) continue;
@@ -180,8 +180,8 @@ const getEventsForDate = (events, dateStr) => {
     else if (ev.repeat === "monthly") matches = base.getDate() === target.getDate();
     else if (ev.repeat === "yearly")  matches = base.getMonth() === target.getMonth() && base.getDate() === target.getDate();
     else if (ev.repeat === "custom") {
-      const interval = ev.repeatCustomInterval || 2;
-      const unit     = ev.repeatCustomUnit     || "week";
+      const interval = ev.repeat_custom_interval || 2;
+      const unit     = ev.repeat_custom_unit     || "week";
       const diffDays = Math.round((target - base) / 86400000);
       if      (unit === "day")   matches = diffDays % interval === 0;
       else if (unit === "week")  matches = diffDays % (interval * 7) === 0;
@@ -344,11 +344,11 @@ export default function Calendar({ user, initialDate, refreshKey }) {
       notes:               ev.notes               || "",
       repeat:              ev.repeat              || "none",
       reminder:            ev.reminder            || "none",
-      repeatEnd:           ev.repeatEnd           || "forever",
-      repeatEndDate:       ev.repeatEndDate       || "",
-      repeatEndCount:      ev.repeatEndCount      || 10,
-      repeatCustomInterval: ev.repeatCustomInterval || 2,
-      repeatCustomUnit:    ev.repeatCustomUnit    || "week",
+      repeatEnd:           ev.repeat_end           || "forever",
+      repeatEndDate:       ev.repeat_end_date      || "",
+      repeatEndCount:      ev.repeat_end_count     || 10,
+      repeatCustomInterval: ev.repeat_custom_interval || 2,
+      repeatCustomUnit:    ev.repeat_custom_unit   || "week",
       shared:              ev.shared              || false,
     });
     setShowAdd(true);
@@ -374,11 +374,11 @@ export default function Calendar({ user, initialDate, refreshKey }) {
       notes:     formData.notes      || null,
       repeat:    formData.repeat     || "none",
       reminder:  formData.reminder   || "none",
-      repeatEnd:            formData.repeat !== "none" ? (formData.repeatEnd || "forever") : null,
-      repeatEndDate:        formData.repeat !== "none" && formData.repeatEnd === "until" ? (formData.repeatEndDate || null) : null,
-      repeatEndCount:       formData.repeat !== "none" && formData.repeatEnd === "count" ? (formData.repeatEndCount || 10) : null,
-      repeatCustomInterval: formData.repeat === "custom" ? (formData.repeatCustomInterval || 2) : null,
-      repeatCustomUnit:     formData.repeat === "custom" ? (formData.repeatCustomUnit || "week") : null,
+      repeat_end:             formData.repeat !== "none" ? (formData.repeatEnd || "forever") : null,
+      repeat_end_date:        formData.repeat !== "none" && formData.repeatEnd === "until" ? (formData.repeatEndDate || null) : null,
+      repeat_end_count:       formData.repeat !== "none" && formData.repeatEnd === "count" ? (formData.repeatEndCount || 10) : null,
+      repeat_custom_interval: formData.repeat === "custom" ? (formData.repeatCustomInterval || 2) : null,
+      repeat_custom_unit:     formData.repeat === "custom" ? (formData.repeatCustomUnit || "week") : null,
       shared:    formData.shared     || false,
       all_day:   allDay,
       user_id:   user?.id,
