@@ -220,6 +220,10 @@ export default function Study({ user }) {
   useEffect(() => {
     loadAll();
     loadSubjectsAndTopics();
+  }, []);
+
+  useEffect(() => {
+    if (!user?.id) return;
     sb.from('ozzy_profile').select('*', `&key=eq.study_config_${user?.id}`, '').then(rows => {
       if (Array.isArray(rows) && rows[0]?.value) {
         try {
@@ -232,7 +236,7 @@ export default function Study({ user }) {
         } catch {}
       }
     });
-  }, []);
+  }, [user?.id]);
   const loadAll = async () => {
     const data = await sb.from("study_sessions").select("*");
     if (Array.isArray(data)) setAllSessions(data);

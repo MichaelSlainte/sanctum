@@ -170,6 +170,8 @@ const getEventsForDate = (events, dateStr) => {
     if (ev.repeatEnd === "until" && ev.repeatEndDate) {
       if (target > new Date(ev.repeatEndDate + "T00:00:00")) continue;
     }
+    if (ev.end_date && !ev.all_day && target > new Date(ev.end_date + "T00:00:00")) continue;
+    if (Array.isArray(ev.exceptions) && ev.exceptions.includes(dateStr)) continue;
 
     let matches = false;
     if      (ev.repeat === "daily")   matches = true;
@@ -360,7 +362,9 @@ export default function Calendar({ user, initialDate, refreshKey }) {
     const payload = {
       title:     formData.title.trim(),
       date:      formData.date,
-      end_date:  allDay ? (formData.end_date || formData.date) : null,
+      end_date:  allDay
+        ? (formData.end_date || formData.date)
+        : (formData.repeat !== "none" && formData.repeatEnd === "until" ? formData.repeatEndDate || null : null),
       category:  formData.category,
       color:     cat.color,
       start_time: allDay ? null : formData.start_time || null,
@@ -370,6 +374,11 @@ export default function Calendar({ user, initialDate, refreshKey }) {
       notes:     formData.notes      || null,
       repeat:    formData.repeat     || "none",
       reminder:  formData.reminder   || "none",
+      repeatEnd:            formData.repeat !== "none" ? (formData.repeatEnd || "forever") : null,
+      repeatEndDate:        formData.repeat !== "none" && formData.repeatEnd === "until" ? (formData.repeatEndDate || null) : null,
+      repeatEndCount:       formData.repeat !== "none" && formData.repeatEnd === "count" ? (formData.repeatEndCount || 10) : null,
+      repeatCustomInterval: formData.repeat === "custom" ? (formData.repeatCustomInterval || 2) : null,
+      repeatCustomUnit:     formData.repeat === "custom" ? (formData.repeatCustomUnit || "week") : null,
       shared:    formData.shared     || false,
       all_day:   allDay,
       user_id:   user?.id,
@@ -391,10 +400,38 @@ export default function Calendar({ user, initialDate, refreshKey }) {
     closeModal();
   };
 
+  const [deleteConfirmEvent, setDeleteConfirmEvent] = useState(null);
+
   const deleteEvent = async (id) => {
-    const realId = id.includes("_v_") ? id.split("_v_")[0] : id;
-    setEvents(prev => prev.filter(e => e.id !== realId));
+    if (id.includes("_v_")) {
+      const [realId, date] = id.split("_v_");
+      const ev = events.find(e => e.id === realId);
+      setDeleteConfirmEvent({ realId, date, title: ev?.title || "this event" });
+      setActiveEvent(null);
+      return;
+    }
+    const ev = events.find(e => e.id === id);
+    if (ev?.repeat && ev.repeat !== "none") {
+      setDeleteConfirmEvent({ realId: id, date: ev.date, title: ev.title || "this event" });
+      setActiveEvent(null);
+      return;
+    }
+    setEvents(prev => prev.filter(e => e.id !== id));
     setActiveEvent(null);
+    try { await sb.from("events").delete({ id }); } catch {}
+  };
+
+  const deleteOccurrence = async (realId, date) => {
+    const ev = events.find(e => e.id === realId);
+    const newExceptions = [...(Array.isArray(ev?.exceptions) ? ev.exceptions : []), date];
+    setEvents(prev => prev.map(e => e.id === realId ? { ...e, exceptions: newExceptions } : e));
+    setDeleteConfirmEvent(null);
+    try { await sb.from("events").update({ exceptions: newExceptions }, { id: realId }); } catch {}
+  };
+
+  const deleteAllOccurrences = async (realId) => {
+    setEvents(prev => prev.filter(e => e.id !== realId));
+    setDeleteConfirmEvent(null);
     try { await sb.from("events").delete({ id: realId }); } catch {}
   };
 
@@ -814,6 +851,24 @@ export default function Calendar({ user, initialDate, refreshKey }) {
             <button className="btn" onClick={closeModal}>Cancel</button>
             <button className="btn primary" onClick={saveEvent}>
               {editingEvent ? "Save changes" : "Add event"}
+            </button>
+          </div>
+        </Modal>
+      )}
+
+      {/* Delete recurring event confirmation */}
+      {deleteConfirmEvent && (
+        <Modal title="Delete recurring event" onClose={() => setDeleteConfirmEvent(null)}>
+          <p style={{ fontSize: 13, color: "var(--t2)", marginBottom: 20, lineHeight: 1.6 }}>
+            <strong>{deleteConfirmEvent.title}</strong> is a recurring event. What would you like to delete?
+          </p>
+          <div className="modal-actions">
+            <button className="btn" onClick={() => setDeleteConfirmEvent(null)}>Cancel</button>
+            <button className="btn danger" onClick={() => deleteOccurrence(deleteConfirmEvent.realId, deleteConfirmEvent.date)}>
+              This occurrence only
+            </button>
+            <button className="btn danger" onClick={() => deleteAllOccurrences(deleteConfirmEvent.realId)}>
+              All occurrences
             </button>
           </div>
         </Modal>
