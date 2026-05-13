@@ -223,6 +223,93 @@ const convertTimeToTz = (timeStr, fromTz, toTz, dateStr) => {
   } catch { return timeStr; }
 };
 
+function MiniCalPicker({ value, onChange }) {
+  const [open, setOpen] = useState(false);
+  const [pickerMY, setPickerMY] = useState(() => {
+    const d = value ? new Date(value + "T00:00:00") : new Date();
+    return { y: d.getFullYear(), m: d.getMonth() };
+  });
+  useEffect(() => {
+    if (value) { const d = new Date(value + "T00:00:00"); setPickerMY({ y: d.getFullYear(), m: d.getMonth() }); }
+  }, [value]);
+
+  const { y: yr, m: mo } = pickerMY;
+  const todayD   = new Date();
+  const todayStr = `${todayD.getFullYear()}-${String(todayD.getMonth()+1).padStart(2,"0")}-${String(todayD.getDate()).padStart(2,"0")}`;
+  const firstDay = new Date(yr, mo, 1).getDay();
+  const daysInMo = new Date(yr, mo + 1, 0).getDate();
+  const startOff = firstDay === 0 ? 6 : firstDay - 1;
+  const cells = [];
+  for (let i = startOff - 1; i >= 0; i--) cells.push({ day: new Date(yr, mo, 0).getDate() - i, cur: false });
+  for (let i = 1; i <= daysInMo; i++) cells.push({ day: i, cur: true });
+  while (cells.length % 7 !== 0) cells.push({ day: 0, cur: false });
+  const fmtD  = (d) => `${yr}-${String(mo+1).padStart(2,"0")}-${String(d).padStart(2,"0")}`;
+  const prevMo = () => setPickerMY(({ y, m }) => m === 0 ? { y: y-1, m: 11 } : { y, m: m-1 });
+  const nextMo = () => setPickerMY(({ y, m }) => m === 11 ? { y: y+1, m: 0 } : { y, m: m+1 });
+  const displayLabel = value
+    ? new Date(value + "T00:00:00").toLocaleDateString("en-IE", { weekday: "short", day: "numeric", month: "short", year: "numeric" })
+    : "Select date";
+
+  return (
+    <div style={{ position: "relative" }}>
+      <button type="button" onClick={() => setOpen(o => !o)} style={{
+        width: "100%", textAlign: "left", padding: "9px 12px",
+        background: "var(--bg2)", border: "1px solid var(--b1)", borderRadius: 8,
+        color: value ? "var(--t1)" : "var(--t3)", fontSize: 13, cursor: "pointer",
+        display: "flex", alignItems: "center", justifyContent: "space-between", gap: 8,
+      }}>
+        <span>{displayLabel}</span>
+        <span style={{ fontSize: 10, opacity: .6, flexShrink: 0 }}>📅 {open ? "▲" : "▼"}</span>
+      </button>
+      {open && (
+        <div style={{
+          position: "absolute", top: "calc(100% + 4px)", left: 0, right: 0, zIndex: 200,
+          background: "var(--bg1)", border: "1px solid var(--b2)", borderRadius: 12,
+          padding: "12px 8px", boxShadow: "0 8px 32px rgba(0,0,0,0.4)",
+        }}>
+          <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: 8 }}>
+            <button type="button" onClick={prevMo}
+              style={{ background: "none", border: "none", color: "var(--t2)", cursor: "pointer", fontSize: 20, padding: "2px 12px", lineHeight: 1, borderRadius: 6 }}>‹</button>
+            <span style={{ fontSize: 13, fontWeight: 700, color: "var(--t1)" }}>{MONTHS[mo]} {yr}</span>
+            <button type="button" onClick={nextMo}
+              style={{ background: "none", border: "none", color: "var(--t2)", cursor: "pointer", fontSize: 20, padding: "2px 12px", lineHeight: 1, borderRadius: 6 }}>›</button>
+          </div>
+          <div style={{ display: "grid", gridTemplateColumns: "repeat(7, 1fr)", gap: 2, marginBottom: 4 }}>
+            {["Mo","Tu","We","Th","Fr","Sa","Su"].map(d => (
+              <div key={d} style={{ textAlign: "center", fontSize: 10, color: "var(--t3)", fontWeight: 600, padding: "2px 0" }}>{d}</div>
+            ))}
+          </div>
+          <div style={{ display: "grid", gridTemplateColumns: "repeat(7, 1fr)", gap: 2 }}>
+            {cells.map((cell, i) => {
+              const ds    = cell.cur ? fmtD(cell.day) : null;
+              const isSel = ds !== null && ds === value;
+              const isToday = ds === todayStr;
+              return (
+                <button key={i} type="button"
+                  onClick={() => { if (cell.cur) { onChange(fmtD(cell.day)); setOpen(false); } }}
+                  style={{
+                    border: "none", borderRadius: 6, textAlign: "center",
+                    cursor: cell.cur ? "pointer" : "default",
+                    background: isSel ? "var(--acc)" : "transparent",
+                    color: isSel ? "#fff" : !cell.cur ? "transparent" : isToday ? "var(--acc)" : "var(--t1)",
+                    fontWeight: isSel || isToday ? 700 : 400, fontSize: 12,
+                    padding: "6px 2px", minHeight: 34,
+                    textDecoration: isToday && !isSel ? "underline" : "none",
+                    transition: "background .1s",
+                  }}
+                  onMouseEnter={e => { if (cell.cur && !isSel) e.currentTarget.style.background = "var(--bg2)"; }}
+                  onMouseLeave={e => { if (cell.cur && !isSel) e.currentTarget.style.background = "transparent"; }}>
+                  {cell.cur ? cell.day : ""}
+                </button>
+              );
+            })}
+          </div>
+        </div>
+      )}
+    </div>
+  );
+}
+
 export default function Calendar({ user, initialDate, refreshKey }) {
   const now = new Date();
   const [currentDate, setCurrentDate] = useState(initialDate || now);
@@ -580,9 +667,6 @@ export default function Calendar({ user, initialDate, refreshKey }) {
     { label: "Next Mon", date: nextMonISO  },
     { label: "Next Sat", date: nextSatISO  },
   ];
-  const DATE_DAYS   = Array.from({ length: 31 }, (_, i) => i + 1);
-  const DATE_MONTHS = ["January","February","March","April","May","June","July","August","September","October","November","December"];
-  const DATE_YEARS  = Array.from({ length: 12 }, (_, i) => new Date().getFullYear() - 1 + i);
 
   // ── Header title by view ──
   const headerTitle = (() => {
@@ -626,35 +710,7 @@ export default function Calendar({ user, initialDate, refreshKey }) {
                 </button>
               ))}
             </div>
-            <div style={{ display: "flex", gap: 8, alignItems: "center" }}>
-              <select className="inp" style={{ width: 70 }}
-                value={new Date(formData.date + "T12:00:00").getDate()}
-                onChange={e => {
-                  const d = new Date(formData.date + "T12:00:00");
-                  d.setDate(parseInt(e.target.value));
-                  setF("date", d.toISOString().slice(0, 10));
-                }}>
-                {DATE_DAYS.map(d => <option key={d} value={d}>{d}</option>)}
-              </select>
-              <select className="inp" style={{ flex: 1 }}
-                value={new Date(formData.date + "T12:00:00").getMonth()}
-                onChange={e => {
-                  const d = new Date(formData.date + "T12:00:00");
-                  d.setMonth(parseInt(e.target.value));
-                  setF("date", d.toISOString().slice(0, 10));
-                }}>
-                {DATE_MONTHS.map((m, i) => <option key={i} value={i}>{m}</option>)}
-              </select>
-              <select className="inp" style={{ width: 80 }}
-                value={new Date(formData.date + "T12:00:00").getFullYear()}
-                onChange={e => {
-                  const d = new Date(formData.date + "T12:00:00");
-                  d.setFullYear(parseInt(e.target.value));
-                  setF("date", d.toISOString().slice(0, 10));
-                }}>
-                {DATE_YEARS.map(y => <option key={y} value={y}>{y}</option>)}
-              </select>
-            </div>
+            <MiniCalPicker value={formData.date} onChange={v => setF("date", v)} />
           </div>
 
           <div className="form-row">
@@ -702,35 +758,7 @@ export default function Calendar({ user, initialDate, refreshKey }) {
             {allDay && (
               <div style={{ marginTop: 8 }}>
                 <label className="form-label" style={{ fontSize: 10 }}>End date</label>
-                <div style={{ display: "flex", gap: 8, alignItems: "center" }}>
-                  <select className="inp" style={{ width: 70 }}
-                    value={new Date((formData.end_date || formData.date) + "T12:00:00").getDate()}
-                    onChange={e => {
-                      const d = new Date((formData.end_date || formData.date) + "T12:00:00");
-                      d.setDate(parseInt(e.target.value));
-                      setF("end_date", d.toISOString().slice(0, 10));
-                    }}>
-                    {DATE_DAYS.map(d => <option key={d} value={d}>{d}</option>)}
-                  </select>
-                  <select className="inp" style={{ flex: 1 }}
-                    value={new Date((formData.end_date || formData.date) + "T12:00:00").getMonth()}
-                    onChange={e => {
-                      const d = new Date((formData.end_date || formData.date) + "T12:00:00");
-                      d.setMonth(parseInt(e.target.value));
-                      setF("end_date", d.toISOString().slice(0, 10));
-                    }}>
-                    {DATE_MONTHS.map((m, i) => <option key={i} value={i}>{m}</option>)}
-                  </select>
-                  <select className="inp" style={{ width: 80 }}
-                    value={new Date((formData.end_date || formData.date) + "T12:00:00").getFullYear()}
-                    onChange={e => {
-                      const d = new Date((formData.end_date || formData.date) + "T12:00:00");
-                      d.setFullYear(parseInt(e.target.value));
-                      setF("end_date", d.toISOString().slice(0, 10));
-                    }}>
-                    {DATE_YEARS.map(y => <option key={y} value={y}>{y}</option>)}
-                  </select>
-                </div>
+                <MiniCalPicker value={formData.end_date || formData.date} onChange={v => setF("end_date", v)} />
               </div>
             )}
           </div>

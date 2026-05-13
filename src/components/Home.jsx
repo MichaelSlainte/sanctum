@@ -421,6 +421,15 @@ export default function Home({ user, archivedTrackers = [], onNavigate, onGoToCa
   const aiInputRef = useRef(null);
   const [pmpSessions, setPmpSessions] = useState([]);
   const [showRingCustomise, setShowRingCustomise] = useState(false);
+  const [showStudyLog, setShowStudyLog] = useState(false);
+  const [studyLogSaving, setStudyLogSaving] = useState(false);
+  const [studySubjects, setStudySubjects] = useState(() => {
+    try { const s = JSON.parse(localStorage.getItem("sanctum_study_subjects")); if (Array.isArray(s) && s.length > 0) return s; } catch {}
+    return [{ id: "pmp", label: "PMP", color: "#f59e0b", topics: [] }];
+  });
+  const [studyLogForm, setStudyLogForm] = useState({
+    subject: "pmp", topic: "", hours: "", date: new Date().toISOString().slice(0, 10), notes: "",
+  });
   const [showRoadmap, setShowRoadmap] = useState(() =>
     localStorage.getItem("sanctum_hide_roadmap") !== "true"
   );
@@ -647,6 +656,43 @@ export default function Home({ user, archivedTrackers = [], onNavigate, onGoToCa
     } catch {}
   };
 
+  const openStudyLog = () => {
+    sb.from("study_subjects").select("*", "", "position.asc").then(dbSubjs => {
+      if (!Array.isArray(dbSubjs) || !dbSubjs.length) return;
+      sb.from("study_topics").select("*", "", "position.asc").then(dbTopics => {
+        const built = dbSubjs.map(s => ({
+          id: s.id, label: s.label, color: s.color,
+          topics: Array.isArray(dbTopics) ? dbTopics.filter(t => t.subject_id === s.id).map(t => ({ id: t.id, label: t.label })) : [],
+        }));
+        setStudySubjects(built);
+        localStorage.setItem("sanctum_study_subjects", JSON.stringify(built));
+        setStudyLogForm(f => ({ ...f, subject: built[0]?.id || "pmp", topic: "" }));
+      }).catch(() => {});
+    }).catch(() => {});
+    setShowStudyLog(true);
+  };
+
+  const saveStudyLog = async () => {
+    const h = parseFloat(studyLogForm.hours);
+    if (!h || h <= 0) return;
+    setStudyLogSaving(true);
+    try {
+      await sb.from("study_sessions").insert({
+        type: studyLogForm.subject,
+        topic: studyLogForm.topic || "Quick log",
+        hours: h,
+        notes: studyLogForm.notes || "",
+        date: studyLogForm.date,
+        user_id: user?.id,
+      });
+      await loadStudy();
+    } finally {
+      setStudyLogSaving(false);
+      setShowStudyLog(false);
+      setStudyLogForm(f => ({ ...f, topic: "", hours: "", notes: "" }));
+    }
+  };
+
   const toggleTask = async (t) => {
     setTasks(prev => prev.map(x => x.id === t.id ? { ...x, done: !x.done } : x));
     try { await sb.from("tasks").update({ done: !t.done }, { id: t.id }); } catch {}
@@ -861,6 +907,64 @@ For all other queries respond in plain conversational text, warm but concise, ma
         </Modal>
       )}
 
+      {showStudyLog && (
+        <Modal title="Log study session" onClose={() => setShowStudyLog(false)}>
+          <div className="grid-2" style={{ gap: 12 }}>
+            <div className="form-row">
+              <label className="form-label">Subject</label>
+              <select className="inp" value={studyLogForm.subject}
+                onChange={e => setStudyLogForm(f => ({ ...f, subject: e.target.value, topic: "" }))}>
+                {studySubjects.map(s => <option key={s.id} value={s.id}>{s.label}</option>)}
+              </select>
+            </div>
+            <div className="form-row">
+              <label className="form-label">Topic</label>
+              {(() => {
+                const subj = studySubjects.find(s => s.id === studyLogForm.subject);
+                return subj?.topics?.length > 0 ? (
+                  <select className="inp" value={studyLogForm.topic}
+                    onChange={e => setStudyLogForm(f => ({ ...f, topic: e.target.value }))}>
+                    <option value="">Select topic...</option>
+                    {subj.topics.map(t => <option key={t.id} value={t.id}>{t.label}</option>)}
+                  </select>
+                ) : (
+                  <input className="inp" value={studyLogForm.topic}
+                    onChange={e => setStudyLogForm(f => ({ ...f, topic: e.target.value }))}
+                    placeholder="e.g. Risk Management..." />
+                );
+              })()}
+            </div>
+          </div>
+          <div className="grid-2" style={{ gap: 12 }}>
+            <div className="form-row">
+              <label className="form-label">Hours</label>
+              <input className="inp" type="number" step="0.5" min="0.5" max="12"
+                value={studyLogForm.hours}
+                onChange={e => setStudyLogForm(f => ({ ...f, hours: e.target.value }))}
+                placeholder="e.g. 1.5" autoFocus />
+            </div>
+            <div className="form-row">
+              <label className="form-label">Date</label>
+              <input className="inp" type="date" value={studyLogForm.date}
+                onChange={e => setStudyLogForm(f => ({ ...f, date: e.target.value }))} />
+            </div>
+          </div>
+          <div className="form-row">
+            <label className="form-label">Notes (optional)</label>
+            <textarea className="inp" value={studyLogForm.notes}
+              onChange={e => setStudyLogForm(f => ({ ...f, notes: e.target.value }))}
+              placeholder="What did you cover? Key takeaways..." style={{ minHeight: 60 }} />
+          </div>
+          <div className="modal-actions">
+            <button className="btn" onClick={() => setShowStudyLog(false)}>Cancel</button>
+            <button className="btn primary" disabled={studyLogSaving || !studyLogForm.hours}
+              onClick={saveStudyLog}>
+              {studyLogSaving ? "Saving..." : "Log session"}
+            </button>
+          </div>
+        </Modal>
+      )}
+
       {/* Greeting */}
       <div style={{ marginBottom: 28 }}>
         <div className="home-greeting-name">{greeting}, {displayName}</div>
@@ -1027,6 +1131,13 @@ For all other queries respond in plain conversational text, warm but concise, ma
                   sub={`${weeklyGoalHours}h goal`}
                   percent={weekPercent}
                   color={weekRingColor} />
+                <button
+                  className="btn xs primary"
+                  onMouseDown={e => e.stopPropagation()}
+                  onClick={e => { e.stopPropagation(); openStudyLog(); }}
+                  style={{ marginTop: 6, fontSize: 11, padding: "3px 10px" }}>
+                  + Log
+                </button>
               </div>
             );
             return null;
