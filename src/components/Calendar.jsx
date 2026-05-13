@@ -157,7 +157,10 @@ const evHeight = (start, end) => {
 const getEventsForDate = (events, dateStr) => {
   const results = [];
   for (const ev of events) {
-    if (ev.date === dateStr) { results.push(ev); continue; }
+    if (ev.date === dateStr) {
+      if (!ev.repeat_deleted_from || dateStr < ev.repeat_deleted_from) results.push(ev);
+      continue;
+    }
     if (ev.all_day && ev.end_date && ev.end_date > ev.date && dateStr > ev.date && dateStr <= ev.end_date) {
       results.push({ ...ev, date: dateStr, _multiday: true, id: `${ev.id}_md_${dateStr}` });
       continue;
@@ -172,6 +175,7 @@ const getEventsForDate = (events, dateStr) => {
     }
     if (ev.end_date && !ev.all_day && target > new Date(ev.end_date + "T00:00:00")) continue;
     if (Array.isArray(ev.exceptions) && ev.exceptions.includes(dateStr)) continue;
+    if (ev.repeat_deleted_from && dateStr >= ev.repeat_deleted_from) continue;
 
     let matches = false;
     if      (ev.repeat === "daily")   matches = true;
@@ -207,11 +211,11 @@ const getTzOffsetMins = (tz, ref) => {
   } catch { return 0; }
 };
 
-const convertTimeToTz = (timeStr, fromTz, toTz) => {
+const convertTimeToTz = (timeStr, fromTz, toTz, dateStr) => {
   if (!timeStr || !fromTz || !toTz || fromTz === toTz) return timeStr;
   try {
-    const [h, m] = timeStr.split(':').map(Number);
-    const ref = new Date();
+    const [h, m] = timeStr.slice(0, 5).split(':').map(Number);
+    const ref = dateStr ? new Date(dateStr + "T12:00:00") : new Date();
     const diff = getTzOffsetMins(toTz, ref) - getTzOffsetMins(fromTz, ref);
     const total = h * 60 + m + diff;
     const adj = ((total % 1440) + 1440) % 1440;
@@ -232,6 +236,7 @@ export default function Calendar({ user, initialDate, refreshKey }) {
   const [activeEvent, setActiveEvent] = useState(null);
   const [allDay,      setAllDay]      = useState(false);
   const [userTz,      setUserTz]      = useState(() => localStorage.getItem("sanctum_timezone") || "Europe/Dublin");
+  const [activeCatFilters, setActiveCatFilters] = useState(() => new Set());
 
   // Derived
   const year  = currentDate.getFullYear();
@@ -435,6 +440,12 @@ export default function Calendar({ user, initialDate, refreshKey }) {
     try { await sb.from("events").delete({ id: realId }); } catch {}
   };
 
+  const deleteThisAndFuture = async (realId, date) => {
+    setEvents(prev => prev.map(e => e.id === realId ? { ...e, repeat_deleted_from: date } : e));
+    setDeleteConfirmEvent(null);
+    try { await sb.from("events").update({ repeat_deleted_from: date }, { id: realId }); } catch {}
+  };
+
   const setF = (k, v) => setFormData(f => ({ ...f, [k]: v }));
 
   const setStartTime = (val) => {
@@ -456,7 +467,8 @@ export default function Calendar({ user, initialDate, refreshKey }) {
   while (cells.length % 7 !== 0) cells.push({ day: cells.length - daysInMonth - startOffset + 1, current: false });
 
   const fmtDs       = (d) => `${year}-${String(month+1).padStart(2,"0")}-${String(d).padStart(2,"0")}`;
-  const eventsOnDay = (cell) => cell.current ? getEventsForDate(events, fmtDs(cell.day)) : [];
+  const filteredEvts = activeCatFilters.size === 0 ? events : events.filter(ev => activeCatFilters.has(ev.category));
+  const eventsOnDay = (cell) => cell.current ? getEventsForDate(filteredEvts, fmtDs(cell.day)) : [];
   const isTodayCell = (cell) => cell.current && year === now.getFullYear() && month === now.getMonth() && cell.day === now.getDate();
 
   // ── Week view ──
@@ -470,7 +482,7 @@ export default function Calendar({ user, initialDate, refreshKey }) {
   const weekDays  = Array.from({ length: 7 }, (_, i) => { const d = new Date(weekStart); d.setDate(weekStart.getDate()+i); return d; });
   const isWToday  = (date) => date.toDateString() === now.toDateString();
   const nowTop = currentTime.getHours() * 48 + (currentTime.getMinutes() / 60) * 48;
-  const evOnDay   = (date) => getEventsForDate(events, fmtDateStr(date)).sort((a,b) => (a.start_time||"").localeCompare(b.start_time||""));
+  const evOnDay   = (date) => getEventsForDate(filteredEvts, fmtDateStr(date)).sort((a,b) => (a.start_time||"").localeCompare(b.start_time||""));
 
   // ── 3-day view ──
   const threeDays = [-1, 0, 1].map(offset => {
@@ -485,10 +497,18 @@ export default function Calendar({ user, initialDate, refreshKey }) {
 
   const fmtTime12h = (timeStr) => {
     if (!timeStr) return "";
-    const [h, m] = timeStr.split(":").map(Number);
+    const [h, m] = timeStr.slice(0, 5).split(":").map(Number);
     const suffix = h < 12 ? "AM" : "PM";
     const h12 = h === 0 ? 12 : h > 12 ? h - 12 : h;
     return `${h12}:${String(m).padStart(2, "0")} ${suffix}`;
+  };
+
+  const fmtTimeCompact = (timeStr) => {
+    if (!timeStr) return "";
+    const [h, m] = timeStr.slice(0, 5).split(":").map(Number);
+    const suffix = h < 12 ? "am" : "pm";
+    const h12 = h === 0 ? 12 : h > 12 ? h - 12 : h;
+    return m === 0 ? `${h12}${suffix}` : `${h12}:${String(m).padStart(2, "0")}${suffix}`;
   };
 
   // ── Visible events for current view ──
@@ -496,7 +516,7 @@ export default function Calendar({ user, initialDate, refreshKey }) {
     if (calView === "month") {
       const seen = new Set(); const result = [];
       for (let d = 1; d <= daysInMonth; d++) {
-        for (const ev of getEventsForDate(events, fmtDs(d))) {
+        for (const ev of getEventsForDate(filteredEvts, fmtDs(d))) {
           if (!seen.has(ev.id)) { seen.add(ev.id); result.push(ev); }
         }
       }
@@ -505,7 +525,7 @@ export default function Calendar({ user, initialDate, refreshKey }) {
     if (calView === "week") {
       const seen = new Set(); const result = [];
       weekDays.forEach(d => {
-        for (const ev of getEventsForDate(events, fmtDateStr(d))) {
+        for (const ev of getEventsForDate(filteredEvts, fmtDateStr(d))) {
           if (!seen.has(ev.id)) { seen.add(ev.id); result.push(ev); }
         }
       });
@@ -514,17 +534,17 @@ export default function Calendar({ user, initialDate, refreshKey }) {
     if (calView === "3day") {
       const seen = new Set(); const result = [];
       threeDays.forEach(d => {
-        for (const ev of getEventsForDate(events, fmtDateStr(d))) {
+        for (const ev of getEventsForDate(filteredEvts, fmtDateStr(d))) {
           if (!seen.has(ev.id)) { seen.add(ev.id); result.push(ev); }
         }
       });
       return result.sort((a, b) => a.date.localeCompare(b.date));
     }
     if (calView === "day") {
-      return getEventsForDate(events, fmtDateStr(currentDate)).sort((a, b) => (a.start_time||"").localeCompare(b.start_time||""));
+      return getEventsForDate(filteredEvts, fmtDateStr(currentDate)).sort((a, b) => (a.start_time||"").localeCompare(b.start_time||""));
     }
     if (calView === "year") {
-      return events
+      return filteredEvts
         .filter(ev => ev.date && ev.date.startsWith(`${year}-`))
         .sort((a, b) => a.date.localeCompare(b.date));
     }
@@ -562,7 +582,7 @@ export default function Calendar({ user, initialDate, refreshKey }) {
   ];
   const DATE_DAYS   = Array.from({ length: 31 }, (_, i) => i + 1);
   const DATE_MONTHS = ["January","February","March","April","May","June","July","August","September","October","November","December"];
-  const DATE_YEARS  = [2025, 2026, 2027, 2028];
+  const DATE_YEARS  = Array.from({ length: 12 }, (_, i) => new Date().getFullYear() - 1 + i);
 
   // ── Header title by view ──
   const headerTitle = (() => {
@@ -867,6 +887,9 @@ export default function Calendar({ user, initialDate, refreshKey }) {
             <button className="btn danger" onClick={() => deleteOccurrence(deleteConfirmEvent.realId, deleteConfirmEvent.date)}>
               This occurrence only
             </button>
+            <button className="btn danger" onClick={() => deleteThisAndFuture(deleteConfirmEvent.realId, deleteConfirmEvent.date)}>
+              This and following events
+            </button>
             <button className="btn danger" onClick={() => deleteAllOccurrences(deleteConfirmEvent.realId)}>
               All occurrences
             </button>
@@ -896,7 +919,7 @@ export default function Calendar({ user, initialDate, refreshKey }) {
                 <span style={{ fontFamily: "var(--mono)" }}>{activeEvent.date}</span>
                 {startT && (
                   <span style={{ fontFamily: "var(--mono)", color: "var(--t3)" }}>
-                    {startT}{activeEvent.end_time ? ` → ${activeEvent.end_time}` : ""}
+                    {fmtTime12h(startT)}{activeEvent.end_time ? ` → ${fmtTime12h(activeEvent.end_time)}` : ""}
                   </span>
                 )}
               </div>
@@ -971,12 +994,31 @@ export default function Calendar({ user, initialDate, refreshKey }) {
       </div>
 
       {/* Category legend + timezone badge */}
-      <div style={{ display: "flex", gap: 14, marginBottom: 18, flexWrap: "wrap", alignItems: "center" }}>
+      <div style={{ display: "flex", gap: 8, marginBottom: 18, flexWrap: "wrap", alignItems: "center" }}>
         {CATS.map(c => (
-          <div key={c.id} style={{ display: "flex", alignItems: "center", gap: 5, fontSize: 11, color: "var(--t3)", fontWeight: 500 }}>
+          <button key={c.id}
+            onClick={() => setActiveCatFilters(prev => {
+              const next = new Set(prev);
+              if (next.has(c.id)) next.delete(c.id); else next.add(c.id);
+              return next;
+            })}
+            style={{
+              display: "flex", alignItems: "center", gap: 5, fontSize: 11, cursor: "pointer",
+              color: activeCatFilters.has(c.id) ? c.color : "var(--t3)",
+              fontWeight: activeCatFilters.has(c.id) ? 700 : 500,
+              background: activeCatFilters.has(c.id) ? c.bg : "transparent",
+              border: `1px solid ${activeCatFilters.has(c.id) ? c.color : "transparent"}`,
+              borderRadius: 12, padding: "3px 8px",
+            }}>
             <div style={{ width: 8, height: 8, borderRadius: "50%", background: c.color }} />{c.label}
-          </div>
+          </button>
         ))}
+        {activeCatFilters.size > 0 && (
+          <button onClick={() => setActiveCatFilters(new Set())}
+            style={{ fontSize: 11, color: "var(--t3)", background: "none", border: "1px solid var(--b1)", borderRadius: 12, padding: "3px 8px", cursor: "pointer" }}>
+            Clear filter ×
+          </button>
+        )}
         <div style={{ marginLeft: "auto", display: "flex", alignItems: "center", gap: 5, fontSize: 10, color: "var(--t3)", fontFamily: "var(--mono)", background: "var(--bg2)", border: "1px solid var(--b1)", borderRadius: 6, padding: "2px 8px" }}>
           🕐 {TIMEZONES.find(t => t.id === userTz)?.label || userTz}
         </div>
@@ -1004,7 +1046,7 @@ export default function Calendar({ user, initialDate, refreshKey }) {
                         <div key={ev.id} className="event-chip"
                           style={{ background: c.bg, borderLeftColor: c.color, color: c.color }}
                           onClick={e => { e.stopPropagation(); setActiveEvent(ev); }}>
-                          {startT && <span className="event-time">{startT}</span>}
+                          {startT && <span className="event-time">{fmtTimeCompact(startT)}</span>}
                           <span style={{ overflow: "hidden", textOverflow: "ellipsis", flex: 1, minWidth: 0 }}>{ev.title}</span>
                           {ev.repeat && ev.repeat !== "none" && <span style={{ fontSize: 9, opacity: .65, flexShrink: 0 }}>↻</span>}
                           {ev.shared && <span className="event-badge-s">S</span>}
@@ -1075,8 +1117,8 @@ export default function Calendar({ user, initialDate, refreshKey }) {
                       const c     = catOf(ev);
                       const evTz  = ev.timezone || userTz;
                       const rawSt = ev.start_time || ev.time || "";
-                      const st    = (rawSt && evTz !== userTz) ? convertTimeToTz(rawSt, evTz, userTz) : rawSt;
-                      const et    = (ev.end_time && evTz !== userTz) ? convertTimeToTz(ev.end_time, evTz, userTz) : ev.end_time;
+                      const st    = (rawSt && evTz !== userTz) ? convertTimeToTz(rawSt, evTz, userTz, ev.date) : rawSt;
+                      const et    = (ev.end_time && evTz !== userTz) ? convertTimeToTz(ev.end_time, evTz, userTz, ev.date) : ev.end_time;
                       const top   = evTop(st);
                       if (top >= HOURS.length * 48 || top < -48) return null;
                       const clampedTop = Math.max(0, top);
@@ -1086,7 +1128,7 @@ export default function Calendar({ user, initialDate, refreshKey }) {
                           style={{ top: clampedTop, height, background: c.bg, color: c.color, borderLeftColor: c.color }}
                           onClick={() => setActiveEvent(ev)}>
                           <div style={{ fontSize: 9, opacity: .8, fontFamily: "var(--mono)", whiteSpace: "nowrap" }}>
-                            {st}{et ? ` – ${et}` : ""}
+                            {fmtTimeCompact(st)}{et ? ` – ${fmtTimeCompact(et)}` : ""}
                           </div>
                           <div style={{ fontWeight: 600, overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }}>
                             {ev.title}
@@ -1163,8 +1205,8 @@ export default function Calendar({ user, initialDate, refreshKey }) {
                       const c     = catOf(ev);
                       const evTz  = ev.timezone || userTz;
                       const rawSt = ev.start_time || ev.time || "";
-                      const st    = (rawSt && evTz !== userTz) ? convertTimeToTz(rawSt, evTz, userTz) : rawSt;
-                      const et    = (ev.end_time && evTz !== userTz) ? convertTimeToTz(ev.end_time, evTz, userTz) : ev.end_time;
+                      const st    = (rawSt && evTz !== userTz) ? convertTimeToTz(rawSt, evTz, userTz, ev.date) : rawSt;
+                      const et    = (ev.end_time && evTz !== userTz) ? convertTimeToTz(ev.end_time, evTz, userTz, ev.date) : ev.end_time;
                       const top   = evTop(st);
                       if (top >= HOURS.length * 48 || top < -48) return null;
                       const clampedTop = Math.max(0, top);
@@ -1174,7 +1216,7 @@ export default function Calendar({ user, initialDate, refreshKey }) {
                           style={{ top: clampedTop, height, background: c.bg, color: c.color, borderLeftColor: c.color }}
                           onClick={() => setActiveEvent(ev)}>
                           <div style={{ fontSize: 9, opacity: .8, fontFamily: "var(--mono)", whiteSpace: "nowrap" }}>
-                            {st}{et ? ` – ${et}` : ""}
+                            {fmtTimeCompact(st)}{et ? ` – ${fmtTimeCompact(et)}` : ""}
                           </div>
                           <div style={{ fontWeight: 600, overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }}>
                             {ev.title}
@@ -1210,7 +1252,7 @@ export default function Calendar({ user, initialDate, refreshKey }) {
           <div className="week-allday-row">
             <div className="week-allday-label">all day</div>
             <div className="week-allday-col" style={{ flex: 1 }}>
-              {getEventsForDate(events, fmtDateStr(currentDate)).filter(ev => ev.all_day || (!ev.start_time && !ev.time)).map(ev => {
+              {getEventsForDate(filteredEvts, fmtDateStr(currentDate)).filter(ev => ev.all_day || (!ev.start_time && !ev.time)).map(ev => {
                 const c = catOf(ev);
                 return (
                   <div key={ev.id} className="event-chip"
@@ -1235,7 +1277,7 @@ export default function Calendar({ user, initialDate, refreshKey }) {
                   <div key={h} className="time-slot"
                     onClick={() => openAdd(fmtDateStr(currentDate), `${String(h).padStart(2,"0")}:00`)} />
                 ))}
-                {getEventsForDate(events, fmtDateStr(currentDate)).filter(ev => !ev.all_day && (ev.start_time || ev.time)).map(ev => {
+                {getEventsForDate(filteredEvts, fmtDateStr(currentDate)).filter(ev => !ev.all_day && (ev.start_time || ev.time)).map(ev => {
                   const c     = catOf(ev);
                   const evTz  = ev.timezone || userTz;
                   const rawSt = ev.start_time || ev.time || "";
@@ -1250,7 +1292,7 @@ export default function Calendar({ user, initialDate, refreshKey }) {
                       style={{ top: clampedTop, height, background: c.bg, color: c.color, borderLeftColor: c.color }}
                       onClick={() => setActiveEvent(ev)}>
                       <div style={{ fontSize: 9, opacity: .8, fontFamily: "var(--mono)", whiteSpace: "nowrap" }}>
-                        {st}{et ? ` – ${et}` : ""}
+                        {fmtTimeCompact(st)}{et ? ` – ${fmtTimeCompact(et)}` : ""}
                       </div>
                       <div style={{ fontWeight: 600, overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }}>
                         {ev.title}
@@ -1370,7 +1412,7 @@ export default function Calendar({ user, initialDate, refreshKey }) {
             const c      = catOf(ev);
             const startT = ev.start_time || ev.time || "";
             const evTz   = ev.timezone || userTz;
-            const displayT = startT && evTz !== userTz ? convertTimeToTz(startT, evTz, userTz) : startT;
+            const displayT = startT && evTz !== userTz ? convertTimeToTz(startT, evTz, userTz, ev.date) : startT;
             const tzDiffers = startT && evTz !== userTz;
             return (
               <div key={ev.id} className="fin-row"

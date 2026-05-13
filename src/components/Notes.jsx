@@ -121,7 +121,8 @@ export default function Notes({ user }) {
     return DEFAULT_NOTEBOOKS;
   });
   useEffect(() => {
-    const singletonId = `singleton_${user?.id || 'default'}`;
+    if (!user?.id) return;
+    const singletonId = `singleton_${user.id}`;
     sb.from('notebooks').select('*', '', '').then((res) => {
       const rows = Array.isArray(res) ? res : [];
       const singleton = rows.find(r => r.id === singletonId);
@@ -131,10 +132,10 @@ export default function Notes({ user }) {
         localStorage.setItem('sanctum_notebooks_v2', JSON.stringify(singleton.data));
       } else {
         // No singleton or empty data (new user / first Tamara login) — seed with defaults
-        sb.from('notebooks').upsert({ id: singletonId, user_id: user?.id, data: DEFAULT_NOTEBOOKS, updated_at: new Date().toISOString() }, 'id').catch(() => {});
+        sb.from('notebooks').upsert({ id: singletonId, user_id: user.id, data: DEFAULT_NOTEBOOKS, updated_at: new Date().toISOString() }, 'id').catch(() => {});
       }
     }).catch(() => {}); // network error — keep current state (localStorage/defaults)
-  }, []);
+  }, [user?.id]);
   const saveNotebooks = useCallback(async (nbs) => {
     setNotebooks(nbs);
     localStorage.setItem('sanctum_notebooks_v2', JSON.stringify(nbs));
@@ -300,7 +301,7 @@ export default function Notes({ user }) {
   }, [activeNote]);
 
   // ── Load ──────────────────────────────────────────────────────────────
-  useEffect(() => { loadNotes(); }, []);
+  useEffect(() => { if (user?.id) loadNotes(); }, [user?.id]);
   const loadNotes = async () => {
     setLoading(true);
     try {
