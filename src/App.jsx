@@ -449,7 +449,22 @@ RESPONSE RULES — choose one format only:
       const expiry = parseInt(localStorage.getItem("sanctum_expiry") || "0");
       if (session && Date.now() > expiry - 300000) await auth.refreshSession();
     }, 45 * 60 * 1000);
-    return () => clearInterval(interval);
+
+    // Proactive refresh when user returns to the tab after an absence
+    const handleVisibility = async () => {
+      if (document.visibilityState === "visible") {
+        const expiry = parseInt(localStorage.getItem("sanctum_expiry") || "0");
+        if (localStorage.getItem("sanctum_token") && Date.now() > expiry - 300000) {
+          await auth.refreshSession();
+        }
+      }
+    };
+    document.addEventListener("visibilitychange", handleVisibility);
+
+    return () => {
+      clearInterval(interval);
+      document.removeEventListener("visibilitychange", handleVisibility);
+    };
   }, []);
 
   useEffect(() => {
@@ -509,7 +524,7 @@ RESPONSE RULES — choose one format only:
       }
     }
   };
-  const handleLogout = () => { auth.signOut(); setUser(null); setProfileName(""); setPage("home"); localStorage.removeItem("sanctum_page"); };
+  const handleLogout = async () => { await auth.signOut(); setUser(null); setProfileName(""); setPage("home"); localStorage.removeItem("sanctum_page"); };
 
   const onFabTouchStart = (e) => {
     const t = e.touches[0];

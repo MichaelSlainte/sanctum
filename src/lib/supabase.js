@@ -19,7 +19,16 @@ export const auth = {
     });
     return res.json();
   },
-  signOut: () => {
+  signOut: async () => {
+    const token = localStorage.getItem("sanctum_token");
+    if (token) {
+      try {
+        await fetch(`${SUPABASE_URL}/auth/v1/logout`, {
+          method: "POST",
+          headers: { apikey: SUPABASE_KEY, "Content-Type": "application/json", Authorization: `Bearer ${token}` },
+        });
+      } catch {}
+    }
     localStorage.removeItem("sanctum_token");
     localStorage.removeItem("sanctum_user");
     localStorage.removeItem("sanctum_expiry");
@@ -105,9 +114,20 @@ export const storage = {
   getPublicUrl: (bucket, path) => `${SUPABASE_URL}/storage/v1/object/public/${bucket}/${path}`,
 };
 
+// Shared refresh lock — prevents concurrent token refresh races
+let _refreshing = null;
+const ensureValidToken = async () => {
+  const expiry = parseInt(localStorage.getItem("sanctum_expiry") || "0");
+  if (localStorage.getItem("sanctum_token") && Date.now() > expiry - 60000) {
+    if (!_refreshing) _refreshing = auth.refreshSession().finally(() => { _refreshing = null; });
+    await _refreshing;
+  }
+};
+
 export const sb = {
   from: (table) => ({
     select: async (cols = "*", filters = "", order = "created_at.desc") => {
+      await ensureValidToken();
       const session = auth.getSession();
       const headers = { apikey: SUPABASE_KEY, "Content-Type": "application/json" };
       if (session) headers.Authorization = `Bearer ${session.token}`;
@@ -118,6 +138,7 @@ export const sb = {
       return Array.isArray(data) ? data : [];
     },
     insert: async (data) => {
+      await ensureValidToken();
       const session = auth.getSession();
       const headers = { apikey: SUPABASE_KEY, "Content-Type": "application/json", Prefer: "return=representation" };
       if (session) headers.Authorization = `Bearer ${session.token}`;
@@ -126,6 +147,7 @@ export const sb = {
       return res.json();
     },
     update: async (data, match) => {
+      await ensureValidToken();
       const session = auth.getSession();
       const headers = { apikey: SUPABASE_KEY, "Content-Type": "application/json", Prefer: "return=representation" };
       if (session) headers.Authorization = `Bearer ${session.token}`;
@@ -136,6 +158,7 @@ export const sb = {
       return res.json();
     },
     delete: async (match) => {
+      await ensureValidToken();
       const session = auth.getSession();
       const headers = { apikey: SUPABASE_KEY, "Content-Type": "application/json" };
       if (session) headers.Authorization = `Bearer ${session.token}`;
@@ -144,6 +167,7 @@ export const sb = {
       return res.ok;
     },
     upsert: async (data, conflictCol = "key") => {
+      await ensureValidToken();
       const session = auth.getSession();
       const headers = { apikey: SUPABASE_KEY, "Content-Type": "application/json", Prefer: "resolution=merge-duplicates,return=representation" };
       if (session) headers.Authorization = `Bearer ${session.token}`;
