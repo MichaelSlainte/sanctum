@@ -52,19 +52,6 @@ const REMINDERS = [
   { id: "1day",   label: "1 day before"        },
 ];
 
-const TIME_OPTIONS = [];
-for (let h = 0; h < 24; h++) {
-  for (let m = 0; m < 60; m += 15) {
-    const hh = String(h).padStart(2, "0");
-    const mm = String(m).padStart(2, "0");
-    const label = h === 0 ? `12:${mm} AM`
-      : h < 12  ? `${h}:${mm} AM`
-      : h === 12 ? `12:${mm} PM`
-      : `${h - 12}:${mm} PM`;
-    TIME_OPTIONS.push({ value: `${hh}:${mm}`, label });
-  }
-}
-
 const TIME_PRESETS = [
   { label: "Morning",   time: "09:00" },
   { label: "Lunch",     time: "12:00" },
@@ -304,6 +291,117 @@ function MiniCalPicker({ value, onChange }) {
               );
             })}
           </div>
+        </div>
+      )}
+    </div>
+  );
+}
+
+function MiniTimePicker({ value, onChange, placeholder = "No time" }) {
+  const [open, setOpen] = useState(false);
+  const [selectedH, setSelectedH] = useState(null);
+
+  const fmtHour = (h) => {
+    if (h === 0) return "12am";
+    if (h < 12) return `${h}am`;
+    if (h === 12) return "12pm";
+    return `${h - 12}pm`;
+  };
+  const fmtValue = (h, m) => `${String(h).padStart(2, "0")}:${String(m).padStart(2, "0")}`;
+
+  const displayLabel = value ? (() => {
+    const [h, m] = value.slice(0, 5).split(":").map(Number);
+    const h12 = h === 0 || h === 12 ? 12 : h % 12;
+    const suffix = h < 12 ? "AM" : "PM";
+    return m === 0 ? `${h12} ${suffix}` : `${h12}:${String(m).padStart(2, "0")} ${suffix}`;
+  })() : placeholder;
+
+  const handleOpen = () => {
+    const nowOpen = !open;
+    if (nowOpen && value) setSelectedH(parseInt(value.slice(0, 2)));
+    else if (nowOpen) setSelectedH(null);
+    setOpen(nowOpen);
+  };
+
+  const amHours = Array.from({ length: 12 }, (_, i) => i);
+  const pmHours = Array.from({ length: 12 }, (_, i) => i + 12);
+  const minutes = [0, 15, 30, 45];
+  const curH = value ? parseInt(value.slice(0, 2)) : -1;
+
+  const hourBtn = (h) => {
+    const isSelH = selectedH === h;
+    const isCurH = curH === h;
+    return (
+      <button key={h} type="button" onClick={() => setSelectedH(isSelH ? null : h)}
+        style={{
+          border: `1px solid ${isSelH || isCurH ? "var(--acc)" : "var(--b2)"}`,
+          borderRadius: 6, background: isSelH ? "var(--acc)" : "transparent",
+          color: isSelH ? "#fff" : isCurH ? "var(--acc)" : "var(--t1)",
+          fontSize: 11, fontWeight: isSelH || isCurH ? 700 : 400,
+          padding: "5px 2px", cursor: "pointer",
+        }}>
+        {fmtHour(h)}
+      </button>
+    );
+  };
+
+  return (
+    <div style={{ position: "relative" }}>
+      <button type="button" onClick={handleOpen} style={{
+        width: "100%", textAlign: "left", padding: "9px 12px",
+        background: "var(--bg2)", border: "1px solid var(--b1)", borderRadius: 8,
+        color: value ? "var(--t1)" : "var(--t3)", fontSize: 13, cursor: "pointer",
+        display: "flex", alignItems: "center", justifyContent: "space-between", gap: 8,
+      }}>
+        <span>{displayLabel}</span>
+        <span style={{ fontSize: 10, opacity: .6, flexShrink: 0 }}>⏰ {open ? "▲" : "▼"}</span>
+      </button>
+      {open && (
+        <div style={{
+          position: "absolute", top: "calc(100% + 4px)", left: 0, right: 0, zIndex: 200,
+          background: "var(--bg1)", border: "1px solid var(--b2)", borderRadius: 12,
+          padding: "12px 10px", boxShadow: "0 8px 32px rgba(0,0,0,0.4)",
+        }}>
+          {value && (
+            <button type="button"
+              onClick={() => { onChange(""); setOpen(false); setSelectedH(null); }}
+              style={{ fontSize: 11, color: "var(--t3)", background: "none", border: "none", cursor: "pointer", marginBottom: 8, display: "block", padding: 0 }}>
+              × Clear
+            </button>
+          )}
+          <div style={{ fontSize: 10, color: "var(--t3)", fontWeight: 600, marginBottom: 4 }}>AM</div>
+          <div style={{ display: "grid", gridTemplateColumns: "repeat(4, 1fr)", gap: 3, marginBottom: 8 }}>
+            {amHours.map(hourBtn)}
+          </div>
+          <div style={{ fontSize: 10, color: "var(--t3)", fontWeight: 600, marginBottom: 4 }}>PM</div>
+          <div style={{ display: "grid", gridTemplateColumns: "repeat(4, 1fr)", gap: 3 }}>
+            {pmHours.map(hourBtn)}
+          </div>
+          {selectedH !== null && (
+            <div style={{ marginTop: 10, borderTop: "1px solid var(--b2)", paddingTop: 10 }}>
+              <div style={{ fontSize: 10, color: "var(--t3)", fontWeight: 600, marginBottom: 6 }}>
+                {fmtHour(selectedH)} · choose minutes
+              </div>
+              <div style={{ display: "grid", gridTemplateColumns: "repeat(4, 1fr)", gap: 4 }}>
+                {minutes.map(m => {
+                  const tv = fmtValue(selectedH, m);
+                  const isActive = value === tv;
+                  return (
+                    <button key={m} type="button"
+                      onClick={() => { onChange(tv); setOpen(false); setSelectedH(null); }}
+                      style={{
+                        border: `1px solid ${isActive ? "var(--acc)" : "var(--b2)"}`,
+                        borderRadius: 6, background: isActive ? "var(--acc)" : "transparent",
+                        color: isActive ? "#fff" : "var(--t1)",
+                        fontSize: 12, fontWeight: 600, padding: "6px 2px", cursor: "pointer",
+                      }}>
+                      :{String(m).padStart(2, "0")}
+                    </button>
+                  );
+                })}
+              </div>
+            </div>
+          )}
         </div>
       )}
     </div>
@@ -740,17 +838,11 @@ export default function Calendar({ user, initialDate, refreshKey }) {
                 <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: 10 }}>
                   <div>
                     <label className="form-label" style={{ fontSize: 10 }}>Start</label>
-                    <select className="inp" value={formData.start_time} onChange={e => setStartTime(e.target.value)}>
-                      <option value="">No time</option>
-                      {TIME_OPTIONS.map(o => <option key={o.value} value={o.value}>{o.label}</option>)}
-                    </select>
+                    <MiniTimePicker value={formData.start_time} onChange={setStartTime} placeholder="No time" />
                   </div>
                   <div>
                     <label className="form-label" style={{ fontSize: 10 }}>End</label>
-                    <select className="inp" value={formData.end_time} onChange={e => setF("end_time", e.target.value)}>
-                      <option value="">No end time</option>
-                      {TIME_OPTIONS.map(o => <option key={o.value} value={o.value}>{o.label}</option>)}
-                    </select>
+                    <MiniTimePicker value={formData.end_time} onChange={v => setF("end_time", v)} placeholder="No end time" />
                   </div>
                 </div>
               </>
