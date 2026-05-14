@@ -623,6 +623,13 @@ export default function TrackerHub({ archivedTrackers = [], onArchive, onUnarchi
   });
 
   const [ozzyPhoto, setOzzyPhoto] = useState(null);
+  const [ozzyLightbox, setOzzyLightbox] = useState(false);
+  useEffect(() => {
+    if (!ozzyLightbox) return;
+    const onKey = (e) => { if (e.key === "Escape") setOzzyLightbox(false); };
+    window.addEventListener("keydown", onKey);
+    return () => window.removeEventListener("keydown", onKey);
+  }, [ozzyLightbox]);
   const [customTrackers, setCustomTrackers] = useState([]);
 
   const [archivedCustomTrackers, setArchivedCustomTrackers] = useState([]);
@@ -821,7 +828,9 @@ export default function TrackerHub({ archivedTrackers = [], onArchive, onUnarchi
         <div className="tc-ring"><MiniRing percent={ring.percent} color={ring.color} /></div>
         <div className="tc-icon" style={id === "pet" && ozzyPhoto ? { overflow: "hidden" } : {}}>
           {id === "pet" && ozzyPhoto
-            ? <img src={ozzyPhoto} style={{ width: "100%", height: "100%", objectFit: "cover" }} alt="Ozzy" />
+            ? <img src={ozzyPhoto} alt="Ozzy"
+                style={{ width: "100%", height: "100%", objectFit: "cover", cursor: "zoom-in" }}
+                onClick={e => { e.stopPropagation(); setOzzyLightbox(true); }} />
             : <Icon name={t.icon} size={22} color="var(--t2)" />
           }
         </div>
@@ -924,6 +933,31 @@ export default function TrackerHub({ archivedTrackers = [], onArchive, onUnarchi
   }
 
   return (
+    <>
+    {ozzyLightbox && ozzyPhoto && (
+      <div
+        onClick={() => setOzzyLightbox(false)}
+        style={{
+          position: "fixed", inset: 0, zIndex: 1000,
+          background: "rgba(0,0,0,0.82)",
+          display: "flex", alignItems: "center", justifyContent: "center",
+          animation: "fadeIn .18s ease",
+        }}
+      >
+        <img
+          src={ozzyPhoto}
+          alt="Ozzy"
+          onClick={e => e.stopPropagation()}
+          style={{
+            maxWidth: 400, width: "90%", maxHeight: "80vh",
+            objectFit: "contain",
+            borderRadius: 16,
+            boxShadow: "0 24px 80px rgba(0,0,0,0.6)",
+            animation: "slideUp .2s ease",
+          }}
+        />
+      </div>
+    )}
     <div className="page-body page-enter">
       <div style={{ marginBottom: 32, display: "flex", alignItems: "flex-end", justifyContent: "space-between", flexWrap: "wrap", gap: 12 }}>
         <div>
@@ -977,5 +1011,6 @@ export default function TrackerHub({ archivedTrackers = [], onArchive, onUnarchi
         )}
       </div>
     </div>
+    </>
   );
 }
