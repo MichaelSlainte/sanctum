@@ -1,7 +1,7 @@
 // Copyright © 2026 Michael FR Marques & Tamara Lechner. All rights reserved.
 import { useState, useEffect, useRef } from "react";
 import { sb } from "../lib/supabase";
-import { Icon, Modal, EVENT_COLORS, SanctumLogo } from "./shared";
+import { Icon, Modal, EVENT_COLORS } from "./shared";
 import Roadmap from "./Roadmap";
 
 function Dashboard({ onNavigate, onGoToCalendarDay }) {
@@ -975,7 +975,7 @@ For all other queries respond in plain conversational text, warm but concise, ma
       {/* AI assistant bar */}
       <div className="home-ai-bar" style={{ marginBottom: 28 }}>
         <div className="ai-bar">
-          <div style={{width:32,height:32,borderRadius:'50%',background:'#080808',border:'1px solid #333',display:'flex',alignItems:'center',justifyContent:'center',flexShrink:0,overflow:'hidden'}}><SanctumLogo size={28}/></div>
+          <div style={{width:32,height:32,borderRadius:'50%',background:'#080808',border:'1px solid #333',display:'flex',alignItems:'center',justifyContent:'center',flexShrink:0,overflow:'hidden'}}><img src="/icon.svg" alt="Sanctum" style={{width:28,height:28}}/></div>
           <input
             ref={aiInputRef}
             className="ai-bar-input"
