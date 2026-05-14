@@ -568,10 +568,7 @@ RESPONSE RULES — choose one format only:
         {/* ── Sidebar (desktop) ── */}
         <aside className="sidebar">
           <div className="sidebar-logo">
-            <div style={{ display: 'flex', alignItems: 'center', gap: 10, padding: '0 4px' }}>
-              <img src="/icon.svg" alt="Sanctum" style={{ height: 28, width: 28 }} />
-              <span style={{ fontFamily: 'Georgia, serif', fontSize: 16, letterSpacing: '0.18em', color: '#CECBF6' }}>SANCTUM</span>
-            </div>
+            <img src="/icons.svg?v=2" alt="Sanctum" style={{ height: 32 }} />
             <div className="logo-sub">{displayName} · Dublin</div>
           </div>
 
