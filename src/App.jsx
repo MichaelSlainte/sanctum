@@ -567,9 +567,8 @@ RESPONSE RULES — choose one format only:
 
         {/* ── Sidebar (desktop) ── */}
         <aside className="sidebar">
-          <div className="sidebar-logo">
-            <img src="/icons.svg?v=3" alt="Sanctum" style={{ height: 32 }} />
-            <div className="logo-sub">{displayName} · Dublin</div>
+          <div style={{ padding: '20px 16px 12px', borderBottom: '1px solid rgba(255,255,255,0.06)' }}>
+            <img src="/icons.svg?v=3" alt="Sanctum" style={{ height: 28, width: 'auto' }} />
           </div>
 
           <div className="nav-section">
