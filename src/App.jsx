@@ -567,8 +567,8 @@ RESPONSE RULES — choose one format only:
 
         {/* ── Sidebar (desktop) ── */}
         <aside className="sidebar">
-          <div style={{ padding: '20px 16px 12px', borderBottom: '1px solid rgba(255,255,255,0.06)' }}>
-            <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 200 44" style={{ height: 32, width: 'auto' }}>
+          <div style={{ padding: '20px 16px 12px', borderBottom: '1px solid var(--b1)' }}>
+            <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 200 44" style={{ height: 36, width: 'auto' }}>
               <g transform="translate(22 22)">
                 <ellipse cx="0" cy="-17" rx="5" ry="13" fill="#534AB7" opacity="0.95" transform="rotate(0 0 0)"/>
                 <ellipse cx="0" cy="-17" rx="5" ry="13" fill="#534AB7" opacity="0.95" transform="rotate(60 0 0)"/>
@@ -576,13 +576,13 @@ RESPONSE RULES — choose one format only:
                 <ellipse cx="0" cy="-17" rx="5" ry="13" fill="#534AB7" opacity="0.95" transform="rotate(180 0 0)"/>
                 <ellipse cx="0" cy="-17" rx="5" ry="13" fill="#534AB7" opacity="0.95" transform="rotate(240 0 0)"/>
                 <ellipse cx="0" cy="-17" rx="5" ry="13" fill="#534AB7" opacity="0.95" transform="rotate(300 0 0)"/>
-                <circle cx="0" cy="0" r="8" fill="#1a1424"/>
-                <circle cx="0" cy="0" r="5.5" fill="#3C3489"/>
+                <circle cx="0" cy="0" r="8" style={{ fill: 'var(--bg1)' }}/>
+                <circle cx="0" cy="0" r="5.5" fill="#534AB7" opacity="0.4"/>
                 <circle cx="0" cy="0" r="3" fill="#534AB7"/>
-                <circle cx="0" cy="0" r="1.2" fill="#CECBF6"/>
+                <circle cx="0" cy="0" r="1.2" style={{ fill: 'var(--t1)' }}/>
               </g>
-              <text x="50" y="16" fontFamily="Georgia, serif" fontSize="14" fill="#CECBF6" letterSpacing="4">SANCTUM</text>
-              <text x="51" y="30" fontFamily="system-ui, sans-serif" fontSize="6" fill="#534AB7" letterSpacing="2.5">PRIVATE · PERSONAL · YOURS</text>
+              <text x="50" y="16" fontFamily="Georgia, serif" fontSize="14" style={{ fill: 'var(--t1)' }} letterSpacing="4">SANCTUM</text>
+              <text x="51" y="30" fontFamily="system-ui, sans-serif" fontSize="7" style={{ fill: 'var(--t3)' }} letterSpacing="2.5">PRIVATE · PERSONAL · YOURS</text>
             </svg>
           </div>
 
