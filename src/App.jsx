@@ -133,6 +133,13 @@ const TITLES = {
   trackers: "Trackers", study: "Study", pet: "Ozzy", travel: "Travel", career: "Career", finance: "Finance",
 };
 const TRACKER_PAGES = ["study", "pet", "travel", "career", "finance"];
+const TRACKER_ITEMS = [
+  { id: "study",   label: "Study",   icon: "study"   },
+  { id: "career",  label: "Career",  icon: "career"  },
+  { id: "finance", label: "Finance", icon: "finance" },
+  { id: "travel",  label: "Travel",  icon: "travel"  },
+  { id: "pet",     label: "Ozzy",    icon: "pet"     },
+];
 
 // ─── SANCTUM LOGO ────────────────────────────────────────────────────────────
 const SanctumLogo = ({ size = 36, theme = "dark" }) => {
@@ -353,6 +360,17 @@ RESPONSE RULES — choose one format only:
   const [navDragOver, setNavDragOver] = useState(null);
   const [navDragging, setNavDragging] = useState(null);
   const navDragId = useRef(null);
+
+  const [trackersExpanded, setTrackersExpanded] = useState(() =>
+    localStorage.getItem("sanctum_trackers_expanded") === "true"
+  );
+  const toggleTrackersExpanded = () => {
+    setTrackersExpanded(v => {
+      const next = !v;
+      localStorage.setItem("sanctum_trackers_expanded", String(next));
+      return next;
+    });
+  };
 
   const [archivedTrackers, setArchivedTrackers] = useState(() => {
     try { return JSON.parse(localStorage.getItem("sanctum_archived_trackers")) || []; }
@@ -618,6 +636,44 @@ RESPONSE RULES — choose one format only:
                 navDragging === id ? "is-dragging"   : "",
                 navDragOver === id ? "nav-drag-over" : "",
               ].filter(Boolean).join(" ");
+
+              if (n.id === "trackers") return (
+                <div key="trackers">
+                  <div
+                    className={cls}
+                    draggable
+                    onDragStart={e => onNavDragStart(e, n.id)}
+                    onDragOver={e  => onNavDragOver(e, n.id)}
+                    onDragLeave={e => onNavDragLeave(e, n.id)}
+                    onDrop={e      => onNavDrop(e, n.id)}
+                    onDragEnd={onNavDragEnd}
+                    onClick={() => navigate("trackers")}
+                  >
+                    <div className="nav-icon"><Icon name={n.icon} size={16} /></div>
+                    <span style={{ flex: 1 }}>{n.label}</span>
+                    <span
+                      onMouseDown={e => e.stopPropagation()}
+                      onClick={e => { e.stopPropagation(); toggleTrackersExpanded(); }}
+                      style={{ cursor: "pointer", color: "var(--t3)", fontSize: 9, padding: "2px 6px", lineHeight: 1, flexShrink: 0 }}
+                    >
+                      {trackersExpanded ? "▼" : "▶"}
+                    </span>
+                    <div className="drag-handle" style={{ marginLeft: 0 }}><Icon name="grab" size={12} /></div>
+                  </div>
+                  {trackersExpanded && TRACKER_ITEMS.map(t => (
+                    <div
+                      key={t.id}
+                      className={`nav-item${page === t.id ? " active" : ""}`}
+                      onClick={() => navigate(t.id)}
+                      style={{ paddingLeft: 30, fontSize: 12 }}
+                    >
+                      <div className="nav-icon"><Icon name={t.icon} size={13} /></div>
+                      {t.label}
+                    </div>
+                  ))}
+                </div>
+              );
+
               return (
                 <div
                   key={n.id}
@@ -763,17 +819,55 @@ RESPONSE RULES — choose one format only:
       </div>
 
       <nav className="bottom-nav">
+        {trackersExpanded && (
+          <div style={{ display: "flex", borderBottom: "1px solid var(--b1)" }}>
+            {TRACKER_ITEMS.map(t => (
+              <div
+                key={t.id}
+                className={`bottom-nav-item${page === t.id ? " active" : ""}`}
+                style={{ flex: 1 }}
+                onClick={() => navigate(t.id)}
+              >
+                <Icon name={t.icon} size={19} />
+                <span style={{ fontSize: 9 }}>{t.label}</span>
+              </div>
+            ))}
+          </div>
+        )}
         <div className="bottom-nav-inner">
-          {BOTTOM_NAV.map(n => (
-            <div
-              key={n.id}
-              className={`bottom-nav-item${n.id === page ? " active" : ""}`}
-              onClick={() => navigate(n.id)}
-            >
-              <Icon name={n.icon} size={22} />
-              <span>{n.label}</span>
-            </div>
-          ))}
+          {BOTTOM_NAV.map(n => {
+            if (n.id === "trackers") {
+              const isActive = page === "trackers" || TRACKER_PAGES.includes(page);
+              return (
+                <div
+                  key="trackers"
+                  className={`bottom-nav-item${isActive ? " active" : ""}`}
+                  onClick={() => navigate("trackers")}
+                >
+                  <Icon name={n.icon} size={22} />
+                  <span style={{ display: "flex", alignItems: "center", gap: 2 }}>
+                    {n.label}
+                    <span
+                      onClick={e => { e.stopPropagation(); toggleTrackersExpanded(); }}
+                      style={{ fontSize: 8, lineHeight: 1, cursor: "pointer", opacity: 0.7 }}
+                    >
+                      {trackersExpanded ? "▼" : "▶"}
+                    </span>
+                  </span>
+                </div>
+              );
+            }
+            return (
+              <div
+                key={n.id}
+                className={`bottom-nav-item${n.id === page ? " active" : ""}`}
+                onClick={() => navigate(n.id)}
+              >
+                <Icon name={n.icon} size={22} />
+                <span>{n.label}</span>
+              </div>
+            );
+          })}
         </div>
       </nav>
     </>
