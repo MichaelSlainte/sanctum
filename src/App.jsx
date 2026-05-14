@@ -568,7 +568,22 @@ RESPONSE RULES — choose one format only:
         {/* ── Sidebar (desktop) ── */}
         <aside className="sidebar">
           <div style={{ padding: '20px 16px 12px', borderBottom: '1px solid rgba(255,255,255,0.06)' }}>
-            <img src="/icons.svg?v=3" alt="Sanctum" style={{ height: 28, width: 'auto' }} />
+            <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 200 44" style={{ height: 32, width: 'auto' }}>
+              <g transform="translate(22 22)">
+                <ellipse cx="0" cy="-17" rx="5" ry="13" fill="#534AB7" opacity="0.95" transform="rotate(0 0 0)"/>
+                <ellipse cx="0" cy="-17" rx="5" ry="13" fill="#534AB7" opacity="0.95" transform="rotate(60 0 0)"/>
+                <ellipse cx="0" cy="-17" rx="5" ry="13" fill="#534AB7" opacity="0.95" transform="rotate(120 0 0)"/>
+                <ellipse cx="0" cy="-17" rx="5" ry="13" fill="#534AB7" opacity="0.95" transform="rotate(180 0 0)"/>
+                <ellipse cx="0" cy="-17" rx="5" ry="13" fill="#534AB7" opacity="0.95" transform="rotate(240 0 0)"/>
+                <ellipse cx="0" cy="-17" rx="5" ry="13" fill="#534AB7" opacity="0.95" transform="rotate(300 0 0)"/>
+                <circle cx="0" cy="0" r="8" fill="#1a1424"/>
+                <circle cx="0" cy="0" r="5.5" fill="#3C3489"/>
+                <circle cx="0" cy="0" r="3" fill="#534AB7"/>
+                <circle cx="0" cy="0" r="1.2" fill="#CECBF6"/>
+              </g>
+              <text x="50" y="16" fontFamily="Georgia, serif" fontSize="14" fill="#CECBF6" letterSpacing="4">SANCTUM</text>
+              <text x="51" y="30" fontFamily="system-ui, sans-serif" fontSize="6" fill="#534AB7" letterSpacing="2.5">PRIVATE · PERSONAL · YOURS</text>
+            </svg>
           </div>
 
           <div className="nav-section">
