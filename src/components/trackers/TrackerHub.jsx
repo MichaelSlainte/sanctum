@@ -3,7 +3,7 @@
 // https://sanctum.app
 import { useState, useRef, useEffect } from "react";
 import { Icon } from "../shared";
-import { sb } from "../../lib/supabase";
+import { sb, storage } from "../../lib/supabase";
 import TrackerCreator from "./TrackerCreator";
 
 const MiniRing = ({ percent, color }) => {
@@ -622,6 +622,7 @@ export default function TrackerHub({ archivedTrackers = [], onArchive, onUnarchi
     ozzyRing: 0, ozzyColor: "var(--grn)",
   });
 
+  const [ozzyPhoto, setOzzyPhoto] = useState(null);
   const [customTrackers, setCustomTrackers] = useState([]);
 
   const [archivedCustomTrackers, setArchivedCustomTrackers] = useState([]);
@@ -657,11 +658,15 @@ export default function TrackerHub({ archivedTrackers = [], onArchive, onUnarchi
   useEffect(() => {
     const load = async () => {
       try {
-        const [sessions, apps, finance] = await Promise.all([
+        const [sessions, apps, finance, ozzyRows] = await Promise.all([
           sb.from("study_sessions").select("*"),
           sb.from("applications").select("*"),
           sb.from("finance").select("*"),
+          sb.from("ozzy_profile").select("*").catch(() => []),
         ]);
+
+        const photoRow = Array.isArray(ozzyRows) ? ozzyRows.find(r => r.key === "photo_url") : null;
+        if (photoRow?.value) setOzzyPhoto(storage.getPublicUrl("pets", photoRow.value));
 
         const studyHours = Array.isArray(sessions)
           ? sessions.reduce((sum, s) => sum + (s.hours || 0), 0) : 0;
@@ -814,7 +819,12 @@ export default function TrackerHub({ archivedTrackers = [], onArchive, onUnarchi
           </svg>
         </button>
         <div className="tc-ring"><MiniRing percent={ring.percent} color={ring.color} /></div>
-        <div className="tc-icon"><Icon name={t.icon} size={22} color="var(--t2)" /></div>
+        <div className="tc-icon" style={id === "pet" && ozzyPhoto ? { overflow: "hidden" } : {}}>
+          {id === "pet" && ozzyPhoto
+            ? <img src={ozzyPhoto} style={{ width: "100%", height: "100%", objectFit: "cover" }} alt="Ozzy" />
+            : <Icon name={t.icon} size={22} color="var(--t2)" />
+          }
+        </div>
         <div className="tc-name">{t.name}</div>
         <div className="tc-sub">{t.sub}</div>
       </div>
