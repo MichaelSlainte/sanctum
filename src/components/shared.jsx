@@ -134,7 +134,7 @@ export const CAT_ICONS = {
   savings: { icon: "bank", color: "#10b981", bg: "rgba(16,185,129,0.15)" },
 };
 export const SanctumLogo = () => (
-  <img src="/icons.svg" alt="Sanctum" style={{ height: 36 }} />
+  <img src="/icons.svg?v=3" alt="Sanctum" style={{ height: 32 }} />
 );
 
 export const EVENT_COLORS = {

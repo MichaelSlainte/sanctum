@@ -68,7 +68,7 @@ function Login({ onLogin }) {
     <div className="login-wrap">
       <div className="login-box animate-in">
         <div className="login-logo">
-          <img src="/icon.svg" alt="Sanctum" style={{ height: 56 }} />
+          <img src="/icon.svg?v=3" alt="Sanctum" style={{ width: 64, height: 64, borderRadius: '50%' }} />
           <div className="login-name">Sanctum</div>
         </div>
         <div className="login-title">{mode === "login" ? "Welcome back" : "Create account"}</div>
@@ -568,7 +568,7 @@ RESPONSE RULES — choose one format only:
         {/* ── Sidebar (desktop) ── */}
         <aside className="sidebar">
           <div className="sidebar-logo">
-            <img src="/icons.svg?v=2" alt="Sanctum" style={{ height: 32 }} />
+            <img src="/icons.svg?v=3" alt="Sanctum" style={{ height: 32 }} />
             <div className="logo-sub">{displayName} · Dublin</div>
           </div>
 
