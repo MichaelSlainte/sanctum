@@ -544,7 +544,9 @@ export default function Study({ user }) {
         const offset = circ - circ * pct;
         const ringColor = pct >= 1 ? "var(--grn)" : pct >= 0.5 ? "var(--amber)" : "var(--red)";
         return (
-          <div className="weekly-ring-wrap" onClick={() => setShowQuickLog(true)} style={{ cursor: "pointer" }} title="Log study hours">
+          <div className="weekly-ring-wrap" onClick={openSessionModal} style={{ cursor: "pointer", transition: "filter .2s" }}
+            onMouseEnter={e => { e.currentTarget.style.filter = `drop-shadow(0 0 14px ${ringColor}60)`; }}
+            onMouseLeave={e => { e.currentTarget.style.filter = ""; }}>
             <svg width="120" height="120" viewBox="0 0 120 120">
               <circle cx="60" cy="60" r={r} fill="none" style={{ stroke: "var(--b2)" }} strokeWidth="8" />
               <circle cx="60" cy="60" r={r} fill="none" style={{ stroke: ringColor }}
@@ -557,7 +559,6 @@ export default function Study({ user }) {
                 {pct >= 1 ? "Goal met!" : pct >= 0.5 ? "Halfway there" : "Keep pushing"}
               </text>
             </svg>
-            <div className="weekly-ring-label">This week · tap to log</div>
           </div>
         );
       })()}

@@ -1,3 +1,4 @@
+// Copyright © 2026 Michael FR Marques & Tamara Lechner. All rights reserved.
 import { useState, useEffect, useRef } from "react";
 import { sb } from "../lib/supabase";
 import { Icon, Modal, EVENT_COLORS, SanctumLogo } from "./shared";
@@ -908,7 +909,7 @@ For all other queries respond in plain conversational text, warm but concise, ma
       )}
 
       {showStudyLog && (
-        <Modal title="Log study session" onClose={() => setShowStudyLog(false)}>
+        <Modal title="Log study session" onClose={() => setShowStudyLog(false)} wide>
           <div className="grid-2" style={{ gap: 12 }}>
             <div className="form-row">
               <label className="form-label">Subject</label>
@@ -937,7 +938,7 @@ For all other queries respond in plain conversational text, warm but concise, ma
           </div>
           <div className="grid-2" style={{ gap: 12 }}>
             <div className="form-row">
-              <label className="form-label">Hours</label>
+              <label className="form-label">Hours studied</label>
               <input className="inp" type="number" step="0.5" min="0.5" max="12"
                 value={studyLogForm.hours}
                 onChange={e => setStudyLogForm(f => ({ ...f, hours: e.target.value }))}
@@ -1124,20 +1125,16 @@ For all other queries respond in plain conversational text, warm but concise, ma
               </div>
             );
             if (id === "weekly_study") return (
-              <div key="weekly_study" className={cls} {...drag} style={{ cursor: "pointer" }} onClick={() => onNavigate("study")}>
+              <div key="weekly_study" className={cls} {...drag} style={{ cursor: "pointer" }}
+                onClick={openStudyLog}
+                onMouseEnter={e => { if (!e.currentTarget.classList.contains("is-dragging")) e.currentTarget.style.borderColor = "var(--b3)"; }}
+                onMouseLeave={e => { e.currentTarget.style.borderColor = ""; }}>
                 <div className="drag-handle" style={{ position:"absolute", top:8, right:8 }}><Icon name="grab" size={12} /></div>
                 <RingCard label="THIS WEEK · STUDY"
                   value={`${thisWeekHours.toFixed(thisWeekHours % 1 === 0 ? 0 : 1)}h`}
                   sub={`${weeklyGoalHours}h goal`}
                   percent={weekPercent}
                   color={weekRingColor} />
-                <button
-                  className="btn xs primary"
-                  onMouseDown={e => e.stopPropagation()}
-                  onClick={e => { e.stopPropagation(); openStudyLog(); }}
-                  style={{ marginTop: 6, fontSize: 11, padding: "3px 10px" }}>
-                  + Log
-                </button>
               </div>
             );
             return null;
