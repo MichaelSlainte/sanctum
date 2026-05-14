@@ -734,7 +734,7 @@ RESPONSE RULES — choose one format only:
           <button className="mobile-ai-close-btn" onClick={() => setMobileAIOpen(false)} aria-label="Close">×</button>
         </div>
         <div className="ai-bar">
-          <div style={{width:32,height:32,borderRadius:'50%',background:'#080808',border:'1px solid #333',display:'flex',alignItems:'center',justifyContent:'center',flexShrink:0,overflow:'hidden'}}><SanctumLogo size={28}/></div>
+          <div style={{width:32,height:32,borderRadius:'50%',background:'#080808',border:'1px solid #333',display:'flex',alignItems:'center',justifyContent:'center',flexShrink:0,overflow:'hidden'}}><img src="/icon.svg" alt="Sanctum" style={{width:28,height:28}}/></div>
           <input
             className="ai-bar-input"
             value={globalAIInput}
