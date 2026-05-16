@@ -1,3 +1,4 @@
+// © Sanctum
 import { useState, useEffect } from "react";
 import { sb } from "../../lib/supabase";
 import { Icon, Modal, STATUS_COLORS } from "../shared";
@@ -8,6 +9,8 @@ export default function Career({ user }) {
   const [showAdd, setShowAdd] = useState(false);
   const [showArchived, setShowArchived] = useState(false);
   const [newApp, setNewApp] = useState({ company: "", role: "", status: "submitted", applied_date: "", notes: "" });
+  const [editApp, setEditApp] = useState(null);
+  const [editForm, setEditForm] = useState(null);
   const STATUSES = ["submitted", "interview", "offer", "rejected", "withdrawn"];
 
   useEffect(() => { loadApps(); }, []);
@@ -31,6 +34,20 @@ export default function Career({ user }) {
     } catch { setApps(prev => [...prev, { ...newApp, id: Date.now().toString() }]); }
     setNewApp({ company: "", role: "", status: "submitted", applied_date: "", notes: "" }); setShowAdd(false);
   };
+
+  const openEdit = (a) => {
+    setEditApp(a);
+    setEditForm({ company: a.company || "", role: a.role || "", status: a.status || "submitted", applied_date: a.applied_date || "", notes: a.notes || "" });
+  };
+
+  const saveEdit = async () => {
+    setApps(prev => prev.map(a => a.id === editApp.id ? { ...a, ...editForm } : a));
+    try { await sb.from("applications").update(editForm, { id: editApp.id }); } catch { }
+    setEditApp(null);
+    setEditForm(null);
+  };
+
+  const closeEdit = () => { setEditApp(null); setEditForm(null); };
 
   const updateStatus = async (id, status) => {
     setApps(prev => prev.map(a => a.id === id ? { ...a, status } : a));
@@ -61,6 +78,47 @@ export default function Career({ user }) {
         </Modal>
       )}
 
+      {editApp && editForm && (
+        <Modal title="Application details" onClose={closeEdit} wide>
+          <div className="grid-2" style={{ gap: 12 }}>
+            <div className="form-row">
+              <label className="form-label">Company</label>
+              <input className="inp" value={editForm.company} onChange={e => setEditForm(f => ({ ...f, company: e.target.value }))} autoFocus />
+            </div>
+            <div className="form-row">
+              <label className="form-label">Role</label>
+              <input className="inp" value={editForm.role} onChange={e => setEditForm(f => ({ ...f, role: e.target.value }))} />
+            </div>
+          </div>
+          <div className="grid-2" style={{ gap: 12 }}>
+            <div className="form-row">
+              <label className="form-label">Status</label>
+              <select className="inp" value={editForm.status} onChange={e => setEditForm(f => ({ ...f, status: e.target.value }))}>
+                {STATUSES.map(s => <option key={s} value={s}>{s.charAt(0).toUpperCase() + s.slice(1)}</option>)}
+              </select>
+            </div>
+            <div className="form-row">
+              <label className="form-label">Applied date</label>
+              <input className="inp" type="date" value={editForm.applied_date} onChange={e => setEditForm(f => ({ ...f, applied_date: e.target.value }))} />
+            </div>
+          </div>
+          <div className="form-row">
+            <label className="form-label">Notes</label>
+            <textarea
+              className="inp"
+              value={editForm.notes}
+              onChange={e => setEditForm(f => ({ ...f, notes: e.target.value }))}
+              placeholder="Key notes, contacts, tailoring..."
+              style={{ minHeight: 140, resize: "vertical" }}
+            />
+          </div>
+          <div className="modal-actions">
+            <button className="btn" onClick={closeEdit}>Cancel</button>
+            <button className="btn primary" onClick={saveEdit}>Save</button>
+          </div>
+        </Modal>
+      )}
+
       <div className="grid-3 mb18">
         <div className="stat"><div className="stat-icon" style={{ background: "rgba(59,130,246,0.15)" }}><Icon name="mail" size={18} color="var(--blue)" /></div><div className="stat-label">Active</div><div className="stat-value">{active}</div><div className="stat-sub">In progress</div><div className="stat-bar"><div className="stat-fill" style={{ width: `${(active / Math.max(apps.length, 1)) * 100}%` }} /></div></div>
         <div className="stat"><div className="stat-icon" style={{ background: "rgba(245,158,11,0.15)" }}><Icon name="mic" size={18} color="var(--amber)" /></div><div className="stat-label">Interviews</div><div className="stat-value">{interviews}</div><div className="stat-sub">Scheduled or completed</div></div>
@@ -80,10 +138,10 @@ export default function Career({ user }) {
               </tr></thead>
               <tbody>
                 {activeApps.map(a => (
-                  <tr key={a.id}>
+                  <tr key={a.id} onClick={() => openEdit(a)} style={{ cursor: "pointer" }}>
                     <td><div className="company-name">{a.company}</div></td>
                     <td><div style={{ fontSize: 13, color: "var(--t2)" }}>{a.role}</div></td>
-                    <td>
+                    <td onClick={e => e.stopPropagation()}>
                       <select className="inp" style={{ padding: "4px 10px", fontSize: 12, width: "auto" }}
                         value={a.status} onChange={e => updateStatus(a.id, e.target.value)}>
                         {STATUSES.map(s => <option key={s} value={s}>{s.charAt(0).toUpperCase() + s.slice(1)}</option>)}
@@ -91,7 +149,7 @@ export default function Career({ user }) {
                     </td>
                     <td><span style={{ fontSize: 12, color: "var(--t3)", fontFamily: "var(--mono)" }}>{a.applied_date}</span></td>
                     <td><span style={{ fontSize: 12, color: "var(--t2)", maxWidth: 200, display: "block", overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }}>{a.notes}</span></td>
-                    <td><button className="btn xs danger" onClick={() => deleteApp(a.id)}><Icon name="trash" size={11} /></button></td>
+                    <td onClick={e => e.stopPropagation()}><button className="btn xs danger" onClick={() => deleteApp(a.id)}><Icon name="trash" size={11} /></button></td>
                   </tr>
                 ))}
                 {activeApps.length === 0 && (
@@ -110,13 +168,13 @@ export default function Career({ user }) {
                   <table className="app-table" style={{ marginTop: 8, opacity: .5 }}>
                     <tbody>
                       {archivedApps.map(a => (
-                        <tr key={a.id}>
+                        <tr key={a.id} onClick={() => openEdit(a)} style={{ cursor: "pointer" }}>
                           <td><div className="company-name" style={{ textDecoration: "line-through" }}>{a.company}</div></td>
                           <td><div style={{ fontSize: 13, color: "var(--t3)" }}>{a.role}</div></td>
                           <td><span className={`badge ${STATUS_COLORS[a.status] || "muted"}`}>{a.status}</span></td>
                           <td><span style={{ fontSize: 12, color: "var(--t3)", fontFamily: "var(--mono)" }}>{a.applied_date}</span></td>
                           <td></td>
-                          <td><button className="btn xs danger" onClick={() => deleteApp(a.id)}><Icon name="trash" size={11} /></button></td>
+                          <td onClick={e => e.stopPropagation()}><button className="btn xs danger" onClick={() => deleteApp(a.id)}><Icon name="trash" size={11} /></button></td>
                         </tr>
                       ))}
                     </tbody>
