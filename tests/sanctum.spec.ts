@@ -42,7 +42,7 @@ test.describe("Sanctum smoke tests", () => {
     const errors: string[] = [];
     page.on("console", msg => { if (msg.type() === "error") errors.push(msg.text()); });
     await page.locator(".sidebar .nav-item:has-text('Notes')").first().click();
-    await expect(page.locator(".main-content, [class*='notes'], [class*='notebook']")).toBeVisible({ timeout: 15000 });
+    await expect(page.locator(".main-content, [class*='notes'], [class*='notebook']").first()).toBeVisible({ timeout: 15000 });
     expect(errors.filter(e => !e.includes("favicon"))).toHaveLength(0);
   });
 
@@ -69,7 +69,7 @@ test.describe("Sanctum smoke tests", () => {
   test("navigate to Settings — page loads without errors", async ({ page }) => {
     await login(page);
     await page.locator(".sidebar .nav-item:has-text('Settings')").first().click();
-    await expect(page.locator("[class*='settings'], [class*='setting']").first()).toBeVisible({ timeout: 15000 });
+    await expect(page.getByText("Appearance")).toBeVisible({ timeout: 15000 });
   });
 
   test("sign out returns to login screen", async ({ page }) => {
