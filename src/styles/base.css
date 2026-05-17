@@ -322,6 +322,41 @@
   .form-label { font-size: 11px; color: var(--t3); margin-bottom: 6px; display: block; font-weight: 600; letter-spacing: .5px; text-transform: uppercase; }
   .modal-actions { display: flex; gap: 8px; justify-content: flex-end; margin-top: 24px; }
 
+  /* ── TrackerRenderer ── */
+  .tr-scale-row { display: flex; gap: 4px; }
+  .tr-scale-btn {
+    flex: 1; padding: 8px 2px; font-size: 12px; font-weight: 600;
+    background: var(--bg2); border: 1px solid var(--b2); border-radius: 8px;
+    color: var(--t3); cursor: pointer; transition: all .15s;
+    font-family: var(--sans); min-width: 0;
+  }
+  .tr-scale-btn:hover { background: var(--bg3); color: var(--t1); border-color: var(--b3); }
+  .tr-scale-btn.active { background: var(--blue); border-color: var(--blue); color: #fff; }
+
+  .tr-toggle {
+    position: relative; width: 44px; height: 24px;
+    background: var(--bg3); border: 1px solid var(--b2); border-radius: 12px;
+    cursor: pointer; transition: background .2s, border-color .2s;
+    flex-shrink: 0; padding: 0;
+  }
+  .tr-toggle::after {
+    content: ""; position: absolute; top: 3px; left: 3px;
+    width: 16px; height: 16px; border-radius: 50%;
+    background: var(--t3); transition: transform .2s, background .2s;
+  }
+  .tr-toggle.on { background: var(--blue); border-color: var(--blue); }
+  .tr-toggle.on::after { transform: translateX(20px); background: #fff; }
+
+  .tr-currency-wrap { position: relative; display: flex; align-items: center; }
+  .tr-currency-sym {
+    position: absolute; left: 12px; font-size: 13px; font-weight: 600;
+    color: var(--t3); pointer-events: none; z-index: 1;
+  }
+  .tr-currency-inp { padding-left: 28px !important; }
+
+  .tr-inp-err { border-color: var(--red) !important; }
+  .tr-err-msg { font-size: 11px; color: var(--red); margin-top: 4px; }
+
   /* ── Loading ── */
   .loading { display: flex; align-items: center; justify-content: center; height: 120px; color: var(--t3); font-size: 12px; font-family: var(--mono); gap: 8px; }
 
