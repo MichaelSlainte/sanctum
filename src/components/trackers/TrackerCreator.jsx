@@ -91,6 +91,11 @@ export default function TrackerCreator({ onCreated, user }) {
           messages: [{ role: 'user', content: description.trim() }],
         }),
       });
+      if (!res.ok) {
+        setError(res.status === 401 ? 'Session expired — please sign out and sign back in.' : 'Something went wrong — try again.');
+        setStep('input');
+        return;
+      }
       const data = await res.json();
       const text = (data.content?.[0]?.text || '').trim();
       const parsed = JSON.parse(text.replace(/```(?:json)?|```/g, '').trim());

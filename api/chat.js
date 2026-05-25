@@ -7,14 +7,23 @@ const SUPABASE_URL = "https://hqlgwisfkkosgekotojz.supabase.co";
 const SUPABASE_KEY = "sb_publishable_Eky9AvrbiYjejxogwxwJ6Q_x7eoySQ4";
 
 async function validateToken(token) {
-  try {
-    const res = await fetch(`${SUPABASE_URL}/auth/v1/user`, {
+  return new Promise((resolve) => {
+    const req = https.request({
+      hostname: 'hqlgwisfkkosgekotojz.supabase.co',
+      path: '/auth/v1/user',
+      method: 'GET',
       headers: { apikey: SUPABASE_KEY, Authorization: `Bearer ${token}` },
+    }, (res) => {
+      console.error(`[validateToken] token="${token.slice(0, 20)}..." status=${res.statusCode}`);
+      res.on('data', () => {});
+      res.on('end', () => resolve(res.statusCode === 200));
     });
-    return res.ok;
-  } catch {
-    return false;
-  }
+    req.on('error', (e) => {
+      console.error(`[validateToken] error: ${e.message}`);
+      resolve(false);
+    });
+    req.end();
+  });
 }
 
 // Simple in-memory rate limiter — 20 requests per IP per 10 minutes
