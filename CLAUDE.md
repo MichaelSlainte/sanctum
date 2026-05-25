@@ -27,6 +27,8 @@ https://sanctum-beige.vercel.app
 - src/index.css, src/App.css, src/styles/base.css — global styles
 - src/components/ — page-level components: Home, Notes, Calendar, Settings, Roadmap, shared
 - src/components/trackers/ — tracker components: TrackerHub, TrackerCreator, Study, Career, Finance, Travel, Ozzy
+- src/trackers/TrackerRenderer.jsx — generic JSONB schema-driven tracker renderer
+- src/trackers/schema-spec.js — field type contract for JSONB tracker schemas
 - src/lib/ — utilities: supabase.js (sb helper + custom auth), crypto.js, CryptoContext.jsx
 
 ## Design system
@@ -38,26 +40,43 @@ https://sanctum-beige.vercel.app
 ## Supabase tables
 - tasks: id, user_id, text, tag, done, created_at
 - notes: id, user_id, notebook, section, title, body, tags, updated_at
-- events: id, user_id, title, date, time, category, color, notes, repeat_deleted_from
+- events: id, user_id, title, date, time, category, color, notes, repeat_deleted_from, exceptions JSONB
 - finance: id, user_id, label, amount, category, month
 - applications: id, user_id, company, role, status, applied_date, notes
 - study_sessions: id, user_id, type, topic, hours, notes, date
 - study_subjects: id, user_id, label, color, position
 - study_topics: id, user_id, subject_id, label, position
+- custom_trackers: id, user_id, name, description, icon, color, fields JSONB, created_at
+
+## Pending Supabase migrations
+```sql
+ALTER TABLE custom_trackers ADD COLUMN IF NOT EXISTS fields JSONB DEFAULT '[]';
+ALTER TABLE events ADD COLUMN IF NOT EXISTS repeat_deleted_from date;
+ALTER TABLE events ADD COLUMN IF NOT EXISTS exceptions JSONB DEFAULT '[]';
+```
 
 ## What is built
+- Auth: custom hand-rolled JWT, localStorage, 45-min refresh polling (no Supabase SDK)
 - Home: greeting, AI bar, stat cards (PMP/Scotland/MSc/Tasks), tasks widget, calendar strip, tracker shortcuts, study ring quick-log
-- Notes: three panel (notebooks/list/editor), WYSIWYG editor, auto-save, fullscreen, PIN lock, E2E encryption
+- Notes: three-panel (notebooks/list/editor), WYSIWYG editor, auto-save, fullscreen, PIN lock, E2E encryption
 - Calendar: month/week/3day/day/year views, mini date picker, events, category filters, recurring events, timezone support
-- Trackers: Study, Career, Finance, Travel, Ozzy — draggable hub
+- Trackers (v1 hardcoded): Study, Career, Finance, Travel, Ozzy — hardcoded hub
+- AI tracker creation flow (v2): describe → AI generates JSONB schema → preview → edit → save to custom_trackers table
+- Generic TrackerRenderer component (src/trackers/TrackerRenderer.jsx) driven by JSONB schema
+- JSONB schema field type contract (src/trackers/schema-spec.js)
+- Playwright E2E smoke tests (9/9 passing)
+- GitHub Actions CI
 - Settings: themes, profile, privacy section, account info
 
-## What is NOT built yet (next steps)
-1. Study tracker rebuild — rings, milestones, weekly plan, hours tracking
-2. AI tracker creation flow with preview step
-3. Calendar connected to trackers (events from tracker entries)
-4. Mobile touch drag fix
-5. Backend API refactor (after design complete)
+## What is NOT built yet (v2 remaining)
+1. Custom trackers appearing in sidebar nav
+2. Custom tracker detail view (log entries)
+3. Convert v1 hardcoded trackers to JSONB format
+4. Calendar ↔ tracker integration
+5. Dynamic home dashboard
+6. Onboarding for new users
+7. Stripe + public launch
+8. JWT validation on api/chat (TODO — removed temporarily)
 
 ## Rules for Claude Code
 - Always use CSS variables, never hardcode colors
