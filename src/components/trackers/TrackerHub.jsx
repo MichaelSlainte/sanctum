@@ -655,7 +655,6 @@ export default function TrackerHub({ archivedTrackers = [], onArchive, onUnarchi
         setTrackerEntries(data);
       } else {
         const local = loadCustomEntries();
-        console.log('localStorage entries:', local);
         setTrackerEntries(local);
       }
     };
@@ -881,12 +880,14 @@ export default function TrackerHub({ archivedTrackers = [], onArchive, onUnarchi
           width: 36, height: 36, borderRadius: 10,
           background: color + '22',
           display: 'flex', alignItems: 'center', justifyContent: 'center',
-          marginBottom: 36,
+          marginBottom: 36, fontSize: 18,
         }}>
-          <svg width="18" height="18" viewBox="0 0 24 24" fill="none"
-            stroke={color} strokeWidth="2" strokeLinecap="round">
-            <path d="M22 12h-4l-3 9L9 3l-3 9H2" />
-          </svg>
+          {t.icon ? t.icon : (
+            <svg width="18" height="18" viewBox="0 0 24 24" fill="none"
+              stroke={color} strokeWidth="2" strokeLinecap="round">
+              <path d="M22 12h-4l-3 9L9 3l-3 9H2" />
+            </svg>
+          )}
         </div>
         {/* Text + delete row */}
         <div style={{ display: 'flex', alignItems: 'flex-end', justifyContent: 'space-between', gap: 8 }}>
