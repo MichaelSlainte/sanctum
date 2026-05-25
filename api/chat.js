@@ -3,6 +3,20 @@
 // https://sanctum.app
 import https from 'https';
 
+const SUPABASE_URL = "https://hqlgwisfkkosgekotojz.supabase.co";
+const SUPABASE_KEY = "sb_publishable_Eky9AvrbiYjejxogwxwJ6Q_x7eoySQ4";
+
+async function validateToken(token) {
+  try {
+    const res = await fetch(`${SUPABASE_URL}/auth/v1/user`, {
+      headers: { apikey: SUPABASE_KEY, Authorization: `Bearer ${token}` },
+    });
+    return res.ok;
+  } catch {
+    return false;
+  }
+}
+
 // Simple in-memory rate limiter — 20 requests per IP per 10 minutes
 const rateLimits = new Map();
 const WINDOW_MS = 10 * 60 * 1000;
@@ -24,9 +38,16 @@ function isRateLimited(ip) {
 export default async function handler(req, res) {
   res.setHeader('Access-Control-Allow-Origin', 'https://sanctum-beige.vercel.app');
   res.setHeader('Access-Control-Allow-Methods', 'POST, OPTIONS');
-  res.setHeader('Access-Control-Allow-Headers', 'Content-Type');
+  res.setHeader('Access-Control-Allow-Headers', 'Content-Type, Authorization');
   if (req.method === 'OPTIONS') return res.status(200).end();
   if (req.method !== 'POST') return res.status(405).json({ error: 'Method not allowed' });
+
+  // Auth — reject unauthenticated callers before touching the Anthropic key
+  const authHeader = req.headers['authorization'];
+  const token = authHeader?.startsWith('Bearer ') ? authHeader.slice(7) : null;
+  if (!token || !(await validateToken(token))) {
+    return res.status(401).json({ error: 'Unauthorized' });
+  }
 
   // Rate limiting
   const ip = req.headers['x-forwarded-for']?.split(',')[0] || req.socket?.remoteAddress || 'unknown';

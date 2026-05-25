@@ -132,7 +132,8 @@ export const sb = {
       const headers = { apikey: SUPABASE_KEY, "Content-Type": "application/json" };
       if (session) headers.Authorization = `Bearer ${session.token}`;
       const orderParam = order ? `&order=${order}` : "";
-      const res = await fetch(`${SUPABASE_URL}/rest/v1/${table}?select=${cols}${orderParam}${filters}`, { headers });
+      const userFilter = session ? `&user_id=eq.${session.user.id}` : "";
+      const res = await fetch(`${SUPABASE_URL}/rest/v1/${table}?select=${cols}${orderParam}${userFilter}${filters}`, { headers });
       if (!res.ok) return [];
       const data = await res.json();
       return Array.isArray(data) ? data : [];

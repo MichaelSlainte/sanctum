@@ -216,7 +216,8 @@ RESPONSE RULES — choose one format only:
   category must be one of: personal, career, travel, study, family
 - All other queries → plain conversational text, warm but concise, max 2 sentences. No JSON.`;
       const newHistory = [...globalAIHistory, { role: 'user', content: userMsg }];
-      const res = await fetch('/api/chat', { method: 'POST', headers: { 'Content-Type': 'application/json' },
+      const token = localStorage.getItem("sanctum_token") || "";
+      const res = await fetch('/api/chat', { method: 'POST', headers: { 'Content-Type': 'application/json', Authorization: `Bearer ${token}` },
         body: JSON.stringify({ system: sys, messages: newHistory }) });
       const data = await res.json();
       const reply = (data.content?.[0]?.text || '').trim();
