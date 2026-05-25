@@ -3,7 +3,7 @@
 // https://sanctum.app
 import { useState, useRef, useEffect } from "react";
 import { Icon, Modal } from "../shared";
-import { sb } from "../../lib/supabase";
+import { auth, sb } from "../../lib/supabase";
 
 const PALETTE = [
   '#10b981','#3b82f6','#8b5cf6','#f59e0b','#ef4444',
@@ -72,7 +72,17 @@ export default function TrackerCreator({ onCreated, user }) {
     setStep('generating');
     setError('');
     try {
-      const token = localStorage.getItem('sanctum_token') || '';
+      let session = auth.getSession();
+      if (!session) {
+        const refreshed = await auth.refreshSession();
+        if (refreshed) session = auth.getSession();
+      }
+      if (!session) {
+        setError('Please sign out and sign back in to use AI features.');
+        setStep('input');
+        return;
+      }
+      const token = session.token;
       const res = await fetch('/api/chat', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json', Authorization: `Bearer ${token}` },
