@@ -27,6 +27,7 @@ function isRateLimited(ip) {
 }
 
 export default async function handler(req, res) {
+  console.log('[api/chat] handler invoked', req.method);
   res.setHeader('Access-Control-Allow-Origin', 'https://sanctum-beige.vercel.app');
   res.setHeader('Access-Control-Allow-Methods', 'POST, OPTIONS');
   res.setHeader('Access-Control-Allow-Headers', 'Content-Type, Authorization');
@@ -83,8 +84,15 @@ export default async function handler(req, res) {
       let data = '';
       r.on('data', c => { data += c; });
       r.on('end', () => {
-        try { res.status(r.statusCode).json(JSON.parse(data)); }
-        catch { res.status(500).json({ error: 'Bad response' }); }
+        try {
+          const parsed = JSON.parse(data);
+          if (r.statusCode === 401 || r.statusCode === 403) {
+            console.error('[api/chat] Anthropic auth error', r.statusCode, parsed);
+            res.status(502).json({ error: 'AI service unavailable' });
+          } else {
+            res.status(r.statusCode).json(parsed);
+          }
+        } catch { res.status(500).json({ error: 'Bad response' }); }
         resolve();
       });
     });
