@@ -611,7 +611,7 @@ export function CustomTrackerDetail({ tracker: initialTracker, onClose, user, on
   );
 }
 
-export default function TrackerHub({ archivedTrackers = [], onArchive, onUnarchive, onNavigate, user, refreshKey = 0 }) {
+export default function TrackerHub({ archivedTrackers = [], onArchive, onUnarchive, onNavigate, user, refreshKey = 0, onCustomTrackersLoad, openCustomSignal }) {
   const [selectedCustom, setSelectedCustom] = useState(null);
 
   const [ringData, setRingData] = useState({
@@ -646,6 +646,16 @@ export default function TrackerHub({ archivedTrackers = [], onArchive, onUnarchi
       setArchivedCustomTrackers(archived);
     } catch {}
   };
+
+  useEffect(() => {
+    onCustomTrackersLoad?.(customTrackers);
+  }, [customTrackers]);
+
+  useEffect(() => {
+    if (!openCustomSignal || !customTrackers.length) return;
+    const t = customTrackers.find(x => x.id === openCustomSignal.id);
+    if (t) setSelectedCustom(t);
+  }, [openCustomSignal, customTrackers]);
 
   useEffect(() => {
     loadCustomTrackers();

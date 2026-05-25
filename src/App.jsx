@@ -157,6 +157,8 @@ export default function App() {
   const panelSwipe = useRef({ startY: 0 });
   const [calendarRefreshKey, setCalendarRefreshKey] = useState(0);
   const [globalAIHistory, setGlobalAIHistory] = useState([]);
+  const [customTrackers, setCustomTrackers] = useState([]);
+  const [openCustomSignal, setOpenCustomSignal] = useState(null);
 
   // Draggable AI FAB position (right-based)
   const [fabPos, setFabPos] = useState(() => {
@@ -534,7 +536,7 @@ RESPONSE RULES — choose one format only:
     if (page === "notes") return <Notes user={user} />;
     if (page === "calendar") return <Calendar user={user} initialDate={calDate} refreshKey={calendarRefreshKey} />;
     if (page === "settings") return <Settings user={user} onLogout={handleLogout} theme={theme} onThemeChange={applyTheme} font={font} onFontChange={applyFont} sb={sb} />;
-    if (page === "trackers") return <TrackerHub user={user} archivedTrackers={archivedTrackers} onArchive={archiveTracker} onUnarchive={unarchiveTracker} onNavigate={navigate} />;
+    if (page === "trackers") return <TrackerHub user={user} archivedTrackers={archivedTrackers} onArchive={archiveTracker} onUnarchive={unarchiveTracker} onNavigate={navigate} onCustomTrackersLoad={setCustomTrackers} openCustomSignal={openCustomSignal} />;
     if (page === "study")   return <><TrackerBackBar name="Study"   onBack={() => navigate("trackers")} /><Study   user={user} /></>;
     if (page === "pet")     return <><TrackerBackBar name="Ozzy"    onBack={() => navigate("trackers")} /><Ozzy    user={user} /></>;
     if (page === "travel")  return <><TrackerBackBar name="Travel"  onBack={() => navigate("trackers")} /><Travel  user={user} /></>;
@@ -630,6 +632,17 @@ RESPONSE RULES — choose one format only:
                       style={{ paddingLeft: 30, fontSize: 12 }}
                     >
                       <div className="nav-icon"><Icon name={t.icon} size={13} /></div>
+                      {t.label}
+                    </div>
+                  ))}
+                  {trackersExpanded && customTrackers.map(t => (
+                    <div
+                      key={t.id}
+                      className={`nav-item${openCustomSignal?.id === t.id && page === "trackers" ? " active" : ""}`}
+                      onClick={() => { navigate("trackers"); setOpenCustomSignal({ id: t.id, ts: Date.now() }); }}
+                      style={{ paddingLeft: 30, fontSize: 12 }}
+                    >
+                      <div className="nav-icon" style={{ fontSize: 13 }}>{t.icon || "◈"}</div>
                       {t.label}
                     </div>
                   ))}
@@ -782,7 +795,7 @@ RESPONSE RULES — choose one format only:
 
       <nav className="bottom-nav">
         {trackersExpanded && (
-          <div style={{ display: "flex", borderBottom: "1px solid var(--b1)" }}>
+          <div style={{ display: "flex", flexWrap: "wrap", borderBottom: "1px solid var(--b1)" }}>
             {TRACKER_ITEMS.map(t => (
               <div
                 key={t.id}
@@ -791,6 +804,17 @@ RESPONSE RULES — choose one format only:
                 onClick={() => navigate(t.id)}
               >
                 <Icon name={t.icon} size={19} />
+                <span style={{ fontSize: 9 }}>{t.label}</span>
+              </div>
+            ))}
+            {customTrackers.map(t => (
+              <div
+                key={t.id}
+                className={`bottom-nav-item${openCustomSignal?.id === t.id && page === "trackers" ? " active" : ""}`}
+                style={{ flex: 1 }}
+                onClick={() => { navigate("trackers"); setOpenCustomSignal({ id: t.id, ts: Date.now() }); }}
+              >
+                <span style={{ fontSize: 19 }}>{t.icon || "◈"}</span>
                 <span style={{ fontSize: 9 }}>{t.label}</span>
               </div>
             ))}
