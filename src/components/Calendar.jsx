@@ -606,29 +606,45 @@ export default function Calendar({ user, initialDate, refreshKey }) {
       setActiveEvent(null);
       return;
     }
-    setEvents(prev => prev.filter(e => e.id !== id));
-    setActiveEvent(null);
-    try { await sb.from("events").delete({ id }); } catch {}
+    try {
+      await sb.from("events").delete({ id });
+      setEvents(prev => prev.filter(e => e.id !== id));
+      setActiveEvent(null);
+    } catch {
+      alert("Failed to delete event. Please try again.");
+    }
   };
 
   const deleteOccurrence = async (realId, date) => {
     const ev = events.find(e => e.id === realId);
     const newExceptions = [...(Array.isArray(ev?.exceptions) ? ev.exceptions : []), date];
-    setEvents(prev => prev.map(e => e.id === realId ? { ...e, exceptions: newExceptions } : e));
-    setDeleteConfirmEvent(null);
-    try { await sb.from("events").update({ exceptions: newExceptions }, { id: realId }); } catch {}
+    try {
+      await sb.from("events").update({ exceptions: newExceptions }, { id: realId });
+      setEvents(prev => prev.map(e => e.id === realId ? { ...e, exceptions: newExceptions } : e));
+      setDeleteConfirmEvent(null);
+    } catch {
+      alert("Failed to delete occurrence. Please try again.");
+    }
   };
 
   const deleteAllOccurrences = async (realId) => {
-    setEvents(prev => prev.filter(e => e.id !== realId));
-    setDeleteConfirmEvent(null);
-    try { await sb.from("events").delete({ id: realId }); } catch {}
+    try {
+      await sb.from("events").delete({ id: realId });
+      setEvents(prev => prev.filter(e => e.id !== realId));
+      setDeleteConfirmEvent(null);
+    } catch {
+      alert("Failed to delete event. Please try again.");
+    }
   };
 
   const deleteThisAndFuture = async (realId, date) => {
-    setEvents(prev => prev.map(e => e.id === realId ? { ...e, repeat_deleted_from: date } : e));
-    setDeleteConfirmEvent(null);
-    try { await sb.from("events").update({ repeat_deleted_from: date }, { id: realId }); } catch {}
+    try {
+      await sb.from("events").update({ repeat_deleted_from: date }, { id: realId });
+      setEvents(prev => prev.map(e => e.id === realId ? { ...e, repeat_deleted_from: date } : e));
+      setDeleteConfirmEvent(null);
+    } catch {
+      alert("Failed to delete events. Please try again.");
+    }
   };
 
   const setF = (k, v) => setFormData(f => ({ ...f, [k]: v }));
@@ -784,7 +800,7 @@ export default function Calendar({ user, initialDate, refreshKey }) {
       {showAdd && (
         <Modal title={editingEvent ? "Edit event" : "Add event"} onClose={closeModal} wide>
           <div className="form-row">
-            <input className="inp" value={formData.title}
+            <input id="evt-title" name="title" className="inp" value={formData.title}
               onChange={e => setF("title", e.target.value)}
               placeholder="Event title" autoFocus style={{ fontSize: 16, fontWeight: 600 }}
               onKeyDown={e => e.key === "Enter" && saveEvent()} />
@@ -815,7 +831,7 @@ export default function Calendar({ user, initialDate, refreshKey }) {
             <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", marginBottom: allDay ? 0 : 8 }}>
               <label className="form-label" style={{ marginBottom: 0 }}>Time</label>
               <label style={{ display: "flex", alignItems: "center", gap: 6, cursor: "pointer", fontSize: 12, color: "var(--t2)", fontWeight: 500, userSelect: "none" }}>
-                <input type="checkbox" checked={allDay} onChange={e => {
+                <input id="evt-all-day" name="allDay" type="checkbox" checked={allDay} onChange={e => {
                   setAllDay(e.target.checked);
                   if (e.target.checked && !formData.end_date) setF("end_date", formData.date);
                 }} style={{ accentColor: "var(--blue)", width: 14, height: 14 }} />
@@ -858,13 +874,13 @@ export default function Calendar({ user, initialDate, refreshKey }) {
           <div className="form-row" style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: 10 }}>
             <div>
               <label className="form-label">Category</label>
-              <select className="inp" value={formData.category} onChange={e => setF("category", e.target.value)}>
+              <select id="evt-category" name="category" className="inp" value={formData.category} onChange={e => setF("category", e.target.value)}>
                 {CATS.map(c => <option key={c.id} value={c.id}>{c.label}</option>)}
               </select>
             </div>
             <div>
               <label className="form-label">Timezone</label>
-              <select className="inp" value={formData.timezone} onChange={e => setF("timezone", e.target.value)}>
+              <select id="evt-timezone" name="timezone" className="inp" value={formData.timezone} onChange={e => setF("timezone", e.target.value)}>
                 {TIMEZONES.map(tz => <option key={tz.id} value={tz.id}>{tz.label}</option>)}
               </select>
             </div>
@@ -874,7 +890,7 @@ export default function Calendar({ user, initialDate, refreshKey }) {
             <label className="form-label">Location</label>
             <div style={{ position: "relative" }}>
               <span style={{ position: "absolute", left: 10, top: "50%", transform: "translateY(-50%)", fontSize: 13, pointerEvents: "none" }}>📍</span>
-              <input className="inp" value={formData.location}
+              <input id="evt-location" name="location" className="inp" value={formData.location}
                 onChange={e => setF("location", e.target.value)}
                 placeholder="Add location or address" style={{ paddingLeft: 30 }} />
             </div>
@@ -886,13 +902,13 @@ export default function Calendar({ user, initialDate, refreshKey }) {
           <div className="form-row" style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: 10 }}>
             <div>
               <label className="form-label">Repeat</label>
-              <select className="inp" value={formData.repeat} onChange={e => setF("repeat", e.target.value)}>
+              <select id="evt-repeat" name="repeat" className="inp" value={formData.repeat} onChange={e => setF("repeat", e.target.value)}>
                 {repeatOpts.map(r => <option key={r.id} value={r.id}>{r.label}</option>)}
               </select>
             </div>
             <div>
               <label className="form-label">Reminder</label>
-              <select className="inp" value={formData.reminder} onChange={e => setF("reminder", e.target.value)}>
+              <select id="evt-reminder" name="reminder" className="inp" value={formData.reminder} onChange={e => setF("reminder", e.target.value)}>
                 {REMINDERS.map(r => <option key={r.id} value={r.id}>{r.label}</option>)}
               </select>
             </div>
@@ -903,11 +919,11 @@ export default function Calendar({ user, initialDate, refreshKey }) {
               <label className="form-label">Custom interval</label>
               <div style={{ display: "flex", gap: 8, alignItems: "center" }}>
                 <span style={{ fontSize: 13, color: "var(--t2)" }}>Every</span>
-                <input className="inp" type="number" min={1} max={99}
+                <input id="evt-custom-interval" name="repeatCustomInterval" className="inp" type="number" min={1} max={99}
                   value={formData.repeatCustomInterval}
                   onChange={e => setF("repeatCustomInterval", Math.max(1, parseInt(e.target.value)||1))}
                   style={{ width: 64, textAlign: "center" }} />
-                <select className="inp" value={formData.repeatCustomUnit}
+                <select id="evt-custom-unit" name="repeatCustomUnit" className="inp" value={formData.repeatCustomUnit}
                   onChange={e => setF("repeatCustomUnit", e.target.value)}
                   style={{ flex: 1 }}>
                   <option value="day">Day(s)</option>
@@ -935,13 +951,13 @@ export default function Calendar({ user, initialDate, refreshKey }) {
                       style={{ accentColor: "var(--blue)" }} />
                     <span>{opt.label}</span>
                     {opt.id === "until" && formData.repeatEnd === "until" && (
-                      <input className="inp" type="date" value={formData.repeatEndDate}
+                      <input id="evt-end-date" name="repeatEndDate" className="inp" type="date" value={formData.repeatEndDate}
                         onChange={e => setF("repeatEndDate", e.target.value)}
                         style={{ flex: 1, marginLeft: 4 }} />
                     )}
                     {opt.id === "count" && formData.repeatEnd === "count" && (
                       <div style={{ display: "flex", alignItems: "center", gap: 6, marginLeft: 4 }}>
-                        <input className="inp" type="number" min={1} max={999}
+                        <input id="evt-end-count" name="repeatEndCount" className="inp" type="number" min={1} max={999}
                           value={formData.repeatEndCount}
                           onChange={e => setF("repeatEndCount", Math.max(1, parseInt(e.target.value)||1))}
                           style={{ width: 70, textAlign: "center" }} />
@@ -961,7 +977,7 @@ export default function Calendar({ user, initialDate, refreshKey }) {
 
           <div className="form-row">
             <label className="form-label">Notes</label>
-            <textarea className="inp" value={formData.notes}
+            <textarea id="evt-notes" name="notes" className="inp" value={formData.notes}
               onChange={e => setF("notes", e.target.value)}
               placeholder="Add details..." style={{ minHeight: 72, resize: "vertical" }} />
           </div>
