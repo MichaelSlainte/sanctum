@@ -3,13 +3,18 @@
 // https://sanctum.app
 import https from 'https';
 
-const SUPABASE_URL = "https://hqlgwisfkkosgekotojz.supabase.co";
-const SUPABASE_KEY = "sb_publishable_Eky9AvrbiYjejxogwxwJ6Q_x7eoySQ4";
+const SUPABASE_URL = process.env.VITE_SUPABASE_URL;
+const SUPABASE_KEY = process.env.VITE_SUPABASE_ANON_KEY;
 
 async function validateToken(token) {
+  if (!SUPABASE_URL || !SUPABASE_KEY) {
+    console.error('[validateToken] Missing VITE_SUPABASE_URL or VITE_SUPABASE_ANON_KEY env vars');
+    return false;
+  }
+  const hostname = new URL(SUPABASE_URL).hostname;
   return new Promise((resolve) => {
     const req = https.request({
-      hostname: 'hqlgwisfkkosgekotojz.supabase.co',
+      hostname,
       path: '/auth/v1/user',
       method: 'GET',
       headers: { apikey: SUPABASE_KEY, Authorization: `Bearer ${token}` },
@@ -50,6 +55,12 @@ export default async function handler(req, res) {
   res.setHeader('Access-Control-Allow-Headers', 'Content-Type, Authorization');
   if (req.method === 'OPTIONS') return res.status(200).end();
   if (req.method !== 'POST') return res.status(405).json({ error: 'Method not allowed' });
+
+  // Guard: env vars must be present
+  if (!SUPABASE_URL || !SUPABASE_KEY) {
+    console.error('[chat] VITE_SUPABASE_URL or VITE_SUPABASE_ANON_KEY not set');
+    return res.status(500).json({ error: 'Server misconfiguration' });
+  }
 
   // Auth — reject unauthenticated callers before touching the Anthropic key
   const authHeader = req.headers['authorization'];
