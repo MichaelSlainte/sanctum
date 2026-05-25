@@ -640,7 +640,7 @@ export default function TrackerHub({ archivedTrackers = [], onArchive, onUnarchi
     try {
       const data = await sb.from('custom_trackers').select('*');
       if (!Array.isArray(data)) return;
-      const active   = data.filter(t => !t.archived && t.user_id === user?.id);
+      const active   = data.filter(t => t.archived !== true && t.user_id === user?.id);
       const archived = data.filter(t =>  t.archived && t.user_id === user?.id);
       setCustomTrackers(active);
       setArchivedCustomTrackers(archived);
@@ -648,7 +648,7 @@ export default function TrackerHub({ archivedTrackers = [], onArchive, onUnarchi
   };
 
   useEffect(() => {
-    onCustomTrackersLoad?.(customTrackers);
+    onCustomTrackersLoad?.(customTrackers.filter(t => t.archived !== true));
   }, [customTrackers]);
 
   useEffect(() => {
