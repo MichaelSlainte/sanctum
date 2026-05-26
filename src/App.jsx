@@ -159,6 +159,7 @@ export default function App() {
   const [globalAIHistory, setGlobalAIHistory] = useState([]);
   const [customTrackers, setCustomTrackers] = useState([]);
   const [openCustomSignal, setOpenCustomSignal] = useState(null);
+  const [closeCustomSignal, setCloseCustomSignal] = useState(0);
 
   // Draggable AI FAB position (right-based)
   const [fabPos, setFabPos] = useState(() => {
@@ -536,7 +537,7 @@ RESPONSE RULES — choose one format only:
     if (page === "notes") return <Notes user={user} />;
     if (page === "calendar") return <Calendar user={user} initialDate={calDate} refreshKey={calendarRefreshKey} />;
     if (page === "settings") return <Settings user={user} onLogout={handleLogout} theme={theme} onThemeChange={applyTheme} font={font} onFontChange={applyFont} sb={sb} />;
-    if (page === "trackers") return <TrackerHub user={user} archivedTrackers={archivedTrackers} onArchive={archiveTracker} onUnarchive={unarchiveTracker} onNavigate={navigate} onCustomTrackersLoad={setCustomTrackers} openCustomSignal={openCustomSignal} />;
+    if (page === "trackers") return <TrackerHub user={user} archivedTrackers={archivedTrackers} onArchive={archiveTracker} onUnarchive={unarchiveTracker} onNavigate={navigate} onCustomTrackersLoad={setCustomTrackers} openCustomSignal={openCustomSignal} closeCustomSignal={closeCustomSignal} />;
     if (page === "study")   return <><TrackerBackBar name="Study"   onBack={() => navigate("trackers")} /><Study   user={user} /></>;
     if (page === "pet")     return <><TrackerBackBar name="Ozzy"    onBack={() => navigate("trackers")} /><Ozzy    user={user} /></>;
     if (page === "travel")  return <><TrackerBackBar name="Travel"  onBack={() => navigate("trackers")} /><Travel  user={user} /></>;
@@ -611,7 +612,7 @@ RESPONSE RULES — choose one format only:
                     onDragLeave={e => onNavDragLeave(e, n.id)}
                     onDrop={e      => onNavDrop(e, n.id)}
                     onDragEnd={onNavDragEnd}
-                    onClick={() => { navigate("trackers"); setOpenCustomSignal(null); }}
+                    onClick={() => { navigate("trackers"); setOpenCustomSignal(null); setCloseCustomSignal(Date.now()); }}
                   >
                     <div className="nav-icon"><Icon name={n.icon} size={16} /></div>
                     <span style={{ flex: 1 }}>{n.label}</span>

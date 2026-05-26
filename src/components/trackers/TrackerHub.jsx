@@ -672,10 +672,11 @@ export function CustomTrackerDetail({ tracker: initialTracker, onClose, user, on
   );
 }
 
-export default function TrackerHub({ archivedTrackers = [], onArchive, onUnarchive, onNavigate, user, refreshKey = 0, onCustomTrackersLoad, openCustomSignal }) {
+export default function TrackerHub({ archivedTrackers = [], onArchive, onUnarchive, onNavigate, user, refreshKey = 0, onCustomTrackersLoad, openCustomSignal, closeCustomSignal }) {
   const [selectedCustom, setSelectedCustom] = useState(null);
   const openCustomSignalRef = useRef(openCustomSignal);
   useEffect(() => { openCustomSignalRef.current = openCustomSignal; }, [openCustomSignal]);
+  useEffect(() => { if (closeCustomSignal) setSelectedCustom(null); }, [closeCustomSignal]);
 
   const [ringData, setRingData] = useState({
     studyHours: 0, studyTarget: 150,
