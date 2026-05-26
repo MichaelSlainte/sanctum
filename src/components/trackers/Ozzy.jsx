@@ -33,6 +33,25 @@ const DEFAULT_DIET = [
 const AVOID_FOODS = ["Chocolate", "Grapes & raisins", "Onions & garlic", "Macadamia nuts", "Xylitol (sugar-free products)", "Alcohol", "Cooked bones", "Avocado"];
 const VET_TYPES = ["Annual checkup", "Vaccination", "Grooming", "Dental", "Emergency", "Medication", "Other"];
 
+const parseOzzyBorn = (bornStr) => {
+  if (!bornStr) return null;
+  if (/^\d{4}-\d{2}-\d{2}$/.test(bornStr)) return new Date(bornStr + "T00:00:00");
+  const d = new Date(bornStr.replace(",", " ").replace(/\s+/g, " ").trim());
+  return isNaN(d) ? null : d;
+};
+
+const calcOzzyAge = (bornDate) => {
+  if (!bornDate) return null;
+  const now = new Date();
+  let years = now.getFullYear() - bornDate.getFullYear();
+  let months = now.getMonth() - bornDate.getMonth();
+  if (now.getDate() < bornDate.getDate()) months--;
+  if (months < 0) { years--; months += 12; }
+  if (years === 0) return `${months}mo`;
+  if (months === 0) return `${years}yr`;
+  return `${years}yr ${months}mo`;
+};
+
 export default function Ozzy({ user }) {
   const [activeTab, setActiveTab] = useState("overview");
 
@@ -343,7 +362,7 @@ export default function Ozzy({ user }) {
           <div style={{ textAlign: "right", flexShrink: 0 }}>
             <div style={{ fontSize: 11, color: "var(--t3)", fontFamily: "var(--mono)", marginBottom: 4 }}>Age</div>
             <div style={{ fontSize: 28, fontWeight: 700, fontFamily: "var(--mono)", color: "var(--amber)" }}>
-              {Math.floor((new Date() - new Date("2025-11-01")) / (1000 * 60 * 60 * 24 * 30))}mo
+              {calcOzzyAge(parseOzzyBorn(profile["Born"])) || "?"}
             </div>
           </div>
         </div>
