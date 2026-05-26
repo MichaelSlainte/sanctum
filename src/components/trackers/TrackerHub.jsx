@@ -95,24 +95,6 @@ const PALETTE = [
   '#ec4899','#06b6d4','#f97316','#6366f1','#14b8a6',
 ];
 
-const getActivityPresets = (label) => {
-  const l = (label || '').toLowerCase();
-  if (/workout|gym|fitness|exercise|lift|strength/.test(l))
-    return ['Gym — Upper body','Gym — Lower body','Gym — Full body','Cardio — Run','Cardio — Cycle','Cardio — Swim','Yoga / Stretch','Walk','Other'];
-  if (/run|jog|cardio/.test(l))
-    return ['Easy run','Tempo run','Long run','Intervals','Trail run','Cycle','Walk','Cross-train','Other'];
-  if (/read|book/.test(l))
-    return ['Fiction','Non-fiction','Technical','Self-help','Biography','Research','Other'];
-  if (/meditat|mindful|yoga|breath/.test(l))
-    return ['Guided meditation','Breathing','Body scan','Yoga flow','Stretching','Journaling','Other'];
-  if (/learn|study|course|code|program/.test(l))
-    return ['Video course','Reading','Practice','Project','Review notes','Tutorial','Other'];
-  if (/diet|food|nutrition|eat/.test(l))
-    return ['Healthy meal','Meal prep','No sugar','Water goal','Supplement','Other'];
-  if (/sleep|rest|recover/.test(l))
-    return ['Full sleep','Nap','Early night','No screen','Other'];
-  return ['Session','Practice','Review','Completed','Other'];
-};
 
 // ── Custom Tracker Detail — full page ────────────────────────────────────────
 export function CustomTrackerDetail({ tracker: initialTracker, onClose, user, onUpdate, onDelete }) {
@@ -127,7 +109,8 @@ export function CustomTrackerDetail({ tracker: initialTracker, onClose, user, on
   const [descVal,  setDescVal]    = useState(initialTracker.description || '');
 
   // Log state
-  const [logEntry, setLogEntry] = useState({ date: todayISO(), type: '', duration: 45, intensity: 3, notes: '' });
+  const [logDate, setLogDate] = useState(todayISO());
+  const [formData, setFormData] = useState({});
   const [saving,  setSaving]  = useState(false);
   const [savedOk, setSavedOk] = useState(false);
   const [activeTab, setActiveTab] = useState('log');
@@ -243,18 +226,13 @@ export function CustomTrackerDetail({ tracker: initialTracker, onClose, user, on
   });
 
   const saveEntry = async () => {
-    if (!logEntry.date) return;
+    if (!logDate) return;
     setSaving(true);
-    const entryData = {
-      type: logEntry.type,
-      duration: parseInt(logEntry.duration) || 45,
-      intensity: logEntry.intensity,
-      ...(logEntry.notes ? { notes: logEntry.notes } : {}),
-    };
+    const entryData = { ...formData };
     const entry = {
       id: 'entry_' + Date.now(),
       custom_tracker_id: tracker.id,
-      logged_at: logEntry.date,
+      logged_at: logDate,
       data: entryData,
       created_at: new Date().toISOString(),
     };
@@ -263,13 +241,14 @@ export function CustomTrackerDetail({ tracker: initialTracker, onClose, user, on
       const inserted = await sb.from('tracker_entries').insert({
         custom_tracker_id: tracker.id,
         data: entryData,
-        logged_at: logEntry.date,
+        logged_at: logDate,
       });
       if (Array.isArray(inserted) && inserted[0]?.id) {
         setEntries(prev => prev.map(e => e.id === entry.id ? { ...inserted[0], data: entryData } : e));
       }
     } catch {}
-    setLogEntry({ date: todayISO(), type: '', duration: 45, intensity: 3, notes: '' });
+    setFormData({});
+    setLogDate(todayISO());
     setSaving(false);
     setSavedOk(true);
     setTimeout(() => { setSavedOk(false); setActiveTab('history'); }, 1500);
@@ -283,12 +262,11 @@ export function CustomTrackerDetail({ tracker: initialTracker, onClose, user, on
   };
 
   const setDateField = (fn) => {
-    const d = new Date(logEntry.date + 'T12:00:00');
+    const d = new Date(logDate + 'T12:00:00');
     fn(d);
-    setLogEntry(n => ({ ...n, date: d.toISOString().slice(0, 10) }));
+    setLogDate(d.toISOString().slice(0, 10));
   };
 
-  const activityPresets = getActivityPresets(tracker.label);
   const ringColor = percent >= 1 ? 'var(--grn)' : percent >= 0.5 ? 'var(--amber)' : tracker.color;
   const r = 52, circ = 2 * Math.PI * r;
 
@@ -477,75 +455,103 @@ export function CustomTrackerDetail({ tracker: initialTracker, onClose, user, on
             <label className="form-label">Date</label>
             <div style={{ display: 'flex', gap: 6, marginBottom: 8 }}>
               {[['Today', todayISO()], ['Yesterday', yesterdayISO()]].map(([lbl, val]) => (
-                <button key={lbl} onClick={() => setLogEntry(n => ({ ...n, date: val }))}
+                <button key={lbl} onClick={() => setLogDate(val)}
                   style={{ padding: '5px 14px', borderRadius: 8, border: '1px solid var(--b2)', cursor: 'pointer', fontSize: 12, fontWeight: 500,
-                    background: logEntry.date === val ? tracker.color : 'var(--bg2)',
-                    color: logEntry.date === val ? '#fff' : 'var(--t2)' }}>
+                    background: logDate === val ? tracker.color : 'var(--bg2)',
+                    color: logDate === val ? '#fff' : 'var(--t2)' }}>
                   {lbl}
                 </button>
               ))}
             </div>
             <div style={{ display: 'flex', gap: 8, alignItems: 'center' }}>
               <select className="inp" style={{ width: 70 }}
-                value={new Date(logEntry.date + 'T12:00:00').getDate()}
+                value={new Date(logDate + 'T12:00:00').getDate()}
                 onChange={e => setDateField(d => d.setDate(parseInt(e.target.value)))}>
                 {DATE_DAYS.map(d => <option key={d} value={d}>{d}</option>)}
               </select>
               <select className="inp" style={{ flex: 1 }}
-                value={new Date(logEntry.date + 'T12:00:00').getMonth()}
+                value={new Date(logDate + 'T12:00:00').getMonth()}
                 onChange={e => setDateField(d => d.setMonth(parseInt(e.target.value)))}>
                 {DATE_MONTHS.map((m, i) => <option key={i} value={i}>{m}</option>)}
               </select>
               <select className="inp" style={{ width: 80 }}
-                value={new Date(logEntry.date + 'T12:00:00').getFullYear()}
+                value={new Date(logDate + 'T12:00:00').getFullYear()}
                 onChange={e => setDateField(d => d.setFullYear(parseInt(e.target.value)))}>
                 {DATE_YEARS.map(y => <option key={y} value={y}>{y}</option>)}
               </select>
             </div>
           </div>
 
-          <div className="form-row">
-            <label className="form-label">Activity</label>
-            <select className="inp" value={logEntry.type}
-              onChange={e => setLogEntry(n => ({ ...n, type: e.target.value }))}>
-              <option value="">Select activity…</option>
-              {activityPresets.map(a => <option key={a}>{a}</option>)}
-            </select>
-          </div>
-
-          <div className="form-row">
-            <label className="form-label">Duration</label>
-            <div style={{ display: 'flex', gap: 12, alignItems: 'center', padding: '4px 0' }}>
-              <input type="range" min="10" max="120" step="5"
-                value={logEntry.duration}
-                onChange={e => setLogEntry(n => ({ ...n, duration: parseInt(e.target.value) }))}
-                style={{ flex: 1, accentColor: tracker.color }} />
-              <span style={{ fontSize: 18, fontWeight: 700, color: 'var(--t1)', minWidth: 60, textAlign: 'right' }}>
-                {logEntry.duration}<span style={{ fontSize: 12, color: 'var(--t3)', fontWeight: 400 }}> min</span>
-              </span>
-            </div>
-          </div>
-
-          <div className="form-row">
-            <label className="form-label">Intensity</label>
-            <div style={{ display: 'flex', gap: 6 }}>
-              {['Easy', 'Light', 'Medium', 'Hard', 'Max'].map((lvl, i) => (
-                <button key={i} onClick={() => setLogEntry(n => ({ ...n, intensity: i + 1 }))}
-                  style={{ flex: 1, padding: '6px 0', borderRadius: 8, border: '1px solid var(--b2)',
-                    background: logEntry.intensity === i + 1 ? tracker.color : 'var(--bg2)',
-                    color: logEntry.intensity === i + 1 ? '#fff' : 'var(--t3)',
-                    fontSize: 11, cursor: 'pointer', fontWeight: logEntry.intensity === i + 1 ? 600 : 400 }}>
-                  {lvl}
-                </button>
-              ))}
-            </div>
-          </div>
-
-          <div className="form-row">
-            <label className="form-label">Notes</label>
-            <textarea className="inp" placeholder="Optional notes…" style={{ minHeight: 60, resize: 'vertical' }}
-              value={logEntry.notes} onChange={e => setLogEntry(n => ({ ...n, notes: e.target.value }))} />
-          </div>
+          {(tracker.fields || []).map((field) => {
+            const label = field.name
+              ? field.name.charAt(0).toUpperCase() + field.name.slice(1).replace(/_/g, ' ')
+              : 'Field';
+            const val = formData[field.name] ?? '';
+            const type = (field.type || '').toLowerCase();
+            const setVal = (v) => setFormData(prev => ({ ...prev, [field.name]: v }));
+            return (
+              <div key={field.name} className="form-row">
+                <label className="form-label">{label}</label>
+                {type === 'text' && (
+                  <input type="text" className="inp" placeholder={`Enter ${label.toLowerCase()}…`}
+                    value={val} onChange={e => setVal(e.target.value)} />
+                )}
+                {type === 'number' && (
+                  <input type="number" className="inp" placeholder="0"
+                    value={val} onChange={e => setVal(e.target.value)} />
+                )}
+                {(type === 'select' || type === 'options') && (
+                  <select className="inp" value={val} onChange={e => setVal(e.target.value)}>
+                    <option value="">Select…</option>
+                    {(field.options || []).map(o => <option key={o}>{o}</option>)}
+                  </select>
+                )}
+                {(type === 'textarea' || type === 'notes') && (
+                  <textarea className="inp" placeholder={`Optional ${label.toLowerCase()}…`}
+                    style={{ minHeight: 60, resize: 'vertical' }}
+                    value={val} onChange={e => setVal(e.target.value)} />
+                )}
+                {(type === 'slider' || type === 'range') && (
+                  <div style={{ display: 'flex', gap: 12, alignItems: 'center', padding: '4px 0' }}>
+                    <input type="range" min={field.min ?? 0} max={field.max ?? 100} step={field.step ?? 1}
+                      value={val !== '' ? val : (field.min ?? 0)}
+                      onChange={e => setVal(parseInt(e.target.value))}
+                      style={{ flex: 1, accentColor: tracker.color }} />
+                    <span style={{ fontSize: 18, fontWeight: 700, color: 'var(--t1)', minWidth: 50, textAlign: 'right' }}>
+                      {val !== '' ? val : (field.min ?? 0)}
+                      {field.unit && <span style={{ fontSize: 12, color: 'var(--t3)', fontWeight: 400 }}> {field.unit}</span>}
+                    </span>
+                  </div>
+                )}
+                {(type === 'toggle' || type === 'boolean') && (
+                  <div style={{ display: 'flex', gap: 8 }}>
+                    {['Yes', 'No'].map(opt => (
+                      <button key={opt} onClick={() => setVal(opt)}
+                        style={{ flex: 1, padding: '7px 0', borderRadius: 8, border: '1px solid var(--b2)',
+                          background: val === opt ? tracker.color : 'var(--bg2)',
+                          color: val === opt ? '#fff' : 'var(--t3)',
+                          fontSize: 13, cursor: 'pointer', fontWeight: val === opt ? 600 : 400 }}>
+                        {opt}
+                      </button>
+                    ))}
+                  </div>
+                )}
+                {type === 'rating' && (
+                  <div style={{ display: 'flex', gap: 6 }}>
+                    {[1, 2, 3, 4, 5].map(star => (
+                      <button key={star} onClick={() => setVal(star)}
+                        style={{ flex: 1, padding: '6px 0', borderRadius: 8, border: '1px solid var(--b2)',
+                          background: Number(val) >= star ? tracker.color : 'var(--bg2)',
+                          color: Number(val) >= star ? '#fff' : 'var(--t3)',
+                          fontSize: 13, cursor: 'pointer', fontWeight: Number(val) >= star ? 600 : 400 }}>
+                        {star}
+                      </button>
+                    ))}
+                  </div>
+                )}
+              </div>
+            );
+          })}
 
           <button
             style={{ width: '100%', padding: '14px', fontSize: 15, fontWeight: 600,
@@ -579,7 +585,7 @@ export function CustomTrackerDetail({ tracker: initialTracker, onClose, user, on
                     <div style={{ width: 8, height: 8, borderRadius: '50%', background: tracker.color, flexShrink: 0, marginTop: 4 }} />
                     <div style={{ flex: 1 }}>
                       <div style={{ fontSize: 13, fontWeight: 500, color: 'var(--t1)', marginBottom: 2 }}>
-                        {e.data?.type || 'Session'}
+                        {(tracker.fields?.[0]?.name ? e.data?.[tracker.fields[0].name] : null) || 'Session'}
                       </div>
                       <div style={{ fontSize: 11, color: 'var(--t3)', marginBottom: 4 }}>
                         {e.logged_at || e.date}
