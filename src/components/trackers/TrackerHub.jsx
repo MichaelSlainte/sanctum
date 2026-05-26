@@ -137,7 +137,7 @@ export function CustomTrackerDetail({ tracker: initialTracker, onClose, user, on
     const load = async () => {
       setLoadingEntries(true);
       try {
-        const data = await sb.from('tracker_entries').select('*', '&custom_tracker_id=eq.' + tracker.id, 'logged_at.desc');
+        const data = await sb.from('tracker_entries').select('*', `&custom_tracker_id=eq.${tracker.id}`, '');
         const mine = (Array.isArray(data) ? data : [])
           .map(e => ({
             ...e,
@@ -242,11 +242,14 @@ export function CustomTrackerDetail({ tracker: initialTracker, onClose, user, on
         custom_tracker_id: tracker.id,
         data: entryData,
         logged_at: logDate,
+        user_id: user?.id,
       });
       if (Array.isArray(inserted) && inserted[0]?.id) {
         setEntries(prev => prev.map(e => e.id === entry.id ? { ...inserted[0], data: entryData } : e));
       }
-    } catch {}
+    } catch (err) {
+      console.error('[tracker_entries] insert failed:', err);
+    }
     setFormData({});
     setLogDate(todayISO());
     setSaving(false);
@@ -483,14 +486,15 @@ export function CustomTrackerDetail({ tracker: initialTracker, onClose, user, on
           </div>
 
           {(tracker.fields || []).map((field) => {
-            const label = field.name
-              ? field.name.charAt(0).toUpperCase() + field.name.slice(1).replace(/_/g, ' ')
-              : 'Field';
-            const val = formData[field.name] ?? '';
+            const key = field.key || field.name;
+            const label = field.label || (key
+              ? key.charAt(0).toUpperCase() + key.slice(1).replace(/_/g, ' ')
+              : 'Field');
+            const val = formData[key] ?? '';
             const type = (field.type || '').toLowerCase();
-            const setVal = (v) => setFormData(prev => ({ ...prev, [field.name]: v }));
+            const setVal = (v) => setFormData(prev => ({ ...prev, [key]: v }));
             return (
-              <div key={field.name} className="form-row">
+              <div key={key} className="form-row">
                 <label className="form-label">{label}</label>
                 {type === 'text' && (
                   <input type="text" className="inp" placeholder={`Enter ${label.toLowerCase()}…`}
@@ -585,7 +589,7 @@ export function CustomTrackerDetail({ tracker: initialTracker, onClose, user, on
                     <div style={{ width: 8, height: 8, borderRadius: '50%', background: tracker.color, flexShrink: 0, marginTop: 4 }} />
                     <div style={{ flex: 1 }}>
                       <div style={{ fontSize: 13, fontWeight: 500, color: 'var(--t1)', marginBottom: 2 }}>
-                        {(tracker.fields?.[0]?.name ? e.data?.[tracker.fields[0].name] : null) || 'Session'}
+                        {(tracker.fields?.[0]?.key ? e.data?.[tracker.fields[0].key] : null) || 'Session'}
                       </div>
                       <div style={{ fontSize: 11, color: 'var(--t3)', marginBottom: 4 }}>
                         {e.logged_at || e.date}
