@@ -139,7 +139,7 @@ export function CustomTrackerDetail({ tracker: initialTracker, onClose, user, on
   const handleDelete = async () => {
     setDeleting(true);
     try {
-      await sb.from('tracker_entries').delete({ tracker_id: tracker.id });
+      await sb.from('tracker_entries').delete({ custom_tracker_id: tracker.id });
       await sb.from('custom_trackers').delete({ id: tracker.id });
       onDelete?.(tracker.id);
       onClose();
@@ -154,7 +154,7 @@ export function CustomTrackerDetail({ tracker: initialTracker, onClose, user, on
     const load = async () => {
       setLoadingEntries(true);
       try {
-        const data = await sb.from('tracker_entries').select('*', '&tracker_id=eq.' + tracker.id);
+        const data = await sb.from('tracker_entries').select('*', '&custom_tracker_id=eq.' + tracker.id, 'logged_at.desc');
         const mine = (Array.isArray(data) ? data : [])
           .map(e => ({
             ...e,
@@ -163,10 +163,10 @@ export function CustomTrackerDetail({ tracker: initialTracker, onClose, user, on
         if (mine.length > 0) {
           setEntries(mine);
         } else {
-          setEntries(loadCustomEntries().filter(e => e.tracker_id === tracker.id));
+          setEntries(loadCustomEntries().filter(e => e.custom_tracker_id === tracker.id));
         }
       } catch {
-        setEntries(loadCustomEntries().filter(e => e.tracker_id === tracker.id));
+        setEntries(loadCustomEntries().filter(e => e.custom_tracker_id === tracker.id));
       }
       setLoadingEntries(false);
     };
@@ -182,7 +182,7 @@ export function CustomTrackerDetail({ tracker: initialTracker, onClose, user, on
 
   // Stats derived
   const weekStart = getWeekStart();
-  const thisWeek  = entries.filter(e => new Date(e.date) >= weekStart).length;
+  const thisWeek  = entries.filter(e => new Date(e.logged_at || e.date) >= weekStart).length;
   const percent   = thisWeek / (tracker.weekly_goal || 3);
 
   const totalEntries  = entries.length;
@@ -191,7 +191,7 @@ export function CustomTrackerDetail({ tracker: initialTracker, onClose, user, on
 
   const byWeek = {};
   entries.forEach(e => {
-    const d = new Date(e.date);
+    const d = new Date(e.logged_at || e.date);
     const day = d.getDay();
     const mon = new Date(d);
     mon.setDate(d.getDate() + (day === 0 ? -6 : 1 - day));
@@ -229,10 +229,10 @@ export function CustomTrackerDetail({ tracker: initialTracker, onClose, user, on
     .slice(0, 6);
 
   // History grouped by week
-  const sortedEntries = [...entries].sort((a, b) => new Date(b.date) - new Date(a.date));
+  const sortedEntries = [...entries].sort((a, b) => new Date(b.logged_at || b.date) - new Date(a.logged_at || a.date));
   const groupedHistory = [];
   sortedEntries.forEach(e => {
-    const d = new Date(e.date);
+    const d = new Date(e.logged_at || e.date);
     const day = d.getDay();
     const mon = new Date(d);
     mon.setDate(d.getDate() + (day === 0 ? -6 : 1 - day));
@@ -245,33 +245,29 @@ export function CustomTrackerDetail({ tracker: initialTracker, onClose, user, on
   const saveEntry = async () => {
     if (!logEntry.date) return;
     setSaving(true);
-    const entry = {
-      id: 'entry_' + Date.now(),
-      tracker_id: tracker.id,
-      date: logEntry.date,
+    const entryData = {
       type: logEntry.type,
       duration: parseInt(logEntry.duration) || 45,
-      data: {
-        type: logEntry.type,
-        duration: parseInt(logEntry.duration) || 45,
-        intensity: logEntry.intensity,
-        notes: logEntry.notes,
-      },
-      notes: logEntry.notes,
+      intensity: logEntry.intensity,
+      ...(logEntry.notes ? { notes: logEntry.notes } : {}),
+    };
+    const entry = {
+      id: 'entry_' + Date.now(),
+      custom_tracker_id: tracker.id,
+      logged_at: logEntry.date,
+      data: entryData,
       created_at: new Date().toISOString(),
     };
-    const localAll = loadCustomEntries();
-    saveCustomEntries([entry, ...localAll]);
     setEntries(prev => [entry, ...prev]);
     try {
-      await sb.from('tracker_entries').insert({
-        tracker_id: tracker.id,
-        type: logEntry.type,
-        duration: parseInt(logEntry.duration) || 45,
-        data: JSON.stringify({ type: logEntry.type, duration: logEntry.duration, intensity: logEntry.intensity, notes: logEntry.notes }),
-        date: logEntry.date,
-        user_id: user?.id,
+      const inserted = await sb.from('tracker_entries').insert({
+        custom_tracker_id: tracker.id,
+        data: entryData,
+        logged_at: logEntry.date,
       });
+      if (Array.isArray(inserted) && inserted[0]?.id) {
+        setEntries(prev => prev.map(e => e.id === entry.id ? { ...inserted[0], data: entryData } : e));
+      }
     } catch {}
     setLogEntry({ date: todayISO(), type: '', duration: 45, intensity: 3, notes: '' });
     setSaving(false);
@@ -454,9 +450,11 @@ export function CustomTrackerDetail({ tracker: initialTracker, onClose, user, on
         <div className="stat">
           <div className="stat-label">Total time</div>
           <div className="stat-value" style={{ fontSize: 20 }}>
-            {Math.floor(totalMinutes / 60)}h<span style={{ fontSize: 13 }}> {totalMinutes % 60}m</span>
+            {totalMinutes > 0
+              ? <>{Math.floor(totalMinutes / 60)}h<span style={{ fontSize: 13 }}> {totalMinutes % 60}m</span></>
+              : <>{totalEntries}<span style={{ fontSize: 14 }}> sessions</span></>}
           </div>
-          <div className="stat-sub">avg {avgDuration} min/session</div>
+          <div className="stat-sub">{totalMinutes > 0 ? `avg ${avgDuration} min/session` : 'all time'}</div>
         </div>
       </div>
 
@@ -576,15 +574,29 @@ export function CustomTrackerDetail({ tracker: initialTracker, onClose, user, on
               <div style={{ fontSize: 11, fontWeight: 600, color: 'var(--t3)', letterSpacing: 0.5,
                 textTransform: 'uppercase', padding: '10px 0 4px' }}>{week}</div>
               {grp.map(e => (
-                <div key={e.id} className="fin-row">
-                  <div style={{ display: 'flex', gap: 10, alignItems: 'center' }}>
-                    <div style={{ width: 8, height: 8, borderRadius: '50%', background: tracker.color, flexShrink: 0 }} />
-                    <div>
-                      <div style={{ fontSize: 13, fontWeight: 500, color: 'var(--t1)' }}>{e.data?.type || e.type || 'Session'}</div>
-                      <div style={{ fontSize: 11, color: 'var(--t3)' }}>
-                        {e.date} · {e.data?.duration ?? e.duration ?? 0} min
-                        {e.data?.intensity ? ` · ${['Easy','Light','Medium','Hard','Max'][e.data.intensity - 1] || `Intensity ${e.data.intensity}`}` : ''}
-                        {e.data?.notes || e.notes ? ` · ${(e.data?.notes || e.notes).slice(0, 40)}` : ''}
+                <div key={e.id} className="fin-row" style={{ alignItems: 'flex-start' }}>
+                  <div style={{ display: 'flex', gap: 10, alignItems: 'flex-start', flex: 1 }}>
+                    <div style={{ width: 8, height: 8, borderRadius: '50%', background: tracker.color, flexShrink: 0, marginTop: 4 }} />
+                    <div style={{ flex: 1 }}>
+                      <div style={{ fontSize: 13, fontWeight: 500, color: 'var(--t1)', marginBottom: 2 }}>
+                        {e.data?.type || 'Session'}
+                      </div>
+                      <div style={{ fontSize: 11, color: 'var(--t3)', marginBottom: 4 }}>
+                        {e.logged_at || e.date}
+                      </div>
+                      <div style={{ display: 'flex', flexWrap: 'wrap', gap: '2px 12px' }}>
+                        {Object.entries(e.data || {}).filter(([k]) => k !== 'type').map(([k, v]) =>
+                          v !== '' && v !== null && v !== undefined ? (
+                            <span key={k} style={{ fontSize: 11, color: 'var(--t3)' }}>
+                              <span style={{ fontWeight: 600, textTransform: 'capitalize' }}>
+                                {k.replace(/_/g, ' ')}:
+                              </span>{' '}
+                              {k === 'duration' ? `${v} min`
+                                : k === 'intensity' ? (['Easy','Light','Medium','Hard','Max'][(v ?? 1) - 1] || `${v}`)
+                                : String(v)}
+                            </span>
+                          ) : null
+                        )}
                       </div>
                     </div>
                   </div>
@@ -920,7 +932,7 @@ export default function TrackerHub({ archivedTrackers = [], onArchive, onUnarchi
 
   const renderCustomCard = (t) => {
     const ws = getWeekStart();
-    const weekCount = (trackerEntries || []).filter(e => e.tracker_id === t.id && new Date(e.date) >= ws).length;
+    const weekCount = (trackerEntries || []).filter(e => (e.custom_tracker_id === t.id || e.tracker_id === t.id) && new Date(e.logged_at || e.date) >= ws).length;
     const color = t.color || '#10b981';
     const circ = 2 * Math.PI * 18;
     const offset = circ * (1 - Math.min(weekCount / (t.weekly_goal || 3), 1));
