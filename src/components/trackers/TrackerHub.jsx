@@ -251,12 +251,13 @@ export function CustomTrackerDetail({ tracker: initialTracker, onClose, user, on
     };
     setEntries(prev => [entry, ...prev]);
     try {
+      console.log('[saveEntry] inserting:', { custom_tracker_id: tracker.id, data: entryData, logged_at: logDate, user_id: user?.id });
       const inserted = await sb.from('tracker_entries').insert({
         custom_tracker_id: tracker.id,
         data: entryData,
         logged_at: logDate,
-        user_id: user?.id,
       });
+      console.log('[saveEntry] insert result:', inserted);
       if (Array.isArray(inserted) && inserted[0]?.id) {
         setEntries(prev => prev.map(e => e.id === entry.id ? { ...inserted[0], data: entryData } : e));
       }
