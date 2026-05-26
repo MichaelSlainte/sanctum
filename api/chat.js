@@ -6,8 +6,6 @@ import https from 'https';
 const SUPABASE_URL = process.env.VITE_SUPABASE_URL;
 const SUPABASE_KEY = process.env.VITE_SUPABASE_ANON_KEY;
 
-// TODO: re-add JWT validation when auth flow is stable
-
 // Simple in-memory rate limiter — 20 requests per IP per 10 minutes
 const rateLimits = new Map();
 const WINDOW_MS = 10 * 60 * 1000;
@@ -38,6 +36,21 @@ export default async function handler(req, res) {
   const ip = req.headers['x-forwarded-for']?.split(',')[0] || req.socket?.remoteAddress || 'unknown';
   if (isRateLimited(ip)) {
     return res.status(429).json({ error: 'Too many requests. Try again in a few minutes.' });
+  }
+
+  // JWT validation
+  const token = req.headers.authorization?.replace('Bearer ', '');
+  if (!token) return res.status(401).json({ error: 'Unauthorized' });
+  const authResponse = await fetch(`${process.env.VITE_SUPABASE_URL}/auth/v1/user`, {
+    headers: {
+      Authorization: `Bearer ${token}`,
+      apikey: process.env.SUPABASE_SERVICE_ROLE_KEY,
+    },
+  });
+  const authData = await authResponse.json();
+  if (!authResponse.ok || !authData?.id) {
+    console.error('[api/chat] JWT validation failed', authResponse.status, authData);
+    return res.status(401).json({ error: 'Unauthorized' });
   }
 
   const apiKey = process.env.ANTHROPIC_API_KEY;
