@@ -115,7 +115,7 @@ const getActivityPresets = (label) => {
 };
 
 // ── Custom Tracker Detail — full page ────────────────────────────────────────
-export function CustomTrackerDetail({ tracker: initialTracker, onClose, user, onUpdate }) {
+export function CustomTrackerDetail({ tracker: initialTracker, onClose, user, onUpdate, onDelete }) {
   const [tracker, setTracker] = useState(initialTracker);
   const [entries, setEntries] = useState([]);
   const [loadingEntries, setLoadingEntries] = useState(true);
@@ -131,6 +131,23 @@ export function CustomTrackerDetail({ tracker: initialTracker, onClose, user, on
   const [saving,  setSaving]  = useState(false);
   const [savedOk, setSavedOk] = useState(false);
   const [activeTab, setActiveTab] = useState('log');
+
+  // Delete state
+  const [showDeleteConfirm, setShowDeleteConfirm] = useState(false);
+  const [deleting, setDeleting] = useState(false);
+
+  const handleDelete = async () => {
+    setDeleting(true);
+    try {
+      await sb.from('tracker_entries').delete({ tracker_id: tracker.id });
+      await sb.from('custom_trackers').delete({ id: tracker.id });
+      onDelete?.(tracker.id);
+      onClose();
+    } catch {
+      setDeleting(false);
+      setShowDeleteConfirm(false);
+    }
+  };
 
   // Load entries from Supabase
   useEffect(() => {
@@ -281,13 +298,57 @@ export function CustomTrackerDetail({ tracker: initialTracker, onClose, user, on
 
   return (
     <div className="page-body animate-in">
+      {showDeleteConfirm && (
+        <div style={{
+          position: 'fixed', inset: 0, zIndex: 200,
+          background: 'rgba(0,0,0,0.6)',
+          display: 'flex', alignItems: 'center', justifyContent: 'center',
+          padding: 20,
+        }}>
+          <div className="card" style={{ maxWidth: 380, width: '100%' }}>
+            <div style={{ fontSize: 16, fontWeight: 700, color: 'var(--t1)', marginBottom: 10 }}>
+              Delete {tracker.label}?
+            </div>
+            <div style={{ fontSize: 13, color: 'var(--t3)', marginBottom: 20 }}>
+              This will permanently delete all logged entries. This cannot be undone.
+            </div>
+            <div style={{ display: 'flex', gap: 10, justifyContent: 'flex-end' }}>
+              <button className="btn" onClick={() => setShowDeleteConfirm(false)} disabled={deleting}>Cancel</button>
+              <button
+                onClick={handleDelete}
+                disabled={deleting}
+                style={{
+                  padding: '7px 18px', borderRadius: 8, border: 'none', cursor: 'pointer',
+                  background: 'var(--red, #ef4444)', color: '#fff', fontWeight: 600, fontSize: 13,
+                  opacity: deleting ? 0.7 : 1,
+                }}>
+                {deleting ? 'Deleting…' : 'Delete'}
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
+
       {/* Breadcrumb */}
-      <div className="tracker-back-bar" style={{ marginBottom: 16 }}>
-        <button className="tracker-back-btn" onClick={onClose}>
-          <Icon name="chevL" size={13} /> Trackers
+      <div className="tracker-back-bar" style={{ marginBottom: 16, justifyContent: 'space-between' }}>
+        <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
+          <button className="tracker-back-btn" onClick={onClose}>
+            <Icon name="chevL" size={13} /> Trackers
+          </button>
+          <span style={{ color: 'var(--b3)', fontSize: 12 }}>/</span>
+          <span className="tracker-section-label">{tracker.label}</span>
+        </div>
+        <button
+          title="Delete tracker"
+          onClick={() => setShowDeleteConfirm(true)}
+          style={{
+            background: 'none', border: '1px solid var(--b2)',
+            borderRadius: 6, padding: '4px 10px', cursor: 'pointer',
+            color: 'var(--t3)', display: 'flex', alignItems: 'center', gap: 5,
+            fontSize: 12,
+          }}>
+          <Icon name="trash" size={12} /> Delete
         </button>
-        <span style={{ color: 'var(--b3)', fontSize: 12 }}>/</span>
-        <span className="tracker-section-label">{tracker.label}</span>
       </div>
 
       {/* Editable header */}
@@ -613,6 +674,8 @@ export function CustomTrackerDetail({ tracker: initialTracker, onClose, user, on
 
 export default function TrackerHub({ archivedTrackers = [], onArchive, onUnarchive, onNavigate, user, refreshKey = 0, onCustomTrackersLoad, openCustomSignal }) {
   const [selectedCustom, setSelectedCustom] = useState(null);
+  const openCustomSignalRef = useRef(openCustomSignal);
+  useEffect(() => { openCustomSignalRef.current = openCustomSignal; }, [openCustomSignal]);
 
   const [ringData, setRingData] = useState({
     studyHours: 0, studyTarget: 150,
@@ -644,6 +707,11 @@ export default function TrackerHub({ archivedTrackers = [], onArchive, onUnarchi
       const archived = data.filter(t =>  t.archived && t.user_id === user?.id);
       setCustomTrackers(active);
       setArchivedCustomTrackers(archived);
+      const sig = openCustomSignalRef.current;
+      if (sig) {
+        const target = active.find(x => x.id === sig.id);
+        if (target) setSelectedCustom(target);
+      }
     } catch {}
   };
 
@@ -938,6 +1006,10 @@ export default function TrackerHub({ archivedTrackers = [], onArchive, onUnarchi
         onUpdate={(updated) => {
           setCustomTrackers(prev => prev.map(t => t.id === updated.id ? updated : t));
           setSelectedCustom(updated);
+        }}
+        onDelete={(id) => {
+          setCustomTrackers(prev => prev.filter(t => t.id !== id));
+          setSelectedCustom(null);
         }}
       />
     );

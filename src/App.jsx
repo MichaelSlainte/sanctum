@@ -642,7 +642,7 @@ RESPONSE RULES — choose one format only:
                       onClick={() => { navigate("trackers"); setOpenCustomSignal({ id: t.id, ts: Date.now() }); }}
                       style={{ paddingLeft: 30, fontSize: 12 }}
                     >
-                      <div className="nav-icon" style={{ fontSize: 13 }}>{t.icon || "◈"}</div>
+                      <div className="nav-icon"><Icon name="chart" size={13} /></div>
                       {t.label}
                     </div>
                   ))}
@@ -814,7 +814,7 @@ RESPONSE RULES — choose one format only:
                 style={{ flex: 1 }}
                 onClick={() => { navigate("trackers"); setOpenCustomSignal({ id: t.id, ts: Date.now() }); }}
               >
-                <span style={{ fontSize: 19 }}>{t.icon || "◈"}</span>
+                <Icon name="chart" size={19} />
                 <span style={{ fontSize: 9 }}>{t.label}</span>
               </div>
             ))}
