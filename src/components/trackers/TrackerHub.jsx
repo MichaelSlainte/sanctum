@@ -958,14 +958,13 @@ export default function TrackerHub({ archivedTrackers = [], onArchive, onUnarchi
           width: 36, height: 36, borderRadius: 10,
           background: color + '22',
           display: 'flex', alignItems: 'center', justifyContent: 'center',
-          marginBottom: 36, fontSize: 18,
+          marginBottom: 36,
         }}>
-          {t.icon ? t.icon : (
-            <svg width="18" height="18" viewBox="0 0 24 24" fill="none"
-              stroke={color} strokeWidth="2" strokeLinecap="round">
-              <path d="M22 12h-4l-3 9L9 3l-3 9H2" />
-            </svg>
-          )}
+          <svg width="18" height="18" viewBox="0 0 24 24" fill="none"
+            stroke="var(--t2)" strokeWidth="1.5" strokeLinecap="round">
+            <rect x="3" y="3" width="7" height="7" rx="1"/><rect x="14" y="3" width="7" height="7" rx="1"/>
+            <rect x="3" y="14" width="7" height="7" rx="1"/><rect x="14" y="14" width="7" height="7" rx="1"/>
+          </svg>
         </div>
         {/* Text + delete row */}
         <div style={{ display: 'flex', alignItems: 'flex-end', justifyContent: 'space-between', gap: 8 }}>

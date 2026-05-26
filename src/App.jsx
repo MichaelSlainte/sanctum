@@ -611,7 +611,7 @@ RESPONSE RULES — choose one format only:
                     onDragLeave={e => onNavDragLeave(e, n.id)}
                     onDrop={e      => onNavDrop(e, n.id)}
                     onDragEnd={onNavDragEnd}
-                    onClick={() => navigate("trackers")}
+                    onClick={() => { navigate("trackers"); setOpenCustomSignal(null); }}
                   >
                     <div className="nav-icon"><Icon name={n.icon} size={16} /></div>
                     <span style={{ flex: 1 }}>{n.label}</span>
@@ -642,7 +642,12 @@ RESPONSE RULES — choose one format only:
                       onClick={() => { navigate("trackers"); setOpenCustomSignal({ id: t.id, ts: Date.now() }); }}
                       style={{ paddingLeft: 30, fontSize: 12 }}
                     >
-                      <div className="nav-icon"><Icon name="chart" size={13} /></div>
+                      <div className="nav-icon">
+                        <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round">
+                          <rect x="3" y="3" width="7" height="7" rx="1"/><rect x="14" y="3" width="7" height="7" rx="1"/>
+                          <rect x="3" y="14" width="7" height="7" rx="1"/><rect x="14" y="14" width="7" height="7" rx="1"/>
+                        </svg>
+                      </div>
                       {t.label}
                     </div>
                   ))}
@@ -814,7 +819,10 @@ RESPONSE RULES — choose one format only:
                 style={{ flex: 1 }}
                 onClick={() => { navigate("trackers"); setOpenCustomSignal({ id: t.id, ts: Date.now() }); }}
               >
-                <Icon name="chart" size={19} />
+                <svg width="19" height="19" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round">
+                  <rect x="3" y="3" width="7" height="7" rx="1"/><rect x="14" y="3" width="7" height="7" rx="1"/>
+                  <rect x="3" y="14" width="7" height="7" rx="1"/><rect x="14" y="14" width="7" height="7" rx="1"/>
+                </svg>
                 <span style={{ fontSize: 9 }}>{t.label}</span>
               </div>
             ))}
