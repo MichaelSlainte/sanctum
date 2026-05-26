@@ -86,6 +86,8 @@ const saveCustomEntries = (entries) => {
   localStorage.setItem('sanctum_tracker_entries', JSON.stringify(entries));
 };
 
+const UUID_RE = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i;
+
 const DATE_DAYS   = Array.from({ length: 31 }, (_, i) => i + 1);
 const DATE_MONTHS = ["January","February","March","April","May","June","July","August","September","October","November","December"];
 const DATE_YEARS  = [2025, 2026, 2027, 2028];
@@ -113,6 +115,7 @@ export function CustomTrackerDetail({ tracker: initialTracker, onClose, user, on
   const [formData, setFormData] = useState({});
   const [saving,  setSaving]  = useState(false);
   const [savedOk, setSavedOk] = useState(false);
+  const [saveError, setSaveError] = useState('');
   const [activeTab, setActiveTab] = useState('log');
 
   // Delete state
@@ -136,6 +139,11 @@ export function CustomTrackerDetail({ tracker: initialTracker, onClose, user, on
   useEffect(() => {
     const load = async () => {
       setLoadingEntries(true);
+      if (!UUID_RE.test(tracker.id)) {
+        setEntries([]);
+        setLoadingEntries(false);
+        return;
+      }
       try {
         const data = await sb.from('tracker_entries').select('*', `&custom_tracker_id=eq.${tracker.id}`, '');
         const mine = (Array.isArray(data) ? data : [])
@@ -227,6 +235,11 @@ export function CustomTrackerDetail({ tracker: initialTracker, onClose, user, on
 
   const saveEntry = async () => {
     if (!logDate) return;
+    if (!UUID_RE.test(tracker.id)) {
+      setSaveError('This tracker was created before entries were supported. Delete it and recreate it to start logging.');
+      return;
+    }
+    setSaveError('');
     setSaving(true);
     const entryData = { ...formData };
     const entry = {
@@ -452,7 +465,17 @@ export function CustomTrackerDetail({ tracker: initialTracker, onClose, user, on
       </div>
 
       {/* ── Log tab ── */}
-      {activeTab === 'log' && (
+      {activeTab === 'log' && !UUID_RE.test(tracker.id) && (
+        <div className="card" style={{ padding: '24px 20px', textAlign: 'center' }}>
+          <div style={{ fontSize: 13, color: 'var(--t2)', marginBottom: 6 }}>
+            This tracker was created before entries were supported.
+          </div>
+          <div style={{ fontSize: 12, color: 'var(--t3)' }}>
+            Delete it and recreate it to start logging.
+          </div>
+        </div>
+      )}
+      {activeTab === 'log' && UUID_RE.test(tracker.id) && (
         <div className="card" style={{ display: 'flex', flexDirection: 'column', gap: 14 }}>
           <div className="form-row">
             <label className="form-label">Date</label>

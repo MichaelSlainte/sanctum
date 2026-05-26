@@ -3,7 +3,7 @@
 // https://sanctum.app
 import { useState, useRef, useEffect } from "react";
 import { Icon, Modal } from "../shared";
-import { sb } from "../../lib/supabase";
+import { sb, auth, ensureValidToken } from "../../lib/supabase";
 
 const PALETTE = [
   '#10b981','#3b82f6','#8b5cf6','#f59e0b','#ef4444',
@@ -72,20 +72,26 @@ export default function TrackerCreator({ onCreated, user }) {
     setStep('generating');
     setError('');
     try {
-      const token = localStorage.getItem("sanctum_token") || "";
-      if (!token) {
+      await ensureValidToken();
+      const getToken = () => localStorage.getItem("sanctum_token") || "";
+      if (!getToken()) {
         setError("Please sign out and sign back in to use AI features.");
         setStep("input");
         return;
       }
-      const res = await fetch('/api/chat', {
+      const doFetch = () => fetch('/api/chat', {
         method: 'POST',
-        headers: { 'Content-Type': 'application/json', Authorization: `Bearer ${token}` },
+        headers: { 'Content-Type': 'application/json', Authorization: `Bearer ${getToken()}` },
         body: JSON.stringify({
           system: SYSTEM_PROMPT,
           messages: [{ role: 'user', content: description.trim() }],
         }),
       });
+      let res = await doFetch();
+      if (res.status === 401) {
+        const refreshed = await auth.refreshSession();
+        if (refreshed) res = await doFetch();
+      }
       if (!res.ok) {
         setError(res.status === 401 ? 'Session expired — please sign out and sign back in.' : 'Something went wrong — try again.');
         setStep('input');

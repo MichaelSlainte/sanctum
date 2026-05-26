@@ -116,7 +116,7 @@ export const storage = {
 
 // Shared refresh lock — prevents concurrent token refresh races
 let _refreshing = null;
-const ensureValidToken = async () => {
+export const ensureValidToken = async () => {
   const expiry = parseInt(localStorage.getItem("sanctum_expiry") || "0");
   if (localStorage.getItem("sanctum_token") && Date.now() > expiry - 60000) {
     if (!_refreshing) _refreshing = auth.refreshSession().finally(() => { _refreshing = null; });
