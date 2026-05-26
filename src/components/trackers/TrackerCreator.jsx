@@ -128,32 +128,28 @@ export default function TrackerCreator({ onCreated, user }) {
   const save = async () => {
     if (!preview || saving) return;
     setSaving(true);
-    const id = 'ct_' + Date.now();
-    const tracker = {
-      id,
-      label: preview.name,
-      icon: preview.icon,
-      description: preview.description,
-      weekly_goal: preview.weekly_goal || 3,
-      color: preview.color || '#3b82f6',
-      fields: preview.fields || [],
-      created_at: new Date().toISOString(),
-    };
     try {
-      await sb.from('custom_trackers').insert({
-        id,
-        label: tracker.label,
-        icon: tracker.icon,
-        description: tracker.description,
-        weekly_goal: tracker.weekly_goal,
-        color: tracker.color,
-        fields: tracker.fields,
+      const result = await sb.from('custom_trackers').insert({
+        label: preview.name,
+        icon: preview.icon,
+        description: preview.description,
+        weekly_goal: preview.weekly_goal || 3,
+        color: preview.color || '#3b82f6',
+        fields: preview.fields || [],
         user_id: user?.id,
       });
-    } catch {}
-    setSaving(false);
-    onCreated?.(tracker);
-    close();
+      const inserted = Array.isArray(result) ? result[0] : result;
+      setSaving(false);
+      if (inserted?.id) {
+        onCreated?.(inserted);
+        close();
+      } else {
+        setError('Failed to save tracker — try again.');
+      }
+    } catch {
+      setSaving(false);
+      setError('Failed to save tracker — try again.');
+    }
   };
 
   const TypeChip = ({ type }) => (
