@@ -251,18 +251,16 @@ export function CustomTrackerDetail({ tracker: initialTracker, onClose, user, on
     };
     setEntries(prev => [entry, ...prev]);
     try {
-      console.log('[saveEntry] inserting:', { custom_tracker_id: tracker.id, data: entryData, logged_at: logDate, user_id: user?.id });
       const inserted = await sb.from('tracker_entries').insert({
         custom_tracker_id: tracker.id,
         data: entryData,
         logged_at: logDate,
       });
-      console.log('[saveEntry] insert result:', inserted);
       if (Array.isArray(inserted) && inserted[0]?.id) {
         setEntries(prev => prev.map(e => e.id === entry.id ? { ...inserted[0], data: entryData } : e));
       }
-    } catch (err) {
-      console.error('[tracker_entries] insert failed:', err);
+    } catch {
+      // silent — optimistic entry already added to local state
     }
     setFormData({});
     setLogDate(todayISO());
