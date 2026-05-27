@@ -129,15 +129,15 @@ export default function TrackerCreator({ onCreated, user }) {
     if (!preview || saving) return;
     setSaving(true);
     try {
-      const result = await sb.from('custom_trackers').insert({
-        label: preview.name,
+      const trackerPayload = {
+        name: preview.name,
         icon: preview.icon,
         description: preview.description,
-        weekly_goal: preview.weekly_goal || 3,
         color: preview.color || '#3b82f6',
         fields: preview.fields || [],
-        user_id: user?.id,
-      });
+      };
+      console.log('[saveTracker] payload:', JSON.stringify(trackerPayload));
+      const result = await sb.from('custom_trackers').insert(trackerPayload);
       const inserted = Array.isArray(result) ? result[0] : result;
       setSaving(false);
       if (inserted?.id) {
