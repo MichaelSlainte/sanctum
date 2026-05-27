@@ -137,6 +137,7 @@ export default function TrackerCreator({ onCreated, user }) {
         color: preview.color || '#3b82f6',
         fields: preview.fields || [],
         weekly_goal: preview.weekly_goal || 3,
+        archived: false,
       };
       const result = await sb.from('custom_trackers').insert(trackerPayload);
       const inserted = Array.isArray(result) ? result[0] : result;

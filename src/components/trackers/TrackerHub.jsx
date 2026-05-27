@@ -106,7 +106,7 @@ export function CustomTrackerDetail({ tracker: initialTracker, onClose, user, on
 
   // Editable header state
   const [editName, setEditName]   = useState(false);
-  const [nameVal,  setNameVal]    = useState(initialTracker.label);
+  const [nameVal,  setNameVal]    = useState(initialTracker.label || initialTracker.name);
   const [editDesc, setEditDesc]   = useState(false);
   const [descVal,  setDescVal]    = useState(initialTracker.description || '');
 
@@ -298,7 +298,7 @@ export function CustomTrackerDetail({ tracker: initialTracker, onClose, user, on
         }}>
           <div className="card" style={{ maxWidth: 380, width: '100%' }}>
             <div style={{ fontSize: 16, fontWeight: 700, color: 'var(--t1)', marginBottom: 10 }}>
-              Delete {tracker.label}?
+              Delete {tracker.label || tracker.name}?
             </div>
             <div style={{ fontSize: 13, color: 'var(--t3)', marginBottom: 20 }}>
               This will permanently delete all logged entries. This cannot be undone.
@@ -327,7 +327,7 @@ export function CustomTrackerDetail({ tracker: initialTracker, onClose, user, on
             <Icon name="chevL" size={13} /> Trackers
           </button>
           <span style={{ color: 'var(--b3)', fontSize: 12 }}>/</span>
-          <span className="tracker-section-label">{tracker.label}</span>
+          <span className="tracker-section-label">{tracker.label || tracker.name}</span>
         </div>
         <button
           title="Delete tracker"
@@ -368,12 +368,12 @@ export function CustomTrackerDetail({ tracker: initialTracker, onClose, user, on
                 value={nameVal}
                 onChange={e => setNameVal(e.target.value)}
                 onBlur={() => { setEditName(false); if (nameVal.trim()) updateTracker({ label: nameVal.trim() }); }}
-                onKeyDown={e => { if (e.key === 'Enter') { setEditName(false); if (nameVal.trim()) updateTracker({ label: nameVal.trim() }); } if (e.key === 'Escape') { setEditName(false); setNameVal(tracker.label); } }}
+                onKeyDown={e => { if (e.key === 'Enter') { setEditName(false); if (nameVal.trim()) updateTracker({ label: nameVal.trim() }); } if (e.key === 'Escape') { setEditName(false); setNameVal(tracker.label || tracker.name); } }}
               />
             ) : (
               <div onClick={() => setEditName(true)} title="Click to edit name"
                 style={{ fontSize: 20, fontWeight: 700, color: 'var(--t1)', cursor: 'text', marginBottom: 6, display: 'flex', alignItems: 'center', gap: 6 }}>
-                {tracker.label}
+                {tracker.label || tracker.name}
                 <span style={{ fontSize: 11, color: 'var(--t3)', opacity: 0.6 }}>✎</span>
               </div>
             )}
@@ -1016,7 +1016,7 @@ export default function TrackerHub({ archivedTrackers = [], onArchive, onUnarchi
         {/* Text + delete row */}
         <div style={{ display: 'flex', alignItems: 'flex-end', justifyContent: 'space-between', gap: 8 }}>
           <div style={{ flex: 1, minWidth: 0 }}>
-            <div style={{ fontSize: 16, fontWeight: 600, color: 'var(--t1)', marginBottom: 4 }}>{t.label}</div>
+            <div style={{ fontSize: 16, fontWeight: 600, color: 'var(--t1)', marginBottom: 4 }}>{t.label || t.name}</div>
             {t.description && <div style={{ fontSize: 12, color: 'var(--t3)', marginBottom: 4 }}>{t.description}</div>}
             <div style={{ fontSize: 11, color: 'var(--t3)' }}>
               {weekCount} / {t.weekly_goal || 3} this week
@@ -1130,7 +1130,7 @@ export default function TrackerHub({ archivedTrackers = [], onArchive, onUnarchi
                   })}
                   {archivedCustomTrackers.map(t => (
                     <div key={t.id} className="archived-card">
-                      <span>{t.label}</span>
+                      <span>{t.label || t.name}</span>
                       <button className="btn sm" onClick={() => unarchiveCustomTracker(t.id)}>Restore</button>
                     </div>
                   ))}
