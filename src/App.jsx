@@ -161,6 +161,20 @@ export default function App() {
   const [openCustomSignal, setOpenCustomSignal] = useState(null);
   const [closeCustomSignal, setCloseCustomSignal] = useState(0);
 
+  // Load custom trackers on startup so sidebar is populated immediately on login
+  useEffect(() => {
+    if (!user) return;
+    const load = async () => {
+      try {
+        const data = await sb.from('custom_trackers').select('*');
+        if (Array.isArray(data)) {
+          setCustomTrackers(data.filter(t => t.archived !== true && t.user_id === user.id));
+        }
+      } catch {}
+    };
+    load();
+  }, [user]);
+
   // Draggable AI FAB position (right-based)
   const [fabPos, setFabPos] = useState(() => {
     try {
