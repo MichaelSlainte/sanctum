@@ -130,13 +130,14 @@ export default function TrackerCreator({ onCreated, user }) {
     setSaving(true);
     try {
       const trackerPayload = {
-        name: preview.name,
+        user_id: user?.id,
+        label: preview.name || preview.label,
         icon: preview.icon,
         description: preview.description,
         color: preview.color || '#3b82f6',
         fields: preview.fields || [],
+        weekly_goal: preview.weekly_goal || 3,
       };
-      console.log('[saveTracker] payload:', JSON.stringify(trackerPayload));
       const result = await sb.from('custom_trackers').insert(trackerPayload);
       const inserted = Array.isArray(result) ? result[0] : result;
       setSaving(false);
