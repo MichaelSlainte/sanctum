@@ -177,7 +177,7 @@ export function CustomTrackerDetail({ tracker: initialTracker, onClose, user, on
   const percent   = thisWeek / (tracker.weekly_goal || 3);
 
   const totalEntries  = entries.length;
-  const totalMinutes  = entries.reduce((s, e) => s + (e.data?.duration ?? e.duration ?? 0), 0);
+  const totalMinutes  = entries.reduce((s, e) => s + (parseInt(e.data?.duration ?? e.duration ?? 0, 10) || 0), 0);
   const avgDuration   = Math.round(totalMinutes / (totalEntries || 1));
 
   const byWeek = {};
@@ -507,7 +507,7 @@ export function CustomTrackerDetail({ tracker: initialTracker, onClose, user, on
             </div>
           </div>
 
-          {(tracker.fields || []).map((field) => {
+          {(tracker.fields || []).filter(f => f.type !== 'date' && f.key !== 'date' && f.key !== 'logged_at').map((field) => {
             const key = field.key || field.name;
             const label = field.label || (key
               ? key.charAt(0).toUpperCase() + key.slice(1).replace(/_/g, ' ')
