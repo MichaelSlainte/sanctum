@@ -146,6 +146,9 @@ export default function Settings({ user, onLogout, theme, onThemeChange, font, o
         sb.from('study_subjects').delete({ user_id: user.id }),
         sb.from('study_topics').delete({ user_id: user.id }),
         sb.from('ozzy_docs').delete({ user_id: user.id }),
+        sb.from('roadmap_milestones').delete({ user_id: user.id }),
+        sb.from('roadmap_tracks').delete({ user_id: user.id }),
+        sb.from('roadmap_projects').delete({ user_id: user.id }),
         sb.from('profiles').delete({ id: user.id }),
       ]);
 
