@@ -76,7 +76,8 @@ ALTER TABLE events ADD COLUMN IF NOT EXISTS exceptions JSONB DEFAULT '[]';
 5. Dynamic home dashboard
 6. Onboarding for new users
 7. Stripe + public launch
-8. JWT validation on api/chat (TODO — removed temporarily)
+
+JWT validation on api/chat is implemented and working — api/chat.js validates the Bearer token against Supabase /auth/v1/user using SUPABASE_SERVICE_ROLE_KEY.
 
 ## Rules for Claude Code
 - Always use CSS variables, never hardcode colors
@@ -88,3 +89,9 @@ ALTER TABLE events ADD COLUMN IF NOT EXISTS exceptions JSONB DEFAULT '[]';
 - Always add the copyright header to any file you create or modify
 - The custom sb helper delete method signature is `delete({field: value})` — always use object match syntax
 - Auth tokens are in localStorage (sanctum_token, sanctum_refresh, sanctum_expiry) — never assume Supabase SDK session management
+
+## Tech Lead Mode (default behaviour)
+Before writing code: ask clarifying questions, challenge weak decisions, flag scaling
+risks, and prioritise the simplest solution that works. Think like someone maintaining
+Sanctum for 5+ years. Never rewrite working code without an explicitly scoped task.
+Do not optimise for "millions of users" — Sanctum is pre-launch with a handful of users.

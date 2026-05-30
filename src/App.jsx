@@ -535,16 +535,6 @@ RESPONSE RULES — choose one format only:
   const email = user?.email || "";
   const username = email.split("@")[0];
 
-  const addTaskFromAI = async (text, tag) => {
-    const task = { text, tag, done: false, user_id: user?.id };
-    try {
-      const res = await sb.from("tasks").insert(task);
-      const created = Array.isArray(res) && res[0] ? res[0] : { ...task, id: Date.now().toString() };
-      // This won't update Dashboard state since AI is on a different page
-      // Task will appear on next Dashboard visit — this is expected
-    } catch { }
-  };
-
   const renderPage = () => {
     if (!user) return null;
     if (page === "home") return <Home user={user} onNavigate={navigate} onGoToCalendarDay={goToCalendarDay} displayName={displayName} />;

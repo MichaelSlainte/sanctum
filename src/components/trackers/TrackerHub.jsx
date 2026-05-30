@@ -810,11 +810,7 @@ export default function TrackerHub({ archivedTrackers = [], onArchive, onUnarchi
         const expenses = mf.filter(f => f.category !== "income").reduce((s, f) => s + Number(f.amount || 0), 0);
         const financeRatio = income > 0 ? Math.min(expenses / income, 1) : 0;
 
-        let travelRatio = 0;
-        try {
-          const trips = JSON.parse(localStorage.getItem("sanctum_trips") || "[]");
-          travelRatio = trips.length > 0 ? Math.min(trips.filter(t => t.status === "completed").length / trips.length, 1) : 0;
-        } catch {}
+        const travelRatio = 0;
 
         let ozzyRing = 0, ozzyColor = "var(--grn)";
         try {

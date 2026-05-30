@@ -25,7 +25,6 @@ function isRateLimited(ip) {
 }
 
 export default async function handler(req, res) {
-  console.log('[api/chat] handler invoked', req.method);
   res.setHeader('Access-Control-Allow-Origin', 'https://sanctum-beige.vercel.app');
   res.setHeader('Access-Control-Allow-Methods', 'POST, OPTIONS');
   res.setHeader('Access-Control-Allow-Headers', 'Content-Type, Authorization');

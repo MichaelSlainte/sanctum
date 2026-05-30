@@ -139,10 +139,8 @@ export default function Notes({ user }) {
   const saveNotebooks = useCallback(async (nbs) => {
     setNotebooks(nbs);
     localStorage.setItem('sanctum_notebooks_v2', JSON.stringify(nbs));
-    console.log('[saveNotebooks] saving:', nbs.map(nb => ({ id: nb.id, sections: nb.sections.map(s => s.id) })));
     try {
       await sb.from('notebooks').upsert({ id: `singleton_${user?.id || 'default'}`, user_id: user?.id, data: nbs, updated_at: new Date().toISOString() }, 'id');
-      console.log('[saveNotebooks] Supabase upsert OK');
     } catch (err) {
       console.error('[saveNotebooks] Supabase upsert FAILED:', err);
     }
@@ -766,8 +764,6 @@ export default function Notes({ user }) {
     const nb=notebooks.find(n=>n.id===parentId); if(!nb||nb.sections.length<=1) return;
     const noteIdsToDelete = allNotes.filter(n => n.section === secId).map(n => n.id);
     const updatedNBs = notebooks.map(n=>n.id!==parentId?n:{...n,sections:n.sections.filter(s=>s.id!==secId)});
-    console.log('[deleteSection] removing secId:', secId, 'from notebook:', parentId);
-    console.log('[deleteSection] updated structure:', updatedNBs.map(nb => ({ id: nb.id, sections: nb.sections.map(s => s.id) })));
     saveNotebooks(updatedNBs);
     if (activeSection===secId) { const rem=nb.sections.filter(s=>s.id!==secId); if(rem[0]) selectSection(rem[0].id,parentId); }
     setAllNotes(prev => prev.filter(n => n.section !== secId));
