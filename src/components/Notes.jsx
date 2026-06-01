@@ -4,6 +4,7 @@
 import { useState, useEffect, useRef, useCallback } from "react";
 import { sb, auth } from "../lib/supabase";
 import { Icon, Modal, DEFAULT_NOTEBOOKS } from "./shared";
+import { OWNER_IDS } from "./trackers/TrackerHub";
 import { useCrypto } from "../lib/CryptoContext.jsx";
 import { encrypt, decrypt, isEncrypted } from "../lib/crypto.js";
 
@@ -116,9 +117,12 @@ export default function Notes({ user }) {
   const cryptoKeyRef = useRef(cryptoKey);
   useEffect(() => { cryptoKeyRef.current = cryptoKey; }, [cryptoKey]);
   // ── Notebooks (Supabase + localStorage backed) ───────────────────────
+  // Default notebooks (Finance/Travel/Career/Personal/Ideas) are only for the app
+  // owners; everyone else starts with an empty notebook list.
+  const isOwner = OWNER_IDS.includes(user?.id);
   const [notebooks, setNotebooks] = useState(() => {
     try { const s = localStorage.getItem('sanctum_notebooks_v2'); if (s) return JSON.parse(s); } catch {}
-    return DEFAULT_NOTEBOOKS;
+    return isOwner ? DEFAULT_NOTEBOOKS : [];
   });
   useEffect(() => {
     if (!user?.id) return;
@@ -130,9 +134,13 @@ export default function Notes({ user }) {
         // Valid data in Supabase — use it
         setNotebooks(singleton.data);
         localStorage.setItem('sanctum_notebooks_v2', JSON.stringify(singleton.data));
-      } else {
-        // No singleton or empty data (new user / first Tamara login) — seed with defaults
+      } else if (isOwner) {
+        // No singleton or empty data (owner new user / first Tamara login) — seed with defaults
         sb.from('notebooks').upsert({ id: singletonId, user_id: user.id, data: DEFAULT_NOTEBOOKS, updated_at: new Date().toISOString() }, 'id').catch(() => {});
+      } else {
+        // Non-owner: do not seed defaults — start with an empty notebook list
+        setNotebooks([]);
+        localStorage.setItem('sanctum_notebooks_v2', JSON.stringify([]));
       }
     }).catch(() => {}); // network error — keep current state (localStorage/defaults)
   }, [user?.id]);
