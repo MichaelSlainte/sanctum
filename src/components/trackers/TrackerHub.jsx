@@ -6,6 +6,14 @@ import { Icon } from "../shared";
 import { sb, storage } from "../../lib/supabase";
 import TrackerCreator from "./TrackerCreator";
 
+// v1 hardcoded trackers (Study/Career/Finance/Travel/Ozzy) are personal to the app
+// owners. They render only for these accounts; everyone else gets an empty state
+// until the v1→JSONB conversion lands. Shared with App.jsx for nav/route gating.
+export const OWNER_IDS = [
+  'd86cb548-3254-46d4-9322-fc5a45043037', // Michael
+  '8936c969-9baa-4a73-adc3-089ef80ef941', // Tamara
+];
+
 const MiniRing = ({ percent, color }) => {
   const r = 16, circ = 2 * Math.PI * r;
   const offset = circ - circ * Math.min(Math.max(percent, 0), 1);
@@ -717,6 +725,7 @@ export function CustomTrackerDetail({ tracker: initialTracker, onClose, user, on
 }
 
 export default function TrackerHub({ archivedTrackers = [], onArchive, onUnarchive, onNavigate, user, refreshKey = 0, onCustomTrackersLoad, openCustomSignal, closeCustomSignal }) {
+  const isOwner = OWNER_IDS.includes(user?.id);
   const [selectedCustom, setSelectedCustom] = useState(null);
   const openCustomSignalRef = useRef(openCustomSignal);
   useEffect(() => { openCustomSignalRef.current = openCustomSignal; }, [openCustomSignal]);
@@ -1097,9 +1106,19 @@ export default function TrackerHub({ archivedTrackers = [], onArchive, onUnarchi
       </div>
 
       <div className="tracker-hub">
-        {activeOrder.map(id => renderCard(id))}
+        {isOwner && activeOrder.map(id => renderCard(id))}
         {customTrackers.map(t => renderCustomCard(t))}
       </div>
+
+      {!isOwner && customTrackers.length === 0 && (
+        <div className="empty-state" style={{ textAlign: "center", padding: "48px 20px", display: "flex", flexDirection: "column", alignItems: "center", gap: 16 }}>
+          <p style={{ fontSize: 14, color: "var(--t3)", margin: 0 }}>You have no trackers yet.</p>
+          <TrackerCreator user={user} onCreated={(tracker) => {
+            setCustomTrackers(prev => prev.find(t => t.id === tracker.id) ? prev : [...prev, tracker]);
+            setSelectedCustom(tracker);
+          }} />
+        </div>
+      )}
 
       <div className="archived-section">
         <button className="btn ghost"

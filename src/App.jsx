@@ -16,7 +16,7 @@ import Ozzy from "./components/trackers/Ozzy";
 import Travel from "./components/trackers/Travel";
 import Career from "./components/trackers/Career";
 import Finance from "./components/trackers/Finance";
-import TrackerHub, { TrackerBackBar } from "./components/trackers/TrackerHub";
+import TrackerHub, { TrackerBackBar, OWNER_IDS } from "./components/trackers/TrackerHub";
 
 // ─── LOGIN ───────────────────────────────────────────────────────────────────
 function Login({ onLogin }) {
@@ -534,6 +534,7 @@ RESPONSE RULES — choose one format only:
 
   const email = user?.email || "";
   const username = email.split("@")[0];
+  const isOwner = OWNER_IDS.includes(user?.id);
 
   const renderPage = () => {
     if (!user) return null;
@@ -541,12 +542,14 @@ RESPONSE RULES — choose one format only:
     if (page === "notes") return <Notes user={user} />;
     if (page === "calendar") return <Calendar user={user} initialDate={calDate} refreshKey={calendarRefreshKey} />;
     if (page === "settings") return <Settings user={user} onLogout={handleLogout} theme={theme} onThemeChange={applyTheme} font={font} onFontChange={applyFont} sb={sb} />;
-    if (page === "trackers") return <TrackerHub user={user} archivedTrackers={archivedTrackers} onArchive={archiveTracker} onUnarchive={unarchiveTracker} onNavigate={navigate} onCustomTrackersLoad={setCustomTrackers} openCustomSignal={openCustomSignal} closeCustomSignal={closeCustomSignal} />;
-    if (page === "study")   return <><TrackerBackBar name="Study"   onBack={() => navigate("trackers")} /><Study   user={user} /></>;
-    if (page === "pet")     return <><TrackerBackBar name="Ozzy"    onBack={() => navigate("trackers")} /><Ozzy    user={user} /></>;
-    if (page === "travel")  return <><TrackerBackBar name="Travel"  onBack={() => navigate("trackers")} /><Travel  user={user} /></>;
-    if (page === "career")  return <><TrackerBackBar name="Career"  onBack={() => navigate("trackers")} /><Career  user={user} /></>;
-    if (page === "finance") return <><TrackerBackBar name="Finance" onBack={() => navigate("trackers")} /><Finance user={user} /></>;
+    // Non-owners never reach the v1 tracker pages; they land back on the hub.
+    if (page === "trackers" || (!isOwner && TRACKER_PAGES.includes(page)))
+      return <TrackerHub user={user} archivedTrackers={archivedTrackers} onArchive={archiveTracker} onUnarchive={unarchiveTracker} onNavigate={navigate} onCustomTrackersLoad={setCustomTrackers} openCustomSignal={openCustomSignal} closeCustomSignal={closeCustomSignal} />;
+    if (page === "study"   && isOwner) return <><TrackerBackBar name="Study"   onBack={() => navigate("trackers")} /><Study   user={user} /></>;
+    if (page === "pet"     && isOwner) return <><TrackerBackBar name="Ozzy"    onBack={() => navigate("trackers")} /><Ozzy    user={user} /></>;
+    if (page === "travel"  && isOwner) return <><TrackerBackBar name="Travel"  onBack={() => navigate("trackers")} /><Travel  user={user} /></>;
+    if (page === "career"  && isOwner) return <><TrackerBackBar name="Career"  onBack={() => navigate("trackers")} /><Career  user={user} /></>;
+    if (page === "finance" && isOwner) return <><TrackerBackBar name="Finance" onBack={() => navigate("trackers")} /><Finance user={user} /></>;
   };
 
   const today = new Date().toLocaleDateString("en-IE", { weekday: "short", day: "numeric", month: "short", year: "numeric" });
@@ -629,7 +632,7 @@ RESPONSE RULES — choose one format only:
                     </span>
                     <div className="drag-handle" style={{ marginLeft: 0 }}><Icon name="grab" size={12} /></div>
                   </div>
-                  {trackersExpanded && TRACKER_ITEMS.map(t => (
+                  {isOwner && trackersExpanded && TRACKER_ITEMS.map(t => (
                     <div
                       key={t.id}
                       className={`nav-item${page === t.id ? " active" : ""}`}
