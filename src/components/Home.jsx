@@ -447,6 +447,10 @@ export default function Home({ user, archivedTrackers = [], onNavigate, onGoToCa
     localStorage.getItem("sanctum_study_ring_source") || "pmp"
   );
 
+  // Active (non-archived) custom trackers + their entries, for the home dashboard
+  const [homeCustomTrackers, setHomeCustomTrackers] = useState([]);
+  const [homeCustomEntries, setHomeCustomEntries] = useState([]);
+
   const toggleRing = (key) => {
     setDashboardRings(prev => {
       const next = { ...prev, [key]: !prev[key] };
@@ -637,6 +641,24 @@ export default function Home({ user, archivedTrackers = [], onNavigate, onGoToCa
   const weekDates = DAYS.map((_, i) => { const d = new Date(now); d.setDate(now.getDate() - todayDow + i); return d; });
 
   useEffect(() => { loadTasks(); loadEvents(); loadStudy(); }, []);
+
+  // Load active custom trackers + their entries (one query each; counted client-side)
+  useEffect(() => {
+    let cancelled = false;
+    (async () => {
+      try {
+        const trackers = await sb.from("custom_trackers").select("*");
+        if (cancelled || !Array.isArray(trackers)) return;
+        const active = trackers.filter(t => t.archived !== true && t.user_id === user?.id);
+        setHomeCustomTrackers(active);
+        if (active.length === 0) { setHomeCustomEntries([]); return; }
+        const entries = await sb.from("tracker_entries").select("*");
+        if (cancelled) return;
+        setHomeCustomEntries(Array.isArray(entries) ? entries : []);
+      } catch {}
+    })();
+    return () => { cancelled = true; };
+  }, [user?.id, refreshKey]);
 
   const loadTasks = async () => {
     setTasksLoading(true);
@@ -865,6 +887,15 @@ For all other queries respond in plain conversational text, warm but concise, ma
     .reduce((sum, s) => sum + (s.hours || 0), 0);
   const weekPercent = Math.min(thisWeekHours / weeklyGoalHours, 1);
   const weekRingColor = weekPercent >= 1 ? "var(--grn)" : weekPercent >= 0.5 ? "var(--amber)" : "#ef4444";
+
+  // Count this week's entries (Monday→Sunday) for a custom tracker
+  const customWeekEnd = new Date(weekStart.getTime() + 7 * 86400000);
+  const customWeekCount = (id) =>
+    homeCustomEntries.filter(e => {
+      if (e.custom_tracker_id !== id && e.tracker_id !== id) return false;
+      const d = new Date(e.logged_at || e.date);
+      return d >= weekStart && d < customWeekEnd;
+    }).length;
 
   const RingCard = ({ label, value, sub, percent, color }) => {
     const r = 34, circ = 2 * Math.PI * r;
@@ -1142,6 +1173,41 @@ For all other queries respond in plain conversational text, warm but concise, ma
         </div>
       </div>
 
+
+      {/* Custom trackers — dynamic, from custom_trackers + tracker_entries */}
+      {homeCustomTrackers.length > 0 && (
+        <div style={{ marginBottom: 18 }}>
+          <div style={{ fontSize: 11, fontWeight: 600, color: "var(--t3)", textTransform: "uppercase", letterSpacing: ".5px", marginBottom: 10 }}>
+            Custom trackers
+          </div>
+          <div className="ring-cards-row">
+            {homeCustomTrackers.map(t => {
+              const goal     = Number(t.weekly_goal) || 0;
+              const thisWeek = customWeekCount(t.id);
+              const color    = t.color || "var(--blue)";
+              const percent  = goal > 0 ? thisWeek / goal : 0;
+              return (
+                <div key={t.id} className="ring-card" style={{ cursor: "pointer" }} onClick={() => onNavigate("trackers")}>
+                  <div style={{ position: "absolute", top: 8, left: 8, width: 22, height: 22, borderRadius: 6, background: "var(--bg2)", display: "flex", alignItems: "center", justifyContent: "center" }}>
+                    <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="var(--t2)" strokeWidth="1.5" strokeLinecap="round">
+                      <rect x="3" y="3" width="7" height="7" rx="1"/><rect x="14" y="3" width="7" height="7" rx="1"/>
+                      <rect x="3" y="14" width="7" height="7" rx="1"/><rect x="14" y="14" width="7" height="7" rx="1"/>
+                    </svg>
+                  </div>
+                  <RingCard
+                    label={t.label || t.name}
+                    value={thisWeek}
+                    sub={goal > 0 ? `/ ${goal}` : "logged"}
+                    percent={percent}
+                    color={color}
+                  />
+                  <div style={{ fontSize: 10, color: "var(--t3)", marginTop: 2 }}>{thisWeek} this week</div>
+                </div>
+              );
+            })}
+          </div>
+        </div>
+      )}
 
       {/* Weekly PMP study chart */}
       <div className="study-chart-wrap" style={{ marginBottom: 18, padding: "16px 20px", background: "var(--bg1)", border: "1px solid var(--b2)", borderRadius: 16 }}>
