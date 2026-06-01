@@ -415,6 +415,7 @@ export default function Calendar({ user, initialDate, refreshKey }) {
   const scrollRef = useRef(null);
   const [calView,     setCalView]     = useState(() => localStorage.getItem("sanctum_cal_view") || "month");
   const [events,      setEvents]      = useState([]);
+  const [trackerPills, setTrackerPills] = useState([]); // custom tracker entries shown as display-only pills
   const [showAdd,     setShowAdd]     = useState(false);
   const [editingEvent,setEditingEvent]= useState(null);
   const [formData,    setFormData]    = useState(makeBlank);
@@ -427,7 +428,7 @@ export default function Calendar({ user, initialDate, refreshKey }) {
   const year  = currentDate.getFullYear();
   const month = currentDate.getMonth();
 
-  useEffect(() => { loadEvents(); }, [refreshKey]);
+  useEffect(() => { loadEvents(); loadTrackerPills(); }, [refreshKey]);
 
   // Load user's preferred timezone from ozzy_profile
   useEffect(() => {
@@ -460,6 +461,37 @@ export default function Calendar({ user, initialDate, refreshKey }) {
       const seen = new Set(ownArr.map(e => e.id));
       const merged = [...ownArr, ...sharedArr.filter(e => !seen.has(e.id))];
       setEvents(merged);
+    } catch {}
+  };
+
+  // Custom tracker entries → display-only pseudo-events (scoped via the user's own
+  // trackers, since tracker_entries.user_id is unreliable; matched on custom_tracker_id).
+  const loadTrackerPills = async () => {
+    try {
+      const [trackers, entries] = await Promise.all([
+        sb.from("custom_trackers").select("*"),
+        sb.from("tracker_entries").select("*"),
+      ]);
+      const own = new Map(
+        (Array.isArray(trackers) ? trackers : [])
+          .filter(t => t.user_id === user?.id && !t.archived)
+          .map(t => [t.id, { label: t.label || t.name, color: t.color }])
+      );
+      const pills = (Array.isArray(entries) ? entries : [])
+        .filter(e => own.has(e.custom_tracker_id))
+        .map(e => {
+          const t = own.get(e.custom_tracker_id);
+          return {
+            id: `tracker_${e.id}`,
+            date: (e.logged_at || e.date || "").slice(0, 10),
+            title: t.label,
+            color: t.color,
+            source: "tracker",
+            trackerId: e.custom_tracker_id,
+          };
+        })
+        .filter(p => p.date);
+      setTrackerPills(pills);
     } catch {}
   };
 
@@ -668,7 +700,22 @@ export default function Calendar({ user, initialDate, refreshKey }) {
   while (cells.length % 7 !== 0) cells.push({ day: cells.length - daysInMonth - startOffset + 1, current: false });
 
   const fmtDs       = (d) => `${year}-${String(month+1).padStart(2,"0")}-${String(d).padStart(2,"0")}`;
-  const filteredEvts = activeCatFilters.size === 0 ? events : events.filter(ev => activeCatFilters.has(ev.category));
+  // Pill styling: tracker pills use a tinted bg + the tracker's own colour for text
+  // and left border (mirrors how catOf events render, readable in light & dark).
+  const pillColors = (e) => {
+    if (e.source === "tracker") {
+      const col = e.color || "var(--blue)";
+      const bg = /^#[0-9a-fA-F]{6}$/.test(col) ? col + "22" : col;
+      return { bg, color: col };
+    }
+    return catOf(e);
+  };
+  // Tracker pills are display-only — never open the event editor.
+  const openPill = (ev) => { if (ev.source === "tracker") return; setActiveEvent(ev); };
+
+  const realEvts = activeCatFilters.size === 0 ? events : events.filter(ev => activeCatFilters.has(ev.category));
+  // Tracker pills always show (they aren't categories, so category filters don't hide them).
+  const filteredEvts = [...realEvts, ...trackerPills];
   const eventsOnDay = (cell) => cell.current ? getEventsForDate(filteredEvts, fmtDs(cell.day)) : [];
   const isTodayCell = (cell) => cell.current && year === now.getFullYear() && month === now.getMonth() && cell.day === now.getDate();
 
@@ -1176,12 +1223,12 @@ export default function Calendar({ user, initialDate, refreshKey }) {
                   <div className="cal-day-num">{cell.day}</div>
                   <div className="cal-events">
                     {dayEvs.slice(0,3).map(ev => {
-                      const c = catOf(ev);
+                      const c = pillColors(ev);
                       const startT = ev.start_time || ev.time || "";
                       return (
                         <div key={ev.id} className="event-chip"
                           style={{ background: c.bg, borderLeftColor: c.color, color: c.color }}
-                          onClick={e => { e.stopPropagation(); setActiveEvent(ev); }}>
+                          onClick={e => { e.stopPropagation(); openPill(ev); }}>
                           {startT && <span className="event-time">{fmtTimeCompact(startT)}</span>}
                           <span style={{ overflow: "hidden", textOverflow: "ellipsis", flex: 1, minWidth: 0 }}>{ev.title}</span>
                           {ev.repeat && ev.repeat !== "none" && <span style={{ fontSize: 9, opacity: .65, flexShrink: 0 }}>↻</span>}
@@ -1218,11 +1265,11 @@ export default function Calendar({ user, initialDate, refreshKey }) {
               return (
                 <div key={i} className="week-allday-col">
                   {alldayEvs.map(ev => {
-                    const c = catOf(ev);
+                    const c = pillColors(ev);
                     return (
                       <div key={ev.id} className="event-chip"
                         style={{ background: c.bg, borderLeftColor: c.color, color: c.color, width: "100%", maxWidth: "100%" }}
-                        onClick={() => setActiveEvent(ev)}>
+                        onClick={() => openPill(ev)}>
                         {ev.shared && <span className="event-badge-s">S</span>}
                         <span style={{ overflow: "hidden", textOverflow: "ellipsis", flex: 1, minWidth: 0 }}>{ev.title}</span>
                       </div>
@@ -1250,7 +1297,7 @@ export default function Calendar({ user, initialDate, refreshKey }) {
                         onClick={() => openAdd(fmtDateStr(d), `${String(h).padStart(2,"0")}:00`)} />
                     ))}
                     {timedEvs.map(ev => {
-                      const c     = catOf(ev);
+                      const c     = pillColors(ev);
                       const evTz  = ev.timezone || userTz;
                       const rawSt = ev.start_time || ev.time || "";
                       const st    = (rawSt && evTz !== userTz) ? convertTimeToTz(rawSt, evTz, userTz, ev.date) : rawSt;
@@ -1262,7 +1309,7 @@ export default function Calendar({ user, initialDate, refreshKey }) {
                       return (
                         <div key={ev.id} className="week-grid-event"
                           style={{ top: clampedTop, height, background: c.bg, color: c.color, borderLeftColor: c.color }}
-                          onClick={() => setActiveEvent(ev)}>
+                          onClick={() => openPill(ev)}>
                           <div style={{ fontSize: 9, opacity: .8, fontFamily: "var(--mono)", whiteSpace: "nowrap" }}>
                             {fmtTimeCompact(st)}{et ? ` – ${fmtTimeCompact(et)}` : ""}
                           </div>
@@ -1306,11 +1353,11 @@ export default function Calendar({ user, initialDate, refreshKey }) {
               return (
                 <div key={i} className="week-allday-col">
                   {alldayEvs.map(ev => {
-                    const c = catOf(ev);
+                    const c = pillColors(ev);
                     return (
                       <div key={ev.id} className="event-chip"
                         style={{ background: c.bg, borderLeftColor: c.color, color: c.color, width: "100%", maxWidth: "100%" }}
-                        onClick={() => setActiveEvent(ev)}>
+                        onClick={() => openPill(ev)}>
                         {ev.shared && <span className="event-badge-s">S</span>}
                         <span style={{ overflow: "hidden", textOverflow: "ellipsis", flex: 1, minWidth: 0 }}>{ev.title}</span>
                       </div>
@@ -1338,7 +1385,7 @@ export default function Calendar({ user, initialDate, refreshKey }) {
                         onClick={() => openAdd(fmtDateStr(d), `${String(h).padStart(2,"0")}:00`)} />
                     ))}
                     {timedEvs.map(ev => {
-                      const c     = catOf(ev);
+                      const c     = pillColors(ev);
                       const evTz  = ev.timezone || userTz;
                       const rawSt = ev.start_time || ev.time || "";
                       const st    = (rawSt && evTz !== userTz) ? convertTimeToTz(rawSt, evTz, userTz, ev.date) : rawSt;
@@ -1350,7 +1397,7 @@ export default function Calendar({ user, initialDate, refreshKey }) {
                       return (
                         <div key={ev.id} className="week-grid-event"
                           style={{ top: clampedTop, height, background: c.bg, color: c.color, borderLeftColor: c.color }}
-                          onClick={() => setActiveEvent(ev)}>
+                          onClick={() => openPill(ev)}>
                           <div style={{ fontSize: 9, opacity: .8, fontFamily: "var(--mono)", whiteSpace: "nowrap" }}>
                             {fmtTimeCompact(st)}{et ? ` – ${fmtTimeCompact(et)}` : ""}
                           </div>
@@ -1389,11 +1436,11 @@ export default function Calendar({ user, initialDate, refreshKey }) {
             <div className="week-allday-label">all day</div>
             <div className="week-allday-col" style={{ flex: 1 }}>
               {getEventsForDate(filteredEvts, fmtDateStr(currentDate)).filter(ev => ev.all_day || (!ev.start_time && !ev.time)).map(ev => {
-                const c = catOf(ev);
+                const c = pillColors(ev);
                 return (
                   <div key={ev.id} className="event-chip"
                     style={{ background: c.bg, color: c.color, width: "100%", maxWidth: "100%" }}
-                    onClick={() => setActiveEvent(ev)}>
+                    onClick={() => openPill(ev)}>
                     {ev.shared && <span className="event-badge-s">S</span>}
                     <span style={{ overflow: "hidden", textOverflow: "ellipsis", flex: 1, minWidth: 0 }}>{ev.title}</span>
                   </div>
@@ -1414,7 +1461,7 @@ export default function Calendar({ user, initialDate, refreshKey }) {
                     onClick={() => openAdd(fmtDateStr(currentDate), `${String(h).padStart(2,"0")}:00`)} />
                 ))}
                 {getEventsForDate(filteredEvts, fmtDateStr(currentDate)).filter(ev => !ev.all_day && (ev.start_time || ev.time)).map(ev => {
-                  const c     = catOf(ev);
+                  const c     = pillColors(ev);
                   const evTz  = ev.timezone || userTz;
                   const rawSt = ev.start_time || ev.time || "";
                   const st    = (rawSt && evTz !== userTz) ? convertTimeToTz(rawSt, evTz, userTz) : rawSt;
@@ -1426,7 +1473,7 @@ export default function Calendar({ user, initialDate, refreshKey }) {
                   return (
                     <div key={ev.id} className="week-grid-event"
                       style={{ top: clampedTop, height, background: c.bg, color: c.color, borderLeftColor: c.color }}
-                      onClick={() => setActiveEvent(ev)}>
+                      onClick={() => openPill(ev)}>
                       <div style={{ fontSize: 9, opacity: .8, fontFamily: "var(--mono)", whiteSpace: "nowrap" }}>
                         {fmtTimeCompact(st)}{et ? ` – ${fmtTimeCompact(et)}` : ""}
                       </div>
@@ -1545,7 +1592,7 @@ export default function Calendar({ user, initialDate, refreshKey }) {
           </div>
         ) : (
           visibleEvents.map(ev => {
-            const c      = catOf(ev);
+            const c      = pillColors(ev);
             const startT = ev.start_time || ev.time || "";
             const evTz   = ev.timezone || userTz;
             const displayT = startT && evTz !== userTz ? convertTimeToTz(startT, evTz, userTz, ev.date) : startT;
@@ -1553,7 +1600,7 @@ export default function Calendar({ user, initialDate, refreshKey }) {
             return (
               <div key={ev.id} className="fin-row"
                 style={{ cursor: "pointer", borderLeft: `3px solid ${c.color}`, paddingLeft: 14, marginLeft: -1 }}
-                onClick={() => setActiveEvent(ev)}>
+                onClick={() => openPill(ev)}>
                 <div style={{ display: "flex", alignItems: "center", gap: 12, flex: 1 }}>
                   <div>
                     <div style={{ fontSize: 13, fontWeight: 600, color: "var(--t1)" }}>{ev.title}</div>
@@ -1568,7 +1615,9 @@ export default function Calendar({ user, initialDate, refreshKey }) {
                 <div style={{ display: "flex", gap: 6, alignItems: "center", flexShrink: 0 }}>
                   {ev.repeat && ev.repeat !== "none" && <span style={{ fontSize: 12, color: "var(--t3)" }}>↻</span>}
                   {ev.shared && <span className="event-badge-s">S</span>}
-                  <span className={`badge ${badgeCls(ev.category)}`}>{ev.category}</span>
+                  {ev.source === "tracker"
+                    ? <span className="badge" style={{ background: pillColors(ev).bg, color: ev.color }}>tracker</span>
+                    : <span className={`badge ${badgeCls(ev.category)}`}>{ev.category}</span>}
                 </div>
               </div>
             );
