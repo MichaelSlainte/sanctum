@@ -8,7 +8,7 @@ import { Icon, Modal } from "../shared";
 const DEFAULT_PROFILE = {
   Breed: "Golden Retriever",
   Born: "November 2025",
-  Location: "Dublin, Ireland",
+  Location: "",
   "Chip number": "Check vet records",
   Vet: "Local Dublin vet",
   Insurance: "€25/month",
@@ -350,7 +350,7 @@ export default function Ozzy({ user }) {
           </div>
           <div style={{ flex: 1 }}>
             <div style={{ fontSize: 22, fontWeight: 700, color: "var(--t1)", marginBottom: 4 }}>Ozzy</div>
-            <div style={{ fontSize: 13, color: "var(--t2)", marginBottom: 12 }}>{profile["Breed"] || "Golden Retriever"} · Born {profile["Born"] || "November 2025"} · {profile["Location"] || "Dublin, Ireland"}</div>
+            <div style={{ fontSize: 13, color: "var(--t2)", marginBottom: 12 }}>{profile["Breed"] || "Golden Retriever"} · Born {profile["Born"] || "November 2025"}{profile["Location"] ? ` · ${profile["Location"]}` : ""}</div>
             <div style={{ display: "flex", gap: 8, flexWrap: "wrap" }}>
               <span className="badge amber">Belarmine</span>
               <span className="badge green">Vaccinated</span>

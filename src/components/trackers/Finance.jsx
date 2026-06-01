@@ -1,3 +1,6 @@
+// Copyright © 2026 Michael FR Marques & Tamara Lechner. All rights reserved.
+// Sanctum — Private and confidential. Unauthorised use prohibited.
+// https://sanctum.app
 import { useState, useEffect } from "react";
 import { sb } from "../../lib/supabase";
 import { Icon, Modal, CAT_ICONS } from "../shared";
@@ -62,7 +65,7 @@ export default function Finance({ user }) {
       )}
 
       <div className="grid-3 mb18">
-        <div className="stat"><div className="stat-icon" style={{ background: "rgba(16,185,129,0.15)" }}><Icon name="finance" size={18} color="var(--grn)" /></div><div className="stat-label">Income</div><div className="stat-value" style={{ color: "var(--grn)" }}>€{income.toLocaleString()}</div><div className="stat-sub">April 2026</div></div>
+        <div className="stat"><div className="stat-icon" style={{ background: "rgba(16,185,129,0.15)" }}><Icon name="finance" size={18} color="var(--grn)" /></div><div className="stat-label">Income</div><div className="stat-value" style={{ color: "var(--grn)" }}>€{income.toLocaleString()}</div><div className="stat-sub">{currentMonth}</div></div>
         <div className="stat"><div className="stat-icon" style={{ background: "rgba(239,68,68,0.15)" }}><Icon name="card" size={18} color="var(--red)" /></div><div className="stat-label">Expenses</div><div className="stat-value" style={{ color: "var(--red)" }}>€{expenses.toLocaleString()}</div><div className="stat-sub">All outgoings</div></div>
         <div className="stat">
           <div className="stat-icon" style={{ background: balance >= 0 ? "rgba(16,185,129,0.15)" : "rgba(239,68,68,0.15)" }}><Icon name="bank" size={18} color={balance >= 0 ? "var(--grn)" : "var(--red)"} /></div>
@@ -93,7 +96,7 @@ export default function Finance({ user }) {
 
       <div className="card">
         <div className="card-header">
-          <div><div className="card-title">April 2026</div><div className="card-sub">All transactions</div></div>
+          <div><div className="card-title">{currentMonth}</div><div className="card-sub">All transactions</div></div>
           <button className="btn sm primary" onClick={() => setShowAdd(true)}><Icon name="plus" size={13} /> Add</button>
         </div>
         {loading ? <div className="loading">Loading...</div> : entries.map(e => {
