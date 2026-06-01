@@ -3,6 +3,7 @@ import { useState, useEffect, useRef } from "react";
 import { sb } from "../lib/supabase";
 import { Icon, Modal, EVENT_COLORS } from "./shared";
 import Roadmap from "./Roadmap";
+import { OWNER_IDS } from "./trackers/TrackerHub";
 
 function Dashboard({ onNavigate, onGoToCalendarDay }) {
   const [tasks, setTasks] = useState([]);
@@ -872,12 +873,20 @@ For all other queries respond in plain conversational text, warm but concise, ma
     setAiLoading(false);
   };
 
-  const AI_SUGGESTIONS = [
-    "How many days until the PMP exam?",
-    "Add task: book Scotland accommodation",
-    "Add a calendar event for next Monday",
-    "What should I focus on today?",
-  ];
+  const isOwner = OWNER_IDS.includes(user?.id);
+  const AI_SUGGESTIONS = isOwner
+    ? [
+        "How many days until the PMP exam?",
+        "Add task: book Scotland accommodation",
+        "Add a calendar event for next Monday",
+        "What should I focus on today?",
+      ]
+    : [
+        "Add a task for today",
+        "What's on my calendar this week?",
+        "Create a new tracker",
+        "What should I focus on today?",
+      ];
 
   const daysToExam     = daysTo(EXAM_DATE);
   const daysToScotland = daysTo(SCOTLAND_DATE);
@@ -1234,7 +1243,8 @@ For all other queries respond in plain conversational text, warm but concise, ma
         </div>
       )}
 
-      {/* Weekly PMP study chart */}
+      {/* Weekly PMP study chart (owner-only) */}
+      {isOwner && (
       <div className="study-chart-wrap" style={{ marginBottom: 18, padding: "16px 20px", background: "var(--bg1)", border: "1px solid var(--b2)", borderRadius: 16 }}>
         <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: 10 }}>
           <div style={{ fontSize: 11, fontWeight: 600, color: "var(--t3)", textTransform: "uppercase", letterSpacing: "1px" }}>PMP study · last 6 weeks</div>
@@ -1253,6 +1263,7 @@ For all other queries respond in plain conversational text, warm but concise, ma
           })}
         </div>
       </div>
+      )}
 
       {showRoadmap ? (
         <div style={{ position: "relative" }}>
