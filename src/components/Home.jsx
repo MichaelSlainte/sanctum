@@ -451,6 +451,10 @@ export default function Home({ user, archivedTrackers = [], onNavigate, onGoToCa
   const [homeCustomTrackers, setHomeCustomTrackers] = useState([]);
   const [homeCustomEntries, setHomeCustomEntries] = useState([]);
 
+  // Hardcoded-card gating: the user's study subjects (rules 2-4) and trips (rules 5-6)
+  const [dashStudySubjects, setDashStudySubjects] = useState([]);
+  const [dashTripCount, setDashTripCount] = useState(0);
+
   const toggleRing = (key) => {
     setDashboardRings(prev => {
       const next = { ...prev, [key]: !prev[key] };
@@ -641,6 +645,20 @@ export default function Home({ user, archivedTrackers = [], onNavigate, onGoToCa
   const weekDates = DAYS.map((_, i) => { const d = new Date(now); d.setDate(now.getDate() - todayDow + i); return d; });
 
   useEffect(() => { loadTasks(); loadEvents(); loadStudy(); }, []);
+
+  // Load study subjects + trip count to decide which hardcoded cards to show
+  useEffect(() => {
+    (async () => {
+      try {
+        const subs = await sb.from("study_subjects").select("*");
+        setDashStudySubjects(Array.isArray(subs) ? subs : []);
+      } catch {}
+      try {
+        const trips = await sb.from("trips").select("*");
+        setDashTripCount(Array.isArray(trips) ? trips.length : 0);
+      } catch {}
+    })();
+  }, []);
 
   // Load active custom trackers + their entries (one query each; counted client-side)
   useEffect(() => {
@@ -864,6 +882,13 @@ For all other queries respond in plain conversational text, warm but concise, ma
   const daysToExam     = daysTo(EXAM_DATE);
   const daysToScotland = daysTo(SCOTLAND_DATE);
   const daysToMSc      = daysTo(MSC_DATE);
+
+  // Show/hide flags for the hardcoded dashboard cards, based on the user's own data
+  const hasStudySubjects = dashStudySubjects.length > 0;
+  const matchSubject = (re) => dashStudySubjects.some(s => re.test(s.label || s.name || ""));
+  const hasPmpSubject = matchSubject(/pmp/i);
+  const hasMscSubject = matchSubject(/msc|setu/i);
+  const hasTrips = dashTripCount > 0;
 
   const weeklyGoalHours = parseFloat(localStorage.getItem("sanctum_study_goal")) || 10;
   const thisMonday = new Date(now);
@@ -1122,7 +1147,7 @@ For all other queries respond in plain conversational text, warm but concise, ma
               onTouchMove:  onCardTouchMove,
               onTouchEnd:   onCardTouchEnd,
             };
-            if (id === "pmp") return (
+            if (id === "pmp" && hasPmpSubject) return (
               <div key="pmp" className={cls} {...drag} style={{ cursor: "pointer" }} onClick={() => onNavigate("study")}>
                 <div className="drag-handle" style={{ position:"absolute", top:8, right:8 }}><Icon name="grab" size={12} /></div>
                 <RingCard label="PMP EXAM" value={`${daysToExam}d`} sub={`${daysToExam}d · ${Math.ceil(daysToExam / 7)}w`}
@@ -1130,7 +1155,7 @@ For all other queries respond in plain conversational text, warm but concise, ma
                   color={daysToExam < 60 ? "var(--red)" : daysToExam < 120 ? "var(--amber)" : "var(--purple)"} />
               </div>
             );
-            if (id === "scotland") return (
+            if (id === "scotland" && hasTrips) return (
               <div key="scotland" className={cls} {...drag} style={{ cursor: "pointer" }} onClick={() => onNavigate("travel")}>
                 <div className="drag-handle" style={{ position:"absolute", top:8, right:8 }}><Icon name="grab" size={12} /></div>
                 <RingCard label="SCOTLAND" value={`${daysToScotland}d`} sub="Sep 7"
@@ -1138,7 +1163,7 @@ For all other queries respond in plain conversational text, warm but concise, ma
                   color="var(--blue)" />
               </div>
             );
-            if (id === "msc") return (
+            if (id === "msc" && hasMscSubject) return (
               <div key="msc" className={cls} {...drag} style={{ cursor: "pointer" }} onClick={() => onNavigate("study")}>
                 <div className="drag-handle" style={{ position:"absolute", top:8, right:8 }}><Icon name="grab" size={12} /></div>
                 <RingCard label="MSC SETU" value={`${daysToMSc}d`} sub="Sep 14"
@@ -1155,7 +1180,7 @@ For all other queries respond in plain conversational text, warm but concise, ma
                   color="var(--amber)" />
               </div>
             );
-            if (id === "weekly_study") return (
+            if (id === "weekly_study" && hasStudySubjects) return (
               <div key="weekly_study" className={cls} {...drag} style={{ cursor: "pointer" }}
                 onClick={openStudyLog}
                 onMouseEnter={e => { if (!e.currentTarget.classList.contains("is-dragging")) e.currentTarget.style.borderColor = "var(--b3)"; }}
