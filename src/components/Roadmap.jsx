@@ -392,7 +392,9 @@ export default function Roadmap() {
           await sb.from("roadmap_projects").delete({ id: existing.id });
         }
         setSeeding(true);
-        await seedPhoenix(auth.getSession()?.user?.id);
+        // Auto-seed disabled: new users start with an empty roadmap (use the
+        // "New project" button). seedPhoenix() is kept below but never auto-runs.
+        // await seedPhoenix(auth.getSession()?.user?.id);
         setSeeding(false);
         const fresh = await sb.from("roadmap_projects").select("*");
         const freshProjs = Array.isArray(fresh) ? fresh : [];
