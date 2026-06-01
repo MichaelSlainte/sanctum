@@ -386,11 +386,13 @@ export default function Roadmap() {
       }
 
       if (needsSeed) {
-        // If a Project Phoenix project exists but has no tracks, delete it first to avoid duplicate
-        const existing = projs.find(p => p.name === SEED.name);
-        if (existing) {
-          await sb.from("roadmap_projects").delete({ id: existing.id });
-        }
+        // Pre-seed dedup removed: with auto-seeding disabled there is no re-seed
+        // to deduplicate against, so we must NOT delete the user's existing
+        // (even empty) "Project Phoenix" project.
+        // const existing = projs.find(p => p.name === SEED.name);
+        // if (existing) {
+        //   await sb.from("roadmap_projects").delete({ id: existing.id });
+        // }
         setSeeding(true);
         // Auto-seed disabled: new users start with an empty roadmap (use the
         // "New project" button). seedPhoenix() is kept below but never auto-runs.
@@ -532,7 +534,7 @@ export default function Roadmap() {
     const { name, start_date, end_date } = newProjForm;
     if (!name.trim() || !start_date || !end_date) return;
     try {
-      const res = await sb.from("roadmap_projects").insert({ name: name.trim(), start_date, end_date });
+      const res = await sb.from("roadmap_projects").insert({ name: name.trim(), start_date, end_date, user_id: auth.getSession()?.user?.id });
       const created = Array.isArray(res) && res[0] ? res[0] : null;
       if (created) {
         setProjects(prev => [created, ...prev]);
@@ -549,7 +551,7 @@ export default function Roadmap() {
     try {
       const res = await sb.from("roadmap_tracks").insert({
         project_id: activeId, label: newTrackForm.label.trim(),
-        color: newTrackForm.color, position,
+        color: newTrackForm.color, position, user_id: auth.getSession()?.user?.id,
       });
       const created = Array.isArray(res) && res[0] ? res[0] : null;
       if (created) {
@@ -565,7 +567,7 @@ export default function Roadmap() {
     try {
       const res = await sb.from("roadmap_milestones").insert({
         track_id: newMsTrackId, label: newMsForm.label.trim(),
-        date: newMsForm.date, completed: false,
+        date: newMsForm.date, completed: false, user_id: auth.getSession()?.user?.id,
       });
       const created = Array.isArray(res) && res[0] ? res[0] : null;
       if (created) {
