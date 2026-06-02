@@ -806,7 +806,7 @@ When the user asks to add a task, delete a task, log study hours, add a calendar
 Topic IDs for study: integration, scope, schedule, cost, quality, resource, communications, risk, procurement, stakeholder, agile, ethics
 For all other queries respond in plain conversational text, warm but concise, max 2 sentences.`;
 
-      const res  = await fetch("/api/chat", { method: "POST", headers: { "Content-Type": "application/json" },
+      const res  = await fetch("/api/chat", { method: "POST", headers: { "Content-Type": "application/json", "Authorization": `Bearer ${localStorage.getItem("sanctum_token")}` },
         body: JSON.stringify({ system: sys, messages: [{ role: "user", content: userMsg }] }) });
       const data = await res.json();
       const reply = (data.content?.[0]?.text || "").trim();
