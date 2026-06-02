@@ -131,9 +131,23 @@ export default function Notes({ user }) {
       const rows = Array.isArray(res) ? res : [];
       const singleton = rows.find(r => r.id === singletonId);
       if (singleton && Array.isArray(singleton.data) && singleton.data.length > 0) {
-        // Valid data in Supabase — use it
-        setNotebooks(singleton.data);
-        localStorage.setItem('sanctum_notebooks_v2', JSON.stringify(singleton.data));
+        // One-time self-heal: non-owner accounts that were seeded with the default
+        // notebooks before the owner gate shipped. If a non-owner's row is exactly the
+        // default seed (matched by labels), clear it — they have no real data to protect.
+        // Owners are NEVER touched. A non-owner who created/renamed their own notebooks
+        // (different labels) is left completely alone.
+        const isDefaultSeed =
+          singleton.data.map(n => n.label).join('|') ===
+          DEFAULT_NOTEBOOKS.map(n => n.label).join('|');
+        if (!isOwner && isDefaultSeed) {
+          setNotebooks([]);
+          localStorage.setItem('sanctum_notebooks_v2', JSON.stringify([]));
+          sb.from('notebooks').upsert({ id: singletonId, user_id: user.id, data: [], updated_at: new Date().toISOString() }, 'id').catch(() => {});
+        } else {
+          // Valid data in Supabase — use it
+          setNotebooks(singleton.data);
+          localStorage.setItem('sanctum_notebooks_v2', JSON.stringify(singleton.data));
+        }
       } else if (isOwner) {
         // No singleton or empty data (owner new user / first Tamara login) — seed with defaults
         sb.from('notebooks').upsert({ id: singletonId, user_id: user.id, data: DEFAULT_NOTEBOOKS, updated_at: new Date().toISOString() }, 'id').catch(() => {});
