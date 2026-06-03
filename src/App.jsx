@@ -221,16 +221,39 @@ export default function App() {
     setGlobalAIResponse({ text: 'Thinking...', type: 'loading' });
     try {
       const todayISO = new Date().toISOString().slice(0, 10);
+      const sixtyISO = new Date(Date.now() + 60*86400000).toISOString().slice(0, 10);
+      // Calendar-aware FAB: give the model the user's upcoming events (today → +60d,
+      // max 25, soonest first) so it can resolve a natural-language reference to a
+      // real event_id. Skipped on Trackers (that bar is for tracker creation).
+      let upcomingList = '(no upcoming events in the next 60 days)';
+      if (page !== 'trackers') {
+        const upcoming = await sb.from('events').select(
+          'id,title,date,start_time,repeat',
+          `&date=gte.${todayISO}&date=lte.${sixtyISO}&limit=25`,
+          'date.asc'
+        );
+        if (Array.isArray(upcoming) && upcoming.length) {
+          upcomingList = upcoming.map(e =>
+            `- id=${e.id} | "${e.title}" | ${e.date}${e.start_time ? ' ' + e.start_time : ''}${e.repeat && e.repeat !== 'none' ? ` | repeats ${e.repeat}` : ''}`
+          ).join('\n');
+        }
+      }
       const sys = `You are Sanctum AI, a personal assistant embedded in a private life organiser app.
 Today is ${todayISO}. User: Michael, Dublin, Ireland.
 When user mentions dates, always convert to ISO format YYYY-MM-DD in your JSON response.
 Examples: "tomorrow" = ${new Date(Date.now()+86400000).toISOString().slice(0,10)}, "next week" = ${new Date(Date.now()+7*86400000).toISOString().slice(0,10)}.
 For "next Monday", "this Friday" etc., compute the actual upcoming date.
+The user's upcoming events (use the EXACT id when updating or deleting one):
+${upcomingList}
 RESPONSE RULES — choose one format only:
 - Navigate → reply ONLY with valid JSON, no markdown: {"action":"navigate","page":"home|notes|calendar|settings"}
 - Log study session → reply ONLY with valid JSON, no markdown: {"action":"log_study","hours":2,"topic":"Integration Management","notes":"optional"}
 - Add calendar event → reply ONLY with valid JSON, no markdown: {"action":"add_event","title":"Event title","date":"${todayISO}","start_time":"09:00","end_time":"10:00","category":"personal","notes":"optional notes"}
   category must be one of: personal, career, travel, study, family
+- Update calendar event → reply ONLY with valid JSON, no markdown: {"action":"update_event","event_id":"<id from the list above>","scope":"this|this_and_future|all","occurrence_date":"YYYY-MM-DD","title":"New title","date":"YYYY-MM-DD","start_time":"HH:mm","end_time":"HH:mm","all_day":false,"location":"...","category":"personal"}
+  Include ONLY the fields being changed (always with event_id and scope). "date" is the NEW date; "occurrence_date" is which instance you are targeting.
+- Delete calendar event → reply ONLY with valid JSON, no markdown: {"action":"delete_event","event_id":"<id from the list above>","scope":"this|this_and_future|all","occurrence_date":"YYYY-MM-DD"}
+RECURRENCE SCOPE: "this" = only that one date, "this_and_future" = that date onward, "all" = the whole series. scope and occurrence_date only matter when the target event repeats. If the user asks to change or delete a RECURRING event and has NOT made clear whether they mean just that occurrence, this and future, or the entire series, DO NOT guess and DO NOT output tool JSON — reply in plain text asking which they mean. Never default to "all".
 - All other queries → plain conversational text, warm but concise, max 2 sentences. No JSON.`;
       const newHistory = [...globalAIHistory, { role: 'user', content: userMsg }];
       const token = localStorage.getItem("sanctum_token") || "";
@@ -287,6 +310,82 @@ RESPONSE RULES — choose one format only:
           });
           setCalendarRefreshKey(k => k + 1);
           setGlobalAIResponse({ text: `Added to calendar: "${action.title}" on ${parseDate(action.date)}`, type: 'success' });
+        } else if (action.action === 'delete_event') {
+          setGlobalAIHistory([]);
+          const rows = await sb.from('events').select('*', `&id=eq.${action.event_id}`, '');
+          const ev = Array.isArray(rows) ? rows[0] : null;
+          if (!ev) {
+            setGlobalAIResponse({ text: "I couldn't find that event.", type: 'error' });
+          } else {
+            const recurring = ev.repeat && ev.repeat !== 'none';
+            const scope = action.scope || 'all';
+            if (!recurring || scope === 'all') {
+              await sb.from('events').delete({ id: ev.id });
+              setGlobalAIResponse({ text: `Deleted "${ev.title}".`, type: 'success' });
+            } else if (scope === 'this') {
+              const occ = action.occurrence_date ? parseDate(action.occurrence_date) : ev.date;
+              const exceptions = [...(Array.isArray(ev.exceptions) ? ev.exceptions : []), occ];
+              await sb.from('events').update({ exceptions }, { id: ev.id });
+              setGlobalAIResponse({ text: `Deleted the ${occ} occurrence of "${ev.title}".`, type: 'success' });
+            } else {
+              const occ = action.occurrence_date ? parseDate(action.occurrence_date) : ev.date;
+              await sb.from('events').update({ repeat_deleted_from: occ }, { id: ev.id });
+              setGlobalAIResponse({ text: `Deleted "${ev.title}" from ${occ} onward.`, type: 'success' });
+            }
+            setCalendarRefreshKey(k => k + 1);
+          }
+        } else if (action.action === 'update_event') {
+          setGlobalAIHistory([]);
+          const rows = await sb.from('events').select('*', `&id=eq.${action.event_id}`, '');
+          const ev = Array.isArray(rows) ? rows[0] : null;
+          if (!ev) {
+            setGlobalAIResponse({ text: "I couldn't find that event.", type: 'error' });
+          } else {
+            const recurring = ev.repeat && ev.repeat !== 'none';
+            const scope = action.scope || 'all';
+            const edits = {};
+            if (action.title != null)            edits.title = action.title;
+            if (action.date != null)             edits.date = parseDate(action.date);
+            if (action.start_time !== undefined) edits.start_time = action.start_time || null;
+            if (action.end_time !== undefined)   edits.end_time = action.end_time || null;
+            if (action.all_day !== undefined)    edits.all_day = !!action.all_day;
+            if (action.location !== undefined)   edits.location = action.location || null;
+            if (action.category != null)         edits.category = action.category;
+            // Fields copied onto any new standalone/split row so it stays intact
+            const carry = {
+              title: ev.title, category: ev.category, color: ev.color,
+              start_time: ev.start_time, end_time: ev.end_time, timezone: ev.timezone,
+              location: ev.location, notes: ev.notes, all_day: ev.all_day,
+            };
+            if (!recurring || scope === 'all') {
+              await sb.from('events').update(edits, { id: ev.id });
+              setGlobalAIResponse({ text: `Updated "${edits.title || ev.title}".`, type: 'success' });
+            } else if (scope === 'this') {
+              const occ = action.occurrence_date ? parseDate(action.occurrence_date) : ev.date;
+              const exceptions = [...(Array.isArray(ev.exceptions) ? ev.exceptions : []), occ];
+              await sb.from('events').update({ exceptions }, { id: ev.id });
+              await sb.from('events').insert({ ...carry, ...edits, date: edits.date || occ, repeat: 'none', user_id: user?.id });
+              setGlobalAIResponse({ text: `Updated the ${occ} occurrence of "${ev.title}".`, type: 'success' });
+            } else {
+              const occ = action.occurrence_date ? parseDate(action.occurrence_date) : ev.date;
+              // End the original series the day BEFORE the split so the new series'
+              // start date (occ) isn't shown twice (expander includes <= repeat_end_date).
+              const dayBefore = new Date(new Date(occ + 'T00:00:00').getTime() - 86400000).toISOString().slice(0, 10);
+              await sb.from('events').update({ repeat_end: 'until', repeat_end_date: dayBefore }, { id: ev.id });
+              await sb.from('events').insert({
+                ...carry, ...edits, date: edits.date || occ,
+                repeat: ev.repeat,
+                repeat_end: ev.repeat_end || 'forever',
+                repeat_end_date: ev.repeat_end_date || null,
+                repeat_end_count: ev.repeat_end_count || null,
+                repeat_custom_interval: ev.repeat_custom_interval || null,
+                repeat_custom_unit: ev.repeat_custom_unit || null,
+                user_id: user?.id,
+              });
+              setGlobalAIResponse({ text: `Updated "${ev.title}" from ${occ} onward.`, type: 'success' });
+            }
+            setCalendarRefreshKey(k => k + 1);
+          }
         } else {
           setGlobalAIHistory([...newHistory, { role: 'assistant', content: reply }]);
           setGlobalAIResponse({ text: cleaned, type: 'text' });
