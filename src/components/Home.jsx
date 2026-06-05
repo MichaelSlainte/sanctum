@@ -1,6 +1,7 @@
 // Copyright © 2026 Michael FR Marques & Tamara Lechner. All rights reserved.
 import { useState, useEffect, useRef } from "react";
 import { sb } from "../lib/supabase";
+import { callAI, parseAction } from "../lib/chat";
 import { Icon, Modal, EVENT_COLORS } from "./shared";
 import Roadmap from "./Roadmap";
 import { OWNER_IDS } from "./trackers/TrackerHub";
@@ -806,13 +807,11 @@ When the user asks to add a task, delete a task, log study hours, add a calendar
 Topic IDs for study: integration, scope, schedule, cost, quality, resource, communications, risk, procurement, stakeholder, agile, ethics
 For all other queries respond in plain conversational text, warm but concise, max 2 sentences.`;
 
-      const res  = await fetch("/api/chat", { method: "POST", headers: { "Content-Type": "application/json", "Authorization": `Bearer ${localStorage.getItem("sanctum_token")}` },
-        body: JSON.stringify({ system: sys, messages: [{ role: "user", content: userMsg }] }) });
-      const data = await res.json();
-      const reply = (data.content?.[0]?.text || "").trim();
+      const reply = await callAI({ system: sys, messages: [{ role: "user", content: userMsg }] });
 
       try {
-        const action = JSON.parse(reply.replace(/```(?:json)?|```/g, "").trim());
+        const action = parseAction(reply);
+        if (!action) throw new Error('non-json');
         const parseDate = (dateStr) => {
           if (!dateStr) return todayISO;
           const d = new Date(dateStr);
