@@ -794,6 +794,7 @@ When the user asks to add a task, delete a task, log study hours, add a calendar
 - Navigate: {"action":"navigate","page":"home|notes|calendar|settings"}
 - Add calendar event: {"action":"add_event","title":"Event title","date":"${todayISO}","start_time":"09:00","end_time":"10:00","category":"personal","notes":"optional notes"}
   category must be one of: personal, career, travel, study, family
+  Recurrence (OMIT all of these for a normal one-off event): add "repeat":"daily|weekly|monthly|yearly|custom". Map "every day"→daily, "every Monday"/"weekly"→weekly, "every month"→monthly, "every year"→yearly. For an interval like "every 2 weeks" or "every 3 days" use "repeat":"custom" with "repeat_custom_interval":2 and "repeat_custom_unit":"day|week|month|year" (singular). To bound a series add "repeat_end":"until" with "repeat_end_date":"YYYY-MM-DD", or "repeat_end":"count" with "repeat_end_count":N; if open-ended use "repeat_end":"forever".
 Topic IDs for study: integration, scope, schedule, cost, quality, resource, communications, risk, procurement, stakeholder, agile, ethics
 For all other queries respond in plain conversational text, warm but concise, max 2 sentences.`;
 
@@ -835,6 +836,8 @@ For all other queries respond in plain conversational text, warm but concise, ma
           await loadStudy();
           setAiResponse({ text: `Logged ${action.hours}h — ${action.topic} ✓\nAdded to calendar`, type: "success" });
         } else if (action.action === "add_event") {
+          const repeat = action.repeat || "none";
+          const recurring = repeat !== "none";
           await sb.from("events").insert({
             title: action.title,
             date: parseDate(action.date) || todayISO,
@@ -843,6 +846,12 @@ For all other queries respond in plain conversational text, warm but concise, ma
             category: action.category || "personal",
             color: "#388bfd",
             notes: action.notes || "",
+            repeat,
+            repeat_end:             recurring ? (action.repeat_end || "forever") : null,
+            repeat_end_date:        recurring && action.repeat_end === "until" ? (action.repeat_end_date || null) : null,
+            repeat_end_count:       recurring && action.repeat_end === "count" ? (action.repeat_end_count || 10) : null,
+            repeat_custom_interval: repeat === "custom" ? (action.repeat_custom_interval || 2) : null,
+            repeat_custom_unit:     repeat === "custom" ? (action.repeat_custom_unit || "week") : null,
             user_id: user?.id,
           });
           await loadEvents();

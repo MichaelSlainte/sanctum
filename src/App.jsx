@@ -271,6 +271,7 @@ RESPONSE RULES — choose one format only:
 - Log study session → reply ONLY with valid JSON, no markdown: {"action":"log_study","hours":2,"topic":"Integration Management","notes":"optional"}
 - Add calendar event → reply ONLY with valid JSON, no markdown: {"action":"add_event","title":"Event title","date":"${todayISO}","start_time":"09:00","end_time":"10:00","category":"personal","notes":"optional notes"}
   category must be one of: personal, career, travel, study, family
+  Recurrence (OMIT all of these for a normal one-off event): add "repeat":"daily|weekly|monthly|yearly|custom". Map "every day"→daily, "every Monday"/"weekly"→weekly, "every month"→monthly, "every year"→yearly. For an interval like "every 2 weeks" or "every 3 days" use "repeat":"custom" with "repeat_custom_interval":2 and "repeat_custom_unit":"day|week|month|year" (singular). To bound a series add "repeat_end":"until" with "repeat_end_date":"YYYY-MM-DD", or "repeat_end":"count" with "repeat_end_count":N; if open-ended use "repeat_end":"forever".
 - Update calendar event → reply ONLY with valid JSON, no markdown: {"action":"update_event","event_id":"<id from the list above>","scope":"this|this_and_future|all","occurrence_date":"YYYY-MM-DD","title":"New title","date":"YYYY-MM-DD","start_time":"HH:mm","end_time":"HH:mm","all_day":false,"location":"...","category":"personal"}
   Include ONLY the fields being changed (always with event_id and scope). "date" is the NEW date; "occurrence_date" is which instance you are targeting.
 - Delete calendar event → reply ONLY with valid JSON, no markdown: {"action":"delete_event","event_id":"<id from the list above>","scope":"this|this_and_future|all","occurrence_date":"YYYY-MM-DD"}
@@ -316,6 +317,8 @@ RECURRENCE SCOPE: "this" = only that one date, "this_and_future" = that date onw
           setGlobalAIResponse({ text: `Logged ${action.hours}h — ${action.topic} ✓\nAdded to calendar`, type: 'success' });
         } else if (action.action === 'add_event') {
           setGlobalAIHistory([]);
+          const repeat = action.repeat || 'none';
+          const recurring = repeat !== 'none';
           await sb.from('events').insert({
             title: action.title,
             date: parseDate(action.date) || todayISO,
@@ -324,6 +327,12 @@ RECURRENCE SCOPE: "this" = only that one date, "this_and_future" = that date onw
             category: action.category || 'personal',
             color: '#388bfd',
             notes: action.notes || '',
+            repeat,
+            repeat_end:             recurring ? (action.repeat_end || 'forever') : null,
+            repeat_end_date:        recurring && action.repeat_end === 'until' ? (action.repeat_end_date || null) : null,
+            repeat_end_count:       recurring && action.repeat_end === 'count' ? (action.repeat_end_count || 10) : null,
+            repeat_custom_interval: repeat === 'custom' ? (action.repeat_custom_interval || 2) : null,
+            repeat_custom_unit:     repeat === 'custom' ? (action.repeat_custom_unit || 'week') : null,
             user_id: user?.id,
           });
           setCalendarRefreshKey(k => k + 1);
