@@ -3,7 +3,8 @@
 // https://sanctum.app
 import { useState, useRef, useEffect } from "react";
 import { Icon, Modal } from "../shared";
-import { sb, auth, ensureValidToken } from "../../lib/supabase";
+import { sb, ensureValidToken } from "../../lib/supabase";
+import { callAI, parseAction } from "../../lib/chat";
 
 const PALETTE = [
   '#10b981','#3b82f6','#8b5cf6','#f59e0b','#ef4444',
@@ -73,34 +74,31 @@ export default function TrackerCreator({ onCreated, user }) {
     setError('');
     try {
       await ensureValidToken();
-      const getToken = () => localStorage.getItem("sanctum_token") || "";
-      if (!getToken()) {
+      if (!(localStorage.getItem("sanctum_token") || "")) {
         setError("Please sign out and sign back in to use AI features.");
         setStep("input");
         return;
       }
-      const doFetch = () => fetch('/api/chat', {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json', Authorization: `Bearer ${getToken()}` },
-        body: JSON.stringify({
+      let text;
+      try {
+        text = await callAI({
           system: SYSTEM_PROMPT,
           messages: [{ role: 'user', content: description.trim() }],
-        }),
-      });
-      let res = await doFetch();
-      if (res.status === 401) {
-        const refreshed = await auth.refreshSession();
-        if (refreshed) res = await doFetch();
+          retryOn401: true,
+        });
+      } catch (e) {
+        // Non-ok response: callAI attaches .status. Preserve the original
+        // 401-vs-other wording. Network/other errors (no .status) fall through
+        // to the outer catch's "try rephrasing" message, as before.
+        if (e.status) {
+          setError(e.status === 401 ? 'Session expired — please sign out and sign back in.' : 'Something went wrong — try again.');
+          setStep('input');
+          return;
+        }
+        throw e;
       }
-      if (!res.ok) {
-        setError(res.status === 401 ? 'Session expired — please sign out and sign back in.' : 'Something went wrong — try again.');
-        setStep('input');
-        return;
-      }
-      const data = await res.json();
-      const text = (data.content?.[0]?.text || '').trim();
-      const parsed = JSON.parse(text.replace(/```(?:json)?|```/g, '').trim());
-      if (!parsed.name || !Array.isArray(parsed.fields)) throw new Error('invalid');
+      const parsed = parseAction(text);
+      if (!parsed || !parsed.name || !Array.isArray(parsed.fields)) throw new Error('invalid');
       setPreview(parsed);
       setStep('preview');
     } catch {
