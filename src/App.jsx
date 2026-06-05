@@ -4,6 +4,7 @@
 import { useState, useEffect, useRef } from "react";
 import "./styles/base.css";
 import { auth, sb } from "./lib/supabase";
+import { callAI, parseAction } from "./lib/chat";
 import { useCrypto } from "./lib/CryptoContext.jsx";
 import { deriveKey, generateSalt, exportKey, importKey } from "./lib/crypto.js";
 import { Icon } from "./components/shared";
@@ -276,14 +277,11 @@ RESPONSE RULES — choose one format only:
 RECURRENCE SCOPE: "this" = only that one date, "this_and_future" = that date onward, "all" = the whole series. scope and occurrence_date only matter when the target event repeats. If the user asks to change or delete a RECURRING event and has NOT made clear whether they mean just that occurrence, this and future, or the entire series, DO NOT guess and DO NOT output tool JSON — reply in plain text asking which they mean. Never default to "all".
 - All other queries → plain conversational text, warm but concise, max 2 sentences. No JSON.`;
       const newHistory = [...globalAIHistory, { role: 'user', content: userMsg }];
-      const token = localStorage.getItem("sanctum_token") || "";
-      const res = await fetch('/api/chat', { method: 'POST', headers: { 'Content-Type': 'application/json', Authorization: `Bearer ${token}` },
-        body: JSON.stringify({ system: sys, messages: newHistory }) });
-      const data = await res.json();
-      const reply = (data.content?.[0]?.text || '').trim();
+      const reply = await callAI({ system: sys, messages: newHistory });
       try {
         const cleaned = reply.replace(/```(?:json)?|```/g, '').trim();
-        const action = JSON.parse(cleaned);
+        const action = parseAction(reply);
+        if (!action) throw new Error('non-json');
         const parseDate = (dateStr) => {
           if (!dateStr) return todayISO;
           const d = new Date(dateStr);
