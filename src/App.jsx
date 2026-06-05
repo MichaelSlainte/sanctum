@@ -222,21 +222,43 @@ export default function App() {
     try {
       const todayISO = new Date().toISOString().slice(0, 10);
       const sixtyISO = new Date(Date.now() + 60*86400000).toISOString().slice(0, 10);
-      // Calendar-aware FAB: give the model the user's upcoming events (today → +60d,
-      // max 25, soonest first) so it can resolve a natural-language reference to a
-      // real event_id. Skipped on Trackers (that bar is for tracker creation).
+      // Calendar-aware FAB: give the model the user's upcoming events so it can
+      // resolve a natural-language reference to a real event_id. We merge two
+      // fetches because a recurring series' master row keeps its ORIGINAL (often
+      // past) creation date, so a date>=today window alone would miss every
+      // long-standing recurring event — the common case, not an edge case.
+      //   1. one-off / near-term events in the today → +60d window (max 25)
+      //   2. ALL recurring series regardless of their (past) master date
+      // Then dedupe by id and drop series that have already fully ended before today.
+      // Skipped on Trackers (that bar is for tracker creation).
       let upcomingList = '(no upcoming events in the next 60 days)';
       if (page !== 'trackers') {
-        const upcoming = await sb.from('events').select(
-          'id,title,date,start_time,repeat',
-          `&date=gte.${todayISO}&date=lte.${sixtyISO}&limit=25`,
-          'date.asc'
-        );
-        if (Array.isArray(upcoming) && upcoming.length) {
-          upcomingList = upcoming.map(e =>
-            `- id=${e.id} | "${e.title}" | ${e.date}${e.start_time ? ' ' + e.start_time : ''}${e.repeat && e.repeat !== 'none' ? ` | repeats ${e.repeat}` : ''}`
+        const cols = 'id,title,date,start_time,repeat,repeat_end,repeat_end_date,repeat_deleted_from';
+        const [windowed, recurring] = await Promise.all([
+          sb.from('events').select(cols, `&date=gte.${todayISO}&date=lte.${sixtyISO}&limit=25`, 'date.asc'),
+          sb.from('events').select(cols, `&repeat=neq.none&limit=50`, 'date.asc'),
+        ]);
+        const byId = new Map();
+        for (const e of [...(Array.isArray(windowed) ? windowed : []), ...(Array.isArray(recurring) ? recurring : [])]) {
+          byId.set(e.id, e);
+        }
+        const isRecurring = e => e.repeat && e.repeat !== 'none';
+        const endedBeforeToday = e =>
+          isRecurring(e) && (
+            (e.repeat_end === 'until' && e.repeat_end_date && e.repeat_end_date < todayISO) ||
+            (e.repeat_deleted_from && e.repeat_deleted_from < todayISO)
+          );
+        const merged = [...byId.values()]
+          .filter(e => !endedBeforeToday(e))
+          .sort((a, b) => (a.date || '').localeCompare(b.date || ''))
+          .slice(0, 30);
+        if (merged.length) {
+          upcomingList = merged.map(e =>
+            `- id=${e.id} | "${e.title}" | ${e.date}${e.start_time ? ' ' + e.start_time : ''}${isRecurring(e) ? ` | repeats ${e.repeat}` : ''}`
           ).join('\n');
         }
+        // TEMP: verify past-dated recurring events are now included — remove after Vercel verification.
+        console.log('[FAB events context] injected list:\n' + upcomingList);
       }
       const sys = `You are Sanctum AI, a personal assistant embedded in a private life organiser app.
 Today is ${todayISO}. User: Michael, Dublin, Ireland.
