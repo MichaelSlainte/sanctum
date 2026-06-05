@@ -308,27 +308,17 @@ When the user asks to add a task, delete a task, log study hours, or navigate, r
 Topic IDs: integration, scope, schedule, cost, quality, resource, communications, risk, procurement, stakeholder, agile, ethics
 For everything else respond naturally in plain text. Be warm, concise, and personal. You know Michael well.`;
 
-      const response = await fetch("/api/chat", {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({
-          system: systemPrompt,
-          messages: [
-            ...messages.map(m => ({ role: m.role, content: m.text })),
-            { role: "user", content: userMsg }
-          ]
-        })
-      });
-
-      const data = await response.json();
-      const reply = data.content?.[0]?.text || "Sorry, I couldn't process that.";
-
-      // Clean up: extract JSON if wrapped in markdown code fences
-      const jsonMatch = reply.match(/```(?:json)?\s*(\{[\s\S]*?\})\s*```/);
-      const cleanReply = jsonMatch ? jsonMatch[1] : reply;
+      const reply = (await callAI({
+        system: systemPrompt,
+        messages: [
+          ...messages.map(m => ({ role: m.role, content: m.text })),
+          { role: "user", content: userMsg }
+        ]
+      })) || "Sorry, I couldn't process that.";
 
       try {
-        const action = JSON.parse(cleanReply);
+        const action = parseAction(reply);
+        if (!action) throw new Error('non-json');
         if (action.action === "add_task") {
           await onAddTask(action.text, action.tag || "");
           setMessages(prev => [...prev, { role: "assistant", text: `✓ Task added: "${action.text}"${action.tag ? ` [${action.tag}]` : ""}` }]);
@@ -343,10 +333,10 @@ For everything else respond naturally in plain text. Be warm, concise, and perso
           onNavigate(action.page);
           setMessages(prev => [...prev, { role: "assistant", text: `Opening ${action.page}...` }]);
         } else {
-          setMessages(prev => [...prev, { role: "assistant", text: cleanReply }]);
+          setMessages(prev => [...prev, { role: "assistant", text: reply }]);
         }
       } catch {
-        setMessages(prev => [...prev, { role: "assistant", text: cleanReply }]);
+        setMessages(prev => [...prev, { role: "assistant", text: reply }]);
       }
     } catch {
       setMessages(prev => [...prev, { role: "assistant", text: "Connection error. Try again." }]);
