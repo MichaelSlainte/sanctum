@@ -39,11 +39,50 @@ export async function callAI({ system, messages, retryOn401 = false }) {
 //   Strips markdown code fences and attempts JSON.parse. Returns null (never
 //   throws) when the reply is not JSON — callers decide what null means
 //   (conversational text for the bars, hard error for TrackerCreator).
+//
+//   Tolerant of JSON mixed with prose: the model sometimes returns an action
+//   object followed (or preceded) by a sentence like "I've added that". The
+//   fast path parses the whole cleaned string; if that fails we extract the
+//   first balanced {...} object and parse only that.
+//
+//   Handled cases:
+//     '{"action":"navigate","page":"home"}'              -> { action:'navigate', ... }
+//     '```json\n{"action":"navigate"}\n```'              -> { action:'navigate' }
+//     '{"action":"add_event","title":"x"} I added it.'   -> { action:'add_event', ... }
+//     'Sure! {"action":"add_task","text":"buy milk"}'    -> { action:'add_task', ... }
+//     'just a chat reply, no json'                       -> null
 export function parseAction(text) {
   const cleaned = (text || "").replace(/```(?:json)?|```/g, "").trim();
   try {
     return JSON.parse(cleaned);
   } catch {
+    // Fast path failed (e.g. trailing/leading prose). Find the first balanced
+    // top-level {...} by scanning, respecting strings and escapes so braces
+    // inside string values don't throw off the depth count.
+    const start = cleaned.indexOf("{");
+    if (start === -1) return null;
+    let depth = 0, inStr = false, esc = false;
+    for (let i = start; i < cleaned.length; i++) {
+      const ch = cleaned[i];
+      if (inStr) {
+        if (esc) esc = false;
+        else if (ch === "\\") esc = true;
+        else if (ch === '"') inStr = false;
+      } else if (ch === '"') {
+        inStr = true;
+      } else if (ch === "{") {
+        depth++;
+      } else if (ch === "}") {
+        depth--;
+        if (depth === 0) {
+          try {
+            return JSON.parse(cleaned.slice(start, i + 1));
+          } catch {
+            return null;
+          }
+        }
+      }
+    }
     return null;
   }
 }
