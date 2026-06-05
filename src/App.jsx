@@ -257,8 +257,6 @@ export default function App() {
             `- id=${e.id} | "${e.title}" | ${e.date}${e.start_time ? ' ' + e.start_time : ''}${isRecurring(e) ? ` | repeats ${e.repeat}` : ''}`
           ).join('\n');
         }
-        // TEMP: verify past-dated recurring events are now included — remove after Vercel verification.
-        console.log('[FAB events context] injected list:\n' + upcomingList);
       }
       const sys = `You are Sanctum AI, a personal assistant embedded in a private life organiser app.
 Today is ${todayISO}. User: Michael, Dublin, Ireland.
