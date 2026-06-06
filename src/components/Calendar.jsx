@@ -106,7 +106,7 @@ const badgeCls = (cat) =>
   cat==="travel" ? "green" : cat==="career" ? "amber" : cat==="study" ? "purple" : cat==="family" ? "pink" : "blue";
 
 const MICHAEL_ID = "d86cb548-3254-46d4-9322-fc5a45043037";
-const TAMARA_ID  = "8936c969-9baa-4a73-adc3-089ef80ef941";
+const TAMARA_ID  = "8e2d598c-94b2-497c-a44a-a773e7d8ff6a";
 
 const BLANK_FORM = {
   title: "", category: "personal",
@@ -1031,7 +1031,7 @@ export default function Calendar({ user, initialDate, refreshKey }) {
 
           <div className="form-row">
             {(() => {
-              const isMichael = user?.id === MICHAEL_ID || user?.email?.toLowerCase().includes("michael");
+              const isMichael = user?.id === MICHAEL_ID;
               const partnerName = isMichael ? "Tamara" : "Michael";
               return (
                 <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", background: "rgba(255,255,255,0.03)", borderRadius: 10, padding: "10px 14px", border: "1px solid var(--b1)" }}>
