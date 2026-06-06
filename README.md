@@ -1,16 +1,50 @@
-# React + Vite
+# Sanctum — Private · Personal · Yours
 
-This template provides a minimal setup to get React working in Vite with HMR and some ESLint rules.
+A privacy-first, AI-powered personal life organiser. Built for people who want one place to track everything that matters — health, career, finances, habits, goals — with an AI that understands your full life context.
 
-Currently, two official plugins are available:
+🌐 **Live:** [trysanctum.app](https://trysanctum.app)
 
-- [@vitejs/plugin-react](https://github.com/vitejs/vite-plugin-react/blob/main/packages/plugin-react) uses [Oxc](https://oxc.rs)
-- [@vitejs/plugin-react-swc](https://github.com/vitejs/vite-plugin-react/blob/main/packages/plugin-react-swc) uses [SWC](https://swc.rs/)
+## What it does
 
-## React Compiler
+- **Notes** — end-to-end encrypted, PIN-locked notebooks
+- **Calendar** — recurring events, timezones, category filters
+- **Trackers** — AI-generated custom trackers (describe what you want to track, AI builds the schema)
+- **Tasks** — simple, fast task management
+- **AI Assistant** — context-aware AI that can read your calendar, add events, and help you stay on top of your life
+- **Roadmap** — personal project and milestone tracking
 
-The React Compiler is not enabled on this template because of its impact on dev & build performances. To add it, see [this documentation](https://react.dev/learn/react-compiler/installation).
+## Stack
 
-## Expanding the ESLint configuration
+- **Frontend:** React 19 + Vite, PWA
+- **Backend:** Supabase (PostgreSQL, eu-north-1)
+- **Auth:** Custom JWT client
+- **AI:** Anthropic API (Claude)
+- **Hosting:** Vercel
+- **Encryption:** E2E encrypted notes (AES via Web Crypto API)
 
-If you are developing a production application, we recommend using TypeScript with type-aware lint rules enabled. Check out the [TS template](https://github.com/vitejs/vite/tree/main/packages/create-vite/template-react-ts) for information on how to integrate TypeScript and [`typescript-eslint`](https://typescript-eslint.io) in your project.
+## Architecture highlights
+
+- No Supabase JS SDK — custom `sb` helper with manual JWT auth
+- JSONB meta-schema for dynamic tracker creation (no dynamic DDL)
+- AI transport unified via `src/lib/chat.js` (`callAI` + `parseAction`)
+- Notes excluded from AI context by design — architectural privacy guarantee
+- RLS enforced on all user data tables
+
+## Development
+
+```bash
+npm install
+npm run dev
+```
+
+Requires `.env` with:
+
+```
+VITE_SUPABASE_URL=
+VITE_SUPABASE_ANON_KEY=
+ANTHROPIC_API_KEY=
+```
+
+## License
+
+Copyright © 2026 Michael FR Marques & Tamara Lechner. All rights reserved.
