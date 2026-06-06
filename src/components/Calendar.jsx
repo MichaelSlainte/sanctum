@@ -4,6 +4,7 @@
 import { useState, useEffect, useCallback, useRef } from "react";
 import { sb } from "../lib/supabase";
 import { Icon, Modal } from "./shared";
+import { OWNER_IDS } from "./trackers/TrackerHub";
 
 const MONTHS       = ["January","February","March","April","May","June","July","August","September","October","November","December"];
 const MONTHS_SHORT = ["Jan","Feb","Mar","Apr","May","Jun","Jul","Aug","Sep","Oct","Nov","Dec"];
@@ -1028,6 +1029,7 @@ export default function Calendar({ user, initialDate, refreshKey }) {
               placeholder="Add details..." style={{ minHeight: 72, resize: "vertical" }} />
           </div>
 
+          {OWNER_IDS.includes(user?.id) && (
           <div className="form-row">
             {(() => {
               const isMichael = user?.id === MICHAEL_ID;
@@ -1048,6 +1050,7 @@ export default function Calendar({ user, initialDate, refreshKey }) {
               );
             })()}
           </div>
+          )}
 
           <div className="modal-actions">
             <button className="btn" onClick={closeModal}>Cancel</button>
