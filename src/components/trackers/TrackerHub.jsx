@@ -1113,10 +1113,6 @@ export default function TrackerHub({ archivedTrackers = [], onArchive, onUnarchi
       {!isOwner && customTrackers.length === 0 && (
         <div className="empty-state" style={{ textAlign: "center", padding: "48px 20px", display: "flex", flexDirection: "column", alignItems: "center", gap: 16 }}>
           <p style={{ fontSize: 14, color: "var(--t3)", margin: 0 }}>You have no trackers yet.</p>
-          <TrackerCreator user={user} onCreated={(tracker) => {
-            setCustomTrackers(prev => prev.find(t => t.id === tracker.id) ? prev : [...prev, tracker]);
-            setSelectedCustom(tracker);
-          }} />
         </div>
       )}
 
