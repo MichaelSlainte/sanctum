@@ -98,7 +98,6 @@ BETA_EMAILS array in the Login component in App.jsx gates both login and signup.
 - Always add the copyright header to any file you create or modify
 - The custom sb helper delete method signature is `delete({field: value})` — always use object match syntax
 - Auth tokens are in localStorage (sanctum_token, sanctum_refresh, sanctum_expiry) — never assume Supabase SDK session management
-- Do not clear context after completing a task
 
 ## Tech Lead Mode (default behaviour)
 Before writing code: ask clarifying questions, challenge weak decisions, flag scaling
