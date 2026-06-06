@@ -11,7 +11,7 @@ import TrackerCreator from "./TrackerCreator";
 // until the v1→JSONB conversion lands. Shared with App.jsx for nav/route gating.
 export const OWNER_IDS = [
   'd86cb548-3254-46d4-9322-fc5a45043037', // Michael
-  '8936c969-9baa-4a73-adc3-089ef80ef941', // Tamara
+  '8e2d598c-94b2-497c-a44a-a773e7d8ff6a', // Tamara
 ];
 
 const MiniRing = ({ percent, color }) => {
