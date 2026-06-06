@@ -111,6 +111,17 @@ const htmlToMd = (el) => {
 // Persists across Notes unmount/remount within the same browser session
 const _sessionUnlockedNotes = new Set();
 
+// Starter notebooks seeded for brand-new users with no notebooks yet, so they don't
+// land on an empty notebook list. Generated fresh per call so ids are unique.
+const makeNewUserNotebooks = () => {
+  const t = Date.now();
+  return [
+    { id: `nb-${t}-1`, label: 'General',  icon: 'notes', color: '#8b5cf6', bg: 'rgba(139,92,246,0.15)', sections: [{ id: `sec-${t}-1`, label: 'General' }] },
+    { id: `nb-${t}-2`, label: 'Personal', icon: 'notes', color: '#8b5cf6', bg: 'rgba(139,92,246,0.15)', sections: [{ id: `sec-${t}-2`, label: 'General' }] },
+    { id: `nb-${t}-3`, label: 'Work',     icon: 'notes', color: '#8b5cf6', bg: 'rgba(139,92,246,0.15)', sections: [{ id: `sec-${t}-3`, label: 'General' }] },
+  ];
+};
+
 // ─── NOTES ───────────────────────────────────────────────────────────────────
 export default function Notes({ user }) {
   const { key: cryptoKey, keyLoading } = useCrypto();
@@ -152,9 +163,9 @@ export default function Notes({ user }) {
         // No singleton or empty data (owner new user / first Tamara login) — seed with defaults
         sb.from('notebooks').upsert({ id: singletonId, user_id: user.id, data: DEFAULT_NOTEBOOKS, updated_at: new Date().toISOString() }, 'id').catch(() => {});
       } else {
-        // Non-owner: do not seed defaults — start with an empty notebook list
-        setNotebooks([]);
-        localStorage.setItem('sanctum_notebooks_v2', JSON.stringify([]));
+        // New user with no notebooks yet — seed a starter set so they don't land on
+        // an empty notebook list, and persist it immediately.
+        saveNotebooks(makeNewUserNotebooks());
       }
     }).catch(() => {}); // network error — keep current state (localStorage/defaults)
   }, [user?.id]);
@@ -481,31 +492,49 @@ export default function Notes({ user }) {
   const newNote = async () => {
     const nb = notebooks.find(n => n.id === activeNB);
     const sectionId = activeSection || nb?.sections[0]?.id || '';
-    const sec = nb?.sections.find(s => s.id === sectionId);
     const note = { notebook: nb?.id || activeNB, section: sectionId, title: '', body: '', tags: '', updated_at: new Date().toISOString().slice(0, 10), user_id: user?.id };
     try {
       const res = await sb.from("notes").insert(note);
-      if (!Array.isArray(res) || !res[0]?.id) console.error('[newNote] Insert failed or no id:', res);
-      const created = Array.isArray(res) && res[0]?.id ? res[0] : { ...note, id: `local_${Date.now()}` };
-      setAllNotes(prev => [created, ...prev]); openNote(created);
+      if (!Array.isArray(res) || !res[0]?.id) {
+        console.error('[newNote] Insert failed:', res);
+        alert('Could not create note. Please try again.');
+        return;
+      }
+      setAllNotes(prev => [res[0], ...prev]);
+      openNote(res[0]);
       setTimeout(() => titleInputRef.current?.focus(), 80);
-    } catch (err) { console.error('[newNote] error:', err); const n = { ...note, id: `local_${Date.now()}` }; setAllNotes(prev => [n, ...prev]); openNote(n); setTimeout(() => titleInputRef.current?.focus(), 80); }
+    } catch (err) {
+      console.error('[newNote] error:', err);
+      alert('Could not create note. Please try again.');
+    }
   };
 
   const deleteNote = async (id) => {
     const nid = id || activeNote; if (!nid) return;
     const target = allNotes.find(n => n.id === nid);
-    if (target?.locked && !_sessionUnlockedNotes.has(String(nid))) return;
-    const remaining = allNotes.filter(n => n.id !== nid); setAllNotes(remaining);
-    if (nid === activeNote) {
-      const _secL = activeSection?.toLowerCase().trim() || '';
-      const _nbL  = activeNB?.toLowerCase().trim() || '';
-      const next = activeSection
-        ? remaining.find(n => (n.section?.toLowerCase().trim() || '') === _secL)
-        : remaining.find(n => (n.notebook?.toLowerCase().trim() || '') === _nbL);
-      if (next) openNote(next); else { setActiveNote(null); setEditTitle(''); setEditBody(''); setEditTags(''); localStorage.removeItem('sanctum_active_note'); }
+    if (target?.locked && !_sessionUnlockedNotes.has(String(nid))) { setNoteMenu(null); return; }
+    try {
+      const ok = await sb.from("notes").delete({ id: nid });
+      if (!ok) {
+        console.error('[deleteNote] Server delete failed for', nid);
+        alert('Could not delete note. Please try again.');
+        setNoteMenu(null);
+        return;
+      }
+      const remaining = allNotes.filter(n => n.id !== nid);
+      setAllNotes(remaining);
+      if (nid === activeNote) {
+        const _secL = activeSection?.toLowerCase().trim() || '';
+        const _nbL  = activeNB?.toLowerCase().trim() || '';
+        const next = activeSection
+          ? remaining.find(n => (n.section?.toLowerCase().trim() || '') === _secL)
+          : remaining.find(n => (n.notebook?.toLowerCase().trim() || '') === _nbL);
+        if (next) openNote(next); else { setActiveNote(null); setEditTitle(''); setEditBody(''); setEditTags(''); localStorage.removeItem('sanctum_active_note'); }
+      }
+    } catch (err) {
+      console.error('[deleteNote] error:', err);
+      alert('Could not delete note. Please try again.');
     }
-    try { await sb.from("notes").delete({ id: nid }); } catch {}
     setNoteMenu(null);
   };
 
