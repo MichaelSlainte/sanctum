@@ -6,6 +6,7 @@ import { createRoot } from 'react-dom/client'
 import './index.css'
 import App from './App.jsx'
 import { CryptoProvider } from './lib/CryptoContext.jsx'
+import { Analytics } from "@vercel/analytics/react"
 
 if ('serviceWorker' in navigator) {
   window.addEventListener('load', () => {
@@ -17,6 +18,7 @@ createRoot(document.getElementById('root')).render(
   <StrictMode>
     <CryptoProvider>
       <App />
+      <Analytics />
     </CryptoProvider>
   </StrictMode>,
 )
