@@ -106,7 +106,6 @@ const badgeCls = (cat) =>
   cat==="travel" ? "green" : cat==="career" ? "amber" : cat==="study" ? "purple" : cat==="family" ? "pink" : "blue";
 
 const MICHAEL_ID = "d86cb548-3254-46d4-9322-fc5a45043037";
-const TAMARA_ID  = "8e2d598c-94b2-497c-a44a-a773e7d8ff6a";
 
 const BLANK_FORM = {
   title: "", category: "personal",
