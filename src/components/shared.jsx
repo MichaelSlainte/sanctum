@@ -65,8 +65,12 @@ export function Modal({ title, onClose, children, wide }) {
   }, [onClose]);
   return (
     <div className="modal-overlay" onClick={e => e.target === e.currentTarget && onClose()}>
-      <div className="modal" style={wide ? { maxWidth: 560 } : {}}>
-        <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", marginBottom: 22 }}>
+      <div className="modal" style={wide ? { maxWidth: 720 } : {}}>
+        <div style={{
+          position: "sticky", top: 0, zIndex: 2, background: "var(--bg1)",
+          margin: "-24px -24px 22px", padding: "24px 24px 14px",
+          display: "flex", alignItems: "center", justifyContent: "space-between",
+        }}>
           <div className="modal-title">{title}</div>
           <button className="btn sm ghost" onClick={onClose}><Icon name="x" size={14} /></button>
         </div>
