@@ -41,6 +41,17 @@ function Login({ onLogin }) {
     }
     if (!email || !password) return setError("Please enter your email and password.");
     if (password.length < 8) return setError("Password must be at least 8 characters.");
+    // Beta allowlist — only these emails can access Sanctum
+    const BETA_EMAILS = [
+      'eng.michaelmarques@outlook.com',
+      'eng.michaelmarques@gmail.com',
+      'tamaralechner4@gmail.com',
+    ];
+    if (!BETA_EMAILS.includes(email.trim().toLowerCase())) {
+      setError('Sanctum is currently in private beta. Request access at hello@trysanctum.app');
+      setLoading(false);
+      return;
+    }
     setLoading(true); setError("");
     try {
       const data = mode === "login" ? await auth.signIn(email, password) : await auth.signUp(email, password);
