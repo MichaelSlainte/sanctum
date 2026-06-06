@@ -1212,6 +1212,10 @@
     select {
       font-size: 16px !important;
     }
+    /* Keyboard-aware layout — keep inputs clear of the home indicator / safe area.
+       Pages all render inside .page-body; .modal uses the existing bottom-sheet rules. */
+    .note-editor { padding-bottom: env(safe-area-inset-bottom, 80px); }
+    .page-body   { padding-bottom: max(84px, env(safe-area-inset-bottom, 80px)); }
     textarea.inp { min-height: 80px; }
     .btn { min-height: 40px; }
     .theme-cards { flex-direction: column; }
