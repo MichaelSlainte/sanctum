@@ -624,7 +624,13 @@ export default function Home({ user, archivedTrackers = [], onNavigate, onGoToCa
   const hour = now.getHours();
   const greeting = hour < 12 ? "Good morning" : hour < 17 ? "Good afternoon" : "Good evening";
   const homeUserKey = user?.id ? `sanctum_display_name_${user.id}` : "sanctum_display_name";
-  const displayName = displayNameProp || localStorage.getItem(homeUserKey) || user?.user_metadata?.display_name || (user?.email?.split("@")[0] || "");
+  const toFirstName = (str) => str ? str.split(/[\s._@-]/)[0].replace(/\d+$/, '') || str : str;
+  const displayName = toFirstName(
+    displayNameProp
+    || localStorage.getItem(homeUserKey)
+    || user?.user_metadata?.display_name
+    || (user?.email?.split("@")[0] || "")
+  );
   const dateStr = now.toLocaleDateString("en-IE", { weekday: "long", day: "numeric", month: "long", year: "numeric" });
 
   const EXAM_DATE = new Date("2026-07-07T13:30");
