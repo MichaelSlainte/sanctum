@@ -7,6 +7,7 @@ import './index.css'
 import App from './App.jsx'
 import { CryptoProvider } from './lib/CryptoContext.jsx'
 import { Analytics } from "@vercel/analytics/react"
+import { SpeedInsights } from "@vercel/speed-insights/react"
 
 if ('serviceWorker' in navigator) {
   window.addEventListener('load', () => {
@@ -19,6 +20,7 @@ createRoot(document.getElementById('root')).render(
     <CryptoProvider>
       <App />
       <Analytics />
+      <SpeedInsights />
     </CryptoProvider>
   </StrictMode>,
 )
