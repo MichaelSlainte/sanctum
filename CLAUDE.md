@@ -24,7 +24,7 @@ https://sanctum-beige.vercel.app
 ## File structure
 - src/App.jsx — root app shell, routing, auth, global state
 - src/main.jsx — entry point
-- src/index.css, src/App.css, src/styles/base.css — global styles
+- src/index.css (reset, imported in main.jsx), src/styles/base.css (full app stylesheet, imported in App.jsx) — global styles
 - src/components/ — page-level components: Home, Notes, Calendar, Settings, Roadmap, shared
 - src/components/trackers/ — tracker components: TrackerHub, TrackerCreator, Study, Career, Finance, Travel, Ozzy
 - src/trackers/TrackerRenderer.jsx — generic JSONB schema-driven tracker renderer
