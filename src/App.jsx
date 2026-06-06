@@ -694,17 +694,16 @@ RECURRENCE SCOPE: "this" = only that one date, "this_and_future" = that date onw
   const _emailName = user?.email?.split('@')[0] || '';
   // Prefer profiles table name → localStorage cache → email username → metadata (may be stale/short) → fallback
   const toFirstName = (str) => str ? str.split(/[\s._@-]/)[0].replace(/\d+$/, '') || str : str;
-  const displayName = toFirstName(
-    profileName
+  const _rawName = profileName
     || localStorage.getItem(userDisplayKey)
     || (_emailName.length > 1 ? _emailName : null)
     || (_metaName && _metaName.length > 1 ? _metaName : null)
     || _emailName
-    || 'You'
-  );
-  const initials = displayName.split(' ').length > 1
-    ? displayName.split(' ').map(w => w[0]).join('').toUpperCase().slice(0, 2)
-    : displayName.slice(0, 2).toUpperCase();
+    || 'You';
+  const displayName = toFirstName(_rawName);
+  const initials = _rawName.split(' ').length > 1
+    ? _rawName.split(' ').map(w => w[0]).join('').toUpperCase().slice(0, 2)
+    : _rawName.split(/[\s._@-]/)[0].replace(/\d+$/, '').slice(0, 2).toUpperCase();
 
   return (
     <>
