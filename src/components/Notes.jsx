@@ -524,12 +524,11 @@ export default function Notes({ user }) {
       const remaining = allNotes.filter(n => n.id !== nid);
       setAllNotes(remaining);
       if (nid === activeNote) {
-        const _secL = activeSection?.toLowerCase().trim() || '';
-        const _nbL  = activeNB?.toLowerCase().trim() || '';
-        const next = activeSection
-          ? remaining.find(n => (n.section?.toLowerCase().trim() || '') === _secL)
-          : remaining.find(n => (n.notebook?.toLowerCase().trim() || '') === _nbL);
-        if (next) openNote(next); else { setActiveNote(null); setEditTitle(''); setEditBody(''); setEditTags(''); localStorage.removeItem('sanctum_active_note'); }
+        setActiveNote(null);
+        setEditTitle('');
+        setEditBody('');
+        setEditTags('');
+        localStorage.removeItem('sanctum_active_note');
       }
     } catch (err) {
       console.error('[deleteNote] error:', err);
