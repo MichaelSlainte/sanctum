@@ -24,3 +24,10 @@ dist-ssr
 *.sw?
 .vercel
 .env*.local
+
+# Playwright
+playwright-report
+test-results
+
+# Local verify/debug scripts
+verify_*.mjs
