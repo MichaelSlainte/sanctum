@@ -105,6 +105,7 @@ BETA_EMAILS array in the Login component in App.jsx gates both login and signup.
 - CORS fix: `api/chat.js` now allows `trysanctum.app` (plus the Vercel fallback) via an allowlist-echo pattern + `Vary: Origin`. (4a953a8)
 - JWT validation: already fully implemented in `api/chat.js` (validates the Bearer token against `/auth/v1/user`) — no change needed.
 - GDPR account deletion: new `api/delete-account.js` serverless function (JWT-validated `DELETE`, calls the Supabase admin endpoint `/auth/v1/admin/users/{id}` with the service role key); `Settings.deleteAllData` now calls it after the data wipe and before logout. `SUPABASE_SERVICE_ROLE_KEY` confirmed present in Vercel. (87ecc15)
+- GDPR privacy policy: new `src/components/Privacy.jsx` — standalone policy page (who-we-are, what-we-collect, E2E-encryption note, AI/data, sub-processors table, GDPR rights, retention, security), CSS-variable styled, no auth required. Rendered as a pre-auth `page === "privacy"` view in App.jsx (works logged-out), linked from Settings (via `onNavigate`) and the Login footer (via `onPrivacy`). Directly linkable at `/privacy`: `getInitialPage()` reads `window.location.pathname` on mount, falling back to the existing localStorage page-restore; `vercel.json` already rewrites non-API paths to `index.html`. (0be208f, d11c105)
 
 ## Commits today (2026-06-07)
 - 1c372af fix: hide irrelevant cards from dashboard customise panel for new users
@@ -117,7 +118,7 @@ BETA_EMAILS array in the Login component in App.jsx gates both login and signup.
 
 ## Pending work (priority order)
 1. Onboarding flow — full feature, its own session.
-2. GDPR sweep — privacy policy + cookie consent docs.
+2. GDPR sweep — privacy policy shipped (2026-06-07); cookie consent docs still pending.
 3. CLAUDE.md cleanup of old pending items now done.
 
 Carried-over bugs (lower priority, still open):
