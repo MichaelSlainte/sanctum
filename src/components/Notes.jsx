@@ -414,10 +414,10 @@ export default function Notes({ user }) {
     const updated = new Date().toISOString();
     let bodyToSave = body;
     if (cryptoKeyRef.current) {
-      try { bodyToSave = await encrypt(body, cryptoKeyRef.current); } catch(e) { console.error('flushSave encrypt error:', e); }
+      try { bodyToSave = await encrypt(body, cryptoKeyRef.current); } catch(e) { console.error('[flushSave] Encrypt error:', e); }
     }
     setAllNotes(prev => prev.map(n => n.id === id ? { ...n, title, body: bodyToSave, tags, updated_at: updated } : n));
-    try { await sb.from("notes").update({ title, body: bodyToSave, tags, updated_at: updated }, { id }); } catch(e) { console.error('flushSave error:', e); }
+    try { await sb.from("notes").update({ title, body: bodyToSave, tags, updated_at: updated }, { id }); } catch(e) { console.error('[flushSave] Error:', e); }
     dirtyRef.current = false;
     setSaveStatus('saved');
     setTimeout(() => setSaveStatus(s => s === 'saved' ? 'idle' : s), 1500);
@@ -435,10 +435,10 @@ export default function Notes({ user }) {
       const { id: sid, title: stitle, body: sbody, tags: stags } = pendingSave.current;
       let bodyToSave = sbody;
       if (cryptoKeyRef.current) {
-        try { bodyToSave = await encrypt(sbody, cryptoKeyRef.current); } catch(e) { console.error('autoSave encrypt error:', e); }
+        try { bodyToSave = await encrypt(sbody, cryptoKeyRef.current); } catch(e) { console.error('[autoSave] Encrypt error:', e); }
       }
       setAllNotes(prev => prev.map(n => n.id === sid ? { ...n, title: stitle, body: bodyToSave, tags: stags, updated_at: updated } : n));
-      try { await sb.from("notes").update({ title: stitle, body: bodyToSave, tags: stags, updated_at: updated }, { id: sid }); } catch(e) { console.error('autoSave error:', e); }
+      try { await sb.from("notes").update({ title: stitle, body: bodyToSave, tags: stags, updated_at: updated }, { id: sid }); } catch(e) { console.error('[autoSave] Error:', e); }
       dirtyRef.current = false;
       setSaveStatus('saved');
       setTimeout(() => setSaveStatus(s => s === 'saved' ? 'idle' : s), 1500);
@@ -545,7 +545,7 @@ export default function Notes({ user }) {
       const res = await sb.from("notes").insert(dup);
       const created = Array.isArray(res) && res[0] ? res[0] : { ...dup, id: Date.now().toString() };
       setAllNotes(prev => [created, ...prev]); openNote(created);
-    } catch { const n = { ...dup, id: Date.now().toString() }; setAllNotes(prev => [n, ...prev]); openNote(n); }
+    } catch (err) { console.error('[duplicateNote] Error:', err); const n = { ...dup, id: Date.now().toString() }; setAllNotes(prev => [n, ...prev]); openNote(n); }
     setNoteMenu(null);
   };
 
