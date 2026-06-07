@@ -85,7 +85,7 @@ BETA_EMAILS array in the Login component in App.jsx gates both login and signup.
 3. Convert v1 hardcoded trackers to JSONB format
 4. Calendar ↔ tracker integration — AI-context side shipped 2026-06-07 (AI bars read live tracker data + create events); deeper two-way sync (tracker entries ↔ calendar events) still pending
 5. Dynamic home dashboard
-6. Onboarding for new users (partially started — new-user notebook seeding)
+6. Onboarding for new users — shipped 2026-06-07 (3-step Onboarding.jsx gated on profiles.onboarding_completed / migration 008)
 7. Stripe + public launch
 
 ## Recently shipped (2026-06-07 session)
@@ -105,6 +105,7 @@ BETA_EMAILS array in the Login component in App.jsx gates both login and signup.
 - CORS fix: `api/chat.js` now allows `trysanctum.app` (plus the Vercel fallback) via an allowlist-echo pattern + `Vary: Origin`. (4a953a8)
 - JWT validation: already fully implemented in `api/chat.js` (validates the Bearer token against `/auth/v1/user`) — no change needed.
 - GDPR account deletion: new `api/delete-account.js` serverless function (JWT-validated `DELETE`, calls the Supabase admin endpoint `/auth/v1/admin/users/{id}` with the service role key); `Settings.deleteAllData` now calls it after the data wipe and before logout. `SUPABASE_SERVICE_ROLE_KEY` confirmed present in Vercel. (87ecc15)
+- Onboarding flow: new `src/components/Onboarding.jsx` — 3-step full-screen overlay (welcome → feature tour → create first tracker) for new non-owner users; CSS-variable styled with progress dots. Gated on `profiles.onboarding_completed` (migration 008, `boolean DEFAULT false`), checked in both App.jsx load paths (`init` cold-start + `handleLogin`) via a separate guarded query so a pre-migration missing column can't break name/key loading; owners (`OWNER_IDS`) always skip. Condition is `!== true` so first signups (no profiles row yet) also see it. "Create my first tracker" opens TrackerCreator via a new `openCreatorSignal` prop chain (App → TrackerHub → TrackerCreator), mirroring the existing `openCustomSignal` pattern. Manual steps: run migration 008 in Supabase + set `onboarding_completed = true` for Michael & Tamara's IDs. (5fcd89d, 1677500)
 - GDPR privacy policy: new `src/components/Privacy.jsx` — standalone policy page (who-we-are, what-we-collect, E2E-encryption note, AI/data, sub-processors table, GDPR rights, retention, security), CSS-variable styled, no auth required. Rendered as a pre-auth `page === "privacy"` view in App.jsx (works logged-out), linked from Settings (via `onNavigate`) and the Login footer (via `onPrivacy`). Directly linkable at `/privacy`: `getInitialPage()` reads `window.location.pathname` on mount, falling back to the existing localStorage page-restore; `vercel.json` already rewrites non-API paths to `index.html`. (0be208f, d11c105)
 
 ## Commits today (2026-06-07)
@@ -117,9 +118,8 @@ BETA_EMAILS array in the Login component in App.jsx gates both login and signup.
 - 9a75b2f feat: calendar↔tracker integration — on-demand tracker context in FAB AI
 
 ## Pending work (priority order)
-1. Onboarding flow — full feature, its own session.
-2. GDPR sweep — privacy policy shipped (2026-06-07); cookie consent docs still pending.
-3. CLAUDE.md cleanup of old pending items now done.
+1. GDPR sweep — privacy policy shipped (2026-06-07); cookie consent docs still pending.
+2. CLAUDE.md cleanup of old pending items now done.
 
 Carried-over bugs (lower priority, still open):
 - Custom trackers in the Customise panel — active custom trackers should appear as toggleable items. `dashboardRings` keys off `tracker.id` (default true); needs a second `.map()` block after the hardcoded items iterating `homeCustomTrackers` (Home.jsx:443), and a `dashboardRings[tracker.id] !== false` guard in the dashboard render loop.
