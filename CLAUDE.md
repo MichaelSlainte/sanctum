@@ -96,6 +96,16 @@ BETA_EMAILS array in the Login component in App.jsx gates both login and signup.
 - Confirmed working, no change needed: tracker detail colour picker updates immediately (`setTracker` is called in `updateTracker`).
 - Confirmed working, no change needed: dashboard cards are already data-gated at render (`hasPmpSubject`, `hasTrips`, `hasMscSubject`, `hasStudySubjects` at Home.jsx:1189-1222), so new users never see empty PMP/Scotland/MSc/study cards.
 
+## Recently shipped (2026-06-07 evening)
+- Customise button gated to owners: the dashboard Customise button only renders for `isOwner` (Home.jsx). (f6fab51)
+- Roadmap header layout: "Hide" + "+ New project" now sit in one flex row (gap:8) via an `onHide` prop passed from Home into Roadmap, replacing the absolutely-positioned Hide button that overlapped New project. (bd715ac)
+- Notes save error handling: `flushSave`/`autoSave` use a `saveOk` flag so a failed DB write shows "Save failed" in `var(--red)` for ~1.5s instead of a false "saved ✓"; catch blocks standardised to `console.error('[fn] Error:', …)`; `duplicateNote`'s silent catch now logs. (df45f8b, a4bbed5)
+- Housekeeping: `.gitignore` updated (`verify_*.mjs` added); dead `AIAssistant` component removed from Home.jsx (123 lines); `Sanctum_Admin_Guide.pdf` deleted from the working tree. (09e852d, 1d55e12)
+- Dependabot: 0 open alerts (6 closed); `npm audit` clean (0 vulnerabilities).
+- CORS fix: `api/chat.js` now allows `trysanctum.app` (plus the Vercel fallback) via an allowlist-echo pattern + `Vary: Origin`. (4a953a8)
+- JWT validation: already fully implemented in `api/chat.js` (validates the Bearer token against `/auth/v1/user`) — no change needed.
+- GDPR account deletion: new `api/delete-account.js` serverless function (JWT-validated `DELETE`, calls the Supabase admin endpoint `/auth/v1/admin/users/{id}` with the service role key); `Settings.deleteAllData` now calls it after the data wipe and before logout. `SUPABASE_SERVICE_ROLE_KEY` confirmed present in Vercel. (87ecc15)
+
 ## Commits today (2026-06-07)
 - 1c372af fix: hide irrelevant cards from dashboard customise panel for new users
 - d72541a docs: migration 007 — add status column to roadmap_tracks
@@ -105,14 +115,14 @@ BETA_EMAILS array in the Login component in App.jsx gates both login and signup.
 - 99164b1 fix: wire tracker context into Home AI bar; raise safeSystem cap to 12000
 - 9a75b2f feat: calendar↔tracker integration — on-demand tracker context in FAB AI
 
-## Pending bugs (priority order)
-1. Custom trackers in the Customise panel — active custom trackers should appear as toggleable items in the dashboard Customise panel. `dashboardRings` keys off `tracker.id` (default true). Needs a second `.map()` block after the hardcoded items iterating the active custom trackers (`homeCustomTrackers`, Home.jsx:443), and the dashboard render loop should wrap each custom-tracker card in a `dashboardRings[tracker.id] !== false` check.
-2. Modal keyboard overlap on mobile (partially improved).
-3. Swallowed-error pattern in `duplicateNote` / `autoSave` / `flushSave` — failures are silently caught.
-4. Remove debug `console.log`s.
-5. Stray repo files: `verify_*.mjs`, `playwright-report/`, `test-results/` (an uncommitted `.gitignore` edit covers the latter two — confirm none are tracked).
-6. Dead `AIAssistant` component in `src/components/Home.jsx` — defined but never rendered; safe to delete.
-7. Dependabot vulnerabilities.
+## Pending work (priority order)
+1. Onboarding flow — full feature, its own session.
+2. GDPR sweep — privacy policy + cookie consent docs.
+3. CLAUDE.md cleanup of old pending items now done.
+
+Carried-over bugs (lower priority, still open):
+- Custom trackers in the Customise panel — active custom trackers should appear as toggleable items. `dashboardRings` keys off `tracker.id` (default true); needs a second `.map()` block after the hardcoded items iterating `homeCustomTrackers` (Home.jsx:443), and a `dashboardRings[tracker.id] !== false` guard in the dashboard render loop.
+- Modal keyboard overlap on mobile (partially improved).
 
 ## Rules for Claude Code
 - Always use CSS variables, never hardcode colors
