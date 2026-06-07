@@ -25,7 +25,12 @@ function isRateLimited(ip) {
 }
 
 export default async function handler(req, res) {
-  res.setHeader('Access-Control-Allow-Origin', 'https://sanctum-beige.vercel.app');
+  // Allow the primary domain and the Vercel fallback. Access-Control-Allow-Origin
+  // can only carry one value, so echo the request origin when it's allowlisted.
+  const ALLOWED_ORIGINS = ['https://trysanctum.app', 'https://sanctum-beige.vercel.app'];
+  const origin = req.headers.origin;
+  if (ALLOWED_ORIGINS.includes(origin)) res.setHeader('Access-Control-Allow-Origin', origin);
+  res.setHeader('Vary', 'Origin');
   res.setHeader('Access-Control-Allow-Methods', 'POST, OPTIONS');
   res.setHeader('Access-Control-Allow-Headers', 'Content-Type, Authorization');
   if (req.method === 'OPTIONS') return res.status(200).end();
