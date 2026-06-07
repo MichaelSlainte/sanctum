@@ -13,7 +13,7 @@ const TIMEZONES = [
   { id: "America/Sao_Paulo", label: "São Paulo (BRT)"     },
 ];
 
-export default function Settings({ user, onLogout, theme, onThemeChange, font, onFontChange, sb }) {
+export default function Settings({ user, onLogout, theme, onThemeChange, font, onFontChange, sb, onNavigate }) {
   const userKey = user?.id ? `sanctum_display_name_${user.id}` : "sanctum_display_name";
   const emailUsername = (user?.email || "").split("@")[0];
   const [displayName, setDisplayName] = useState(() =>
@@ -320,6 +320,12 @@ export default function Settings({ user, onLogout, theme, onThemeChange, font, o
             style={{ flexShrink: 0, color: 'var(--red)', borderColor: 'var(--red)' }}
           >
             Delete everything
+          </button>
+        </div>
+
+        <div style={{ textAlign: 'center', padding: '16px 0', borderTop: '1px solid var(--b1)' }}>
+          <button className="btn xs ghost" onClick={() => onNavigate?.('privacy')} style={{ fontSize: 12, color: 'var(--t3)' }}>
+            Privacy Policy
           </button>
         </div>
       </div>

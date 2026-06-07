@@ -13,6 +13,7 @@ import Notes from "./components/Notes";
 import Calendar from "./components/Calendar";
 import Settings from "./components/Settings";
 import Onboarding from "./components/Onboarding";
+import Privacy from "./components/Privacy";
 import Study from "./components/trackers/Study";
 import Ozzy from "./components/trackers/Ozzy";
 import Travel from "./components/trackers/Travel";
@@ -21,7 +22,7 @@ import Finance from "./components/trackers/Finance";
 import TrackerHub, { TrackerBackBar, OWNER_IDS } from "./components/trackers/TrackerHub";
 
 // ─── LOGIN ───────────────────────────────────────────────────────────────────
-function Login({ onLogin }) {
+function Login({ onLogin, onPrivacy }) {
   const [email, setEmail] = useState("");
   const [password, setPassword] = useState("");
   const [error, setError] = useState("");
@@ -127,6 +128,12 @@ function Login({ onLogin }) {
             onClick={() => { setMode(mode === "login" ? "signup" : "login"); setError(""); }}>
             {mode === "login" ? "Create one" : "Sign in"}
           </span>
+        </div>
+        <div style={{ textAlign: "center", marginTop: 16 }}>
+          <button className="btn ghost" onClick={onPrivacy}
+            style={{ fontSize: 11, color: "var(--t3)", background: "none", border: "none", cursor: "pointer" }}>
+            Privacy Policy
+          </button>
         </div>
       </div>
     </div>
@@ -720,7 +727,10 @@ RECURRENCE SCOPE: "this" = only that one date, "this_and_future" = that date onw
   };
 
   if (checking) return null;
-  if (!user) return <Login onLogin={handleLogin} />;
+  // Privacy is a standalone page that must work with or without login —
+  // render it before the auth gate.
+  if (page === "privacy") return <Privacy onBack={() => navigate(user ? "settings" : "home")} />;
+  if (!user) return <Login onLogin={handleLogin} onPrivacy={() => navigate("privacy")} />;
 
   const email = user?.email || "";
   const username = email.split("@")[0];
@@ -731,7 +741,7 @@ RECURRENCE SCOPE: "this" = only that one date, "this_and_future" = that date onw
     if (page === "home") return <Home user={user} onNavigate={navigate} onGoToCalendarDay={goToCalendarDay} displayName={displayName} />;
     if (page === "notes") return <Notes user={user} />;
     if (page === "calendar") return <Calendar user={user} initialDate={calDate} refreshKey={calendarRefreshKey} />;
-    if (page === "settings") return <Settings user={user} onLogout={handleLogout} theme={theme} onThemeChange={applyTheme} font={font} onFontChange={applyFont} sb={sb} />;
+    if (page === "settings") return <Settings user={user} onLogout={handleLogout} theme={theme} onThemeChange={applyTheme} font={font} onFontChange={applyFont} sb={sb} onNavigate={navigate} />;
     // Non-owners never reach the v1 tracker pages; they land back on the hub.
     if (page === "trackers" || (!isOwner && TRACKER_PAGES.includes(page)))
       return <TrackerHub user={user} archivedTrackers={archivedTrackers} onArchive={archiveTracker} onUnarchive={unarchiveTracker} onNavigate={navigate} onCustomTrackersLoad={setCustomTrackers} openCustomSignal={openCustomSignal} closeCustomSignal={closeCustomSignal} openCreatorSignal={openCreatorSignal} />;
