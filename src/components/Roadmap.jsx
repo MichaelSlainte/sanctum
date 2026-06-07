@@ -494,8 +494,8 @@ export default function Roadmap() {
   };
 
   const archiveTrack = async (trackId, archive) => {
-    setTracks(prev => prev.map(t => t.id === trackId ? { ...t, status: archive ? "archived" : null } : t));
-    try { await sb.from("roadmap_tracks").update({ status: archive ? "archived" : null }, { id: trackId }); }
+    setTracks(prev => prev.map(t => t.id === trackId ? { ...t, status: archive ? "archived" : "active" } : t));
+    try { await sb.from("roadmap_tracks").update({ status: archive ? "archived" : "active" }, { id: trackId }); }
     catch (err) { console.error("[archiveTrack] Error:", err); if (activeId) await loadProjectData(activeId); }
   };
 
