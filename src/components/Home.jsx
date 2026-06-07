@@ -1,7 +1,7 @@
 // Copyright © 2026 Michael FR Marques & Tamara Lechner. All rights reserved.
 import { useState, useEffect, useRef } from "react";
 import { sb } from "../lib/supabase";
-import { callAI, parseAction } from "../lib/chat";
+import { callAI, parseAction, fetchTrackerContext, isTrackerQuery } from "../lib/chat";
 import { Icon, Modal, EVENT_COLORS } from "./shared";
 import Roadmap from "./Roadmap";
 import { OWNER_IDS } from "./trackers/TrackerHub";
@@ -782,6 +782,13 @@ export default function Home({ user, archivedTrackers = [], onNavigate, onGoToCa
 
     try {
       const todayISO = now.toISOString().slice(0, 10);
+      // On-demand tracker context — only when the query is tracker-related.
+      // Mirrors the global FAB (App.jsx) so the Home AI bar can answer questions
+      // about live tracker data instead of only the static facts below.
+      let trackerContext = "";
+      if (isTrackerQuery(userMsg)) {
+        trackerContext = await fetchTrackerContext(user?.id);
+      }
       const sys = `You are Sanctum AI, a personal assistant embedded in a private life organiser app.
 Today is ${todayISO}. User: ${displayName}, Dublin, Ireland.
 Personal: Wife Tamara. Dog Ozzy (Golden Retriever, born Nov 2025).
@@ -790,6 +797,7 @@ Study: PMP exam target July 7 2026. MSc Cybersecurity at SETU starts Sep 14 2026
 Travel: Italy Jun 12-17 2026. Scotland Sep 7-13 2026 (with Tamara + Ozzy).
 Active tasks: ${activeTasks.length} open, ${archivedTasks.length} completed.
 Notes are private — you cannot read note content.
+${trackerContext ? `\n${trackerContext}\n` : ""}
 When user mentions dates, always convert to ISO format YYYY-MM-DD in your JSON response.
 Examples: "tomorrow" = ${new Date(Date.now()+86400000).toISOString().slice(0,10)}, "next week" = ${new Date(Date.now()+7*86400000).toISOString().slice(0,10)}.
 For "next Monday", "this Friday" etc., compute the actual upcoming date.
@@ -802,6 +810,7 @@ When the user asks to add a task, delete a task, log study hours, add a calendar
   category must be one of: personal, career, travel, study, family
   Recurrence (OMIT all of these for a normal one-off event): add "repeat":"daily|weekly|monthly|yearly|custom". Map "every day"→daily, "every Monday"/"weekly"→weekly, "every month"→monthly, "every year"→yearly. For an interval like "every 2 weeks" or "every 3 days" use "repeat":"custom" with "repeat_custom_interval":2 and "repeat_custom_unit":"day|week|month|year" (singular). To bound a series add "repeat_end":"until" with "repeat_end_date":"YYYY-MM-DD", or "repeat_end":"count" with "repeat_end_count":N; if open-ended use "repeat_end":"forever".
 Topic IDs for study: integration, scope, schedule, cost, quality, resource, communications, risk, procurement, stakeholder, agile, ethics
+Tracker queries → answer in plain conversational text using the TRACKER DATA above (study hours, applications, finance, trips, Ozzy, custom trackers). You may offer to add a calendar event if relevant; if the user agrees, output the add_event JSON.
 For all other queries respond in plain conversational text, warm but concise, max 2 sentences.`;
 
       const reply = await callAI({ system: sys, messages: [{ role: "user", content: userMsg }] });

@@ -63,7 +63,12 @@ export default async function handler(req, res) {
   if (!messages || !Array.isArray(messages)) return res.status(400).json({ error: 'messages array required' });
   if (messages.length > 20) return res.status(400).json({ error: 'Too many messages' });
 
-  const safeSystem = (system || 'You are a helpful personal assistant.').slice(0, 5000);
+  // Cap raised from 5000: the calendar/tracker-aware prompts assemble a large
+  // system string (header + up to 30 upcoming events + on-demand tracker context
+  // + response rules) that can reach ~7k chars. 5000 silently truncated the
+  // RESPONSE RULES tail. 12000 leaves comfortable headroom; ~3k tokens of system
+  // prompt is negligible for Haiku.
+  const safeSystem = (system || 'You are a helpful personal assistant.').slice(0, 12000);
   const safeMessages = messages
     .filter(m => m.role && m.content)
     .map(m => ({
