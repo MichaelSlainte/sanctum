@@ -12,6 +12,7 @@ import Home from "./components/Home";
 import Notes from "./components/Notes";
 import Calendar from "./components/Calendar";
 import Settings from "./components/Settings";
+import Onboarding from "./components/Onboarding";
 import Study from "./components/trackers/Study";
 import Ozzy from "./components/trackers/Ozzy";
 import Travel from "./components/trackers/Travel";
@@ -172,6 +173,8 @@ export default function App() {
   const [customTrackers, setCustomTrackers] = useState([]);
   const [openCustomSignal, setOpenCustomSignal] = useState(null);
   const [closeCustomSignal, setCloseCustomSignal] = useState(0);
+  const [showOnboarding, setShowOnboarding] = useState(false);
+  const [openCreatorSignal, setOpenCreatorSignal] = useState(0);
 
   // Load custom trackers on startup so sidebar is populated immediately on login
   useEffect(() => {
@@ -586,6 +589,14 @@ RECURRENCE SCOPE: "this" = only that one date, "this_and_future" = that date onw
             setProfileName(profile[0].display_name);
           }
         } catch {}
+        // Onboarding gate — separate guarded query so a missing column
+        // (before migration 008 is run) can't break the name/key loading above.
+        try {
+          const prof = await sb.from("profiles").select("onboarding_completed", `&id=eq.${session.user.id}`, "");
+          if (!OWNER_IDS.includes(session.user.id) && Array.isArray(prof) && prof[0]?.onboarding_completed === false) {
+            setShowOnboarding(true);
+          }
+        } catch {}
       }
       setChecking(false);
     };
@@ -644,6 +655,14 @@ RECURRENCE SCOPE: "this" = only that one date, "this_and_future" = that date onw
       console.error('[handleLogin] profile fetch error:', err);
     }
 
+    // Onboarding gate (see init) — show for non-owners who haven't completed it.
+    try {
+      const prof = await sb.from("profiles").select("onboarding_completed", `&id=eq.${u.id}`, "");
+      if (!OWNER_IDS.includes(u.id) && Array.isArray(prof) && prof[0]?.onboarding_completed === false) {
+        setShowOnboarding(true);
+      }
+    } catch {}
+
     // Step 2: derive encryption key — always runs, independent of profile fetch
     if (password) {
       setKeyLoading(true);
@@ -671,6 +690,16 @@ RECURRENCE SCOPE: "this" = only that one date, "this_and_future" = that date onw
       }
     }
   };
+  const handleOnboardingComplete = async (openTracker) => {
+    setShowOnboarding(false);
+    try { await sb.from('profiles').update({ onboarding_completed: true }, { id: user.id }); }
+    catch (err) { console.error('[onboarding] mark complete failed:', err); }
+    // App has no direct TrackerCreator open state — it lives inside TrackerHub.
+    // Mirror the existing openCustomSignal pattern: navigate to the hub and pulse
+    // a signal that TrackerCreator opens on.
+    if (openTracker) { navigate('trackers'); setOpenCreatorSignal(Date.now()); }
+  };
+
   const handleLogout = async () => { await auth.signOut(); setUser(null); setProfileName(""); setPage("home"); localStorage.removeItem("sanctum_page"); };
 
   const onFabTouchStart = (e) => {
@@ -705,7 +734,7 @@ RECURRENCE SCOPE: "this" = only that one date, "this_and_future" = that date onw
     if (page === "settings") return <Settings user={user} onLogout={handleLogout} theme={theme} onThemeChange={applyTheme} font={font} onFontChange={applyFont} sb={sb} />;
     // Non-owners never reach the v1 tracker pages; they land back on the hub.
     if (page === "trackers" || (!isOwner && TRACKER_PAGES.includes(page)))
-      return <TrackerHub user={user} archivedTrackers={archivedTrackers} onArchive={archiveTracker} onUnarchive={unarchiveTracker} onNavigate={navigate} onCustomTrackersLoad={setCustomTrackers} openCustomSignal={openCustomSignal} closeCustomSignal={closeCustomSignal} />;
+      return <TrackerHub user={user} archivedTrackers={archivedTrackers} onArchive={archiveTracker} onUnarchive={unarchiveTracker} onNavigate={navigate} onCustomTrackersLoad={setCustomTrackers} openCustomSignal={openCustomSignal} closeCustomSignal={closeCustomSignal} openCreatorSignal={openCreatorSignal} />;
     if (page === "study"   && isOwner) return <><TrackerBackBar name="Study"   onBack={() => navigate("trackers")} /><Study   user={user} /></>;
     if (page === "pet"     && isOwner) return <><TrackerBackBar name="Ozzy"    onBack={() => navigate("trackers")} /><Ozzy    user={user} /></>;
     if (page === "travel"  && isOwner) return <><TrackerBackBar name="Travel"  onBack={() => navigate("trackers")} /><Travel  user={user} /></>;
@@ -1040,6 +1069,8 @@ RECURRENCE SCOPE: "this" = only that one date, "this_and_future" = that date onw
           })}
         </div>
       </nav>
+
+      {showOnboarding && <Onboarding onComplete={handleOnboardingComplete} />}
     </>
   );
 }

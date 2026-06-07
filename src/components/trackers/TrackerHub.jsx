@@ -724,7 +724,7 @@ export function CustomTrackerDetail({ tracker: initialTracker, onClose, user, on
   );
 }
 
-export default function TrackerHub({ archivedTrackers = [], onArchive, onUnarchive, onNavigate, user, refreshKey = 0, onCustomTrackersLoad, openCustomSignal, closeCustomSignal }) {
+export default function TrackerHub({ archivedTrackers = [], onArchive, onUnarchive, onNavigate, user, refreshKey = 0, onCustomTrackersLoad, openCustomSignal, closeCustomSignal, openCreatorSignal }) {
   const isOwner = OWNER_IDS.includes(user?.id);
   const [selectedCustom, setSelectedCustom] = useState(null);
   const openCustomSignalRef = useRef(openCustomSignal);
@@ -1096,7 +1096,7 @@ export default function TrackerHub({ archivedTrackers = [], onArchive, onUnarchi
           <div style={{ fontSize: 22, fontWeight: 700, color: "var(--t1)", marginBottom: 6, letterSpacing: "-.4px" }}>Your Trackers</div>
           <div style={{ fontSize: 13, color: "var(--t3)" }}>Select a tracker to view · drag to reorder</div>
         </div>
-        <TrackerCreator user={user} onCreated={(tracker) => {
+        <TrackerCreator user={user} openSignal={openCreatorSignal} onCreated={(tracker) => {
           setCustomTrackers(prev => {
             const exists = prev.find(t => t.id === tracker.id);
             return exists ? prev : [...prev, tracker];

@@ -46,7 +46,7 @@ Rules:
   meditation/mindfulness=#10b981, running/cardio=#f97316, food/drink=#06b6d4,
   habit/general=#3b82f6, social/relationships=#ec4899, coffee/caffeine=#7c3aed, money/finance=#f59e0b`;
 
-export default function TrackerCreator({ onCreated, user }) {
+export default function TrackerCreator({ onCreated, user, openSignal }) {
   const [open, setOpen]           = useState(false);
   const [step, setStep]           = useState('input'); // 'input' | 'generating' | 'preview'
   const [description, setDescription] = useState('');
@@ -67,6 +67,11 @@ export default function TrackerCreator({ onCreated, user }) {
   useEffect(() => {
     if (open && step === 'input') setTimeout(() => inputRef.current?.focus(), 150);
   }, [open, step]);
+
+  // Allow a parent (e.g. the onboarding flow) to open the creator via a changing signal.
+  useEffect(() => {
+    if (openSignal) setOpen(true);
+  }, [openSignal]);
 
   const generate = async () => {
     if (!description.trim() || step !== 'input') return;
