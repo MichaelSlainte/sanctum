@@ -1140,14 +1140,14 @@ For all other queries respond in plain conversational text, warm but concise, ma
             <div style={{ fontSize: 12, fontWeight: 600, color: "var(--t2)", marginBottom: 12 }}>Choose what to show on your dashboard</div>
             <div className="ring-customise-list">
               {[
-                { key: "pmp",          label: "PMP Exam countdown" },
-                { key: "scotland",     label: "Scotland Trip countdown" },
-                { key: "msc",          label: "MSc SETU countdown" },
-                { key: "tasks",        label: "Active Tasks" },
-                { key: "weekly_study", label: "Weekly Study hours" },
-                { key: "italy",        label: "Italy Trip countdown" },
-                { key: "thm",          label: "TryHackMe streak" },
-              ].map(({ key, label }) => (
+                { key: "pmp",          label: "PMP Exam countdown",      show: hasPmpSubject },
+                { key: "scotland",     label: "Scotland Trip countdown", show: hasTrips },
+                { key: "msc",          label: "MSc SETU countdown",      show: hasMscSubject },
+                { key: "tasks",        label: "Active Tasks",            show: true },
+                { key: "weekly_study", label: "Weekly Study hours",      show: hasStudySubjects },
+                { key: "italy",        label: "Italy Trip countdown",    show: hasTrips },
+                { key: "thm",          label: "TryHackMe streak",        show: false },
+              ].filter(item => item.show).map(({ key, label }) => (
                 <label key={key} className="ring-customise-item">
                   <span style={{ fontSize: 13, color: "var(--t2)", flex: 1 }}>{label}</span>
                   <div
