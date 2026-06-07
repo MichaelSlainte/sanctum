@@ -1127,12 +1127,14 @@ For all other queries respond in plain conversational text, warm but concise, ma
       <div style={{ position: "relative", marginBottom: 18 }}>
         <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: 10 }}>
           <div style={{ fontSize: 11, fontWeight: 600, color: "var(--t3)", textTransform: "uppercase", letterSpacing: ".5px" }}>Dashboard</div>
-          <button
-            className="btn xs"
-            onClick={() => setShowRingCustomise(v => !v)}
-          >
-            Customise
-          </button>
+          {isOwner && (
+            <button
+              className="btn xs"
+              onClick={() => setShowRingCustomise(v => !v)}
+            >
+              Customise
+            </button>
+          )}
         </div>
 
         {showRingCustomise && (
