@@ -119,7 +119,6 @@ BETA_EMAILS array in the Login component in App.jsx gates both login and signup.
 
 ## Pending work (priority order)
 1. GDPR sweep — COMPLETE (2026-06-07): privacy policy shipped at /privacy; cookie consent not required (no tracking cookies, localStorage is exempt from ePrivacy); RoPA is internal.
-2. CLAUDE.md cleanup of old pending items now done.
 
 Carried-over bugs (lower priority, still open):
 - Custom trackers in the Customise panel — active custom trackers should appear as toggleable items. `dashboardRings` keys off `tracker.id` (default true); needs a second `.map()` block after the hardcoded items iterating `homeCustomTrackers` (Home.jsx:443), and a `dashboardRings[tracker.id] !== false` guard in the dashboard render loop.
