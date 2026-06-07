@@ -118,7 +118,7 @@ BETA_EMAILS array in the Login component in App.jsx gates both login and signup.
 - 9a75b2f feat: calendar↔tracker integration — on-demand tracker context in FAB AI
 
 ## Pending work (priority order)
-1. GDPR sweep — privacy policy shipped (2026-06-07); cookie consent docs still pending.
+1. GDPR sweep — COMPLETE (2026-06-07): privacy policy shipped at /privacy; cookie consent not required (no tracking cookies, localStorage is exempt from ePrivacy); RoPA is internal.
 2. CLAUDE.md cleanup of old pending items now done.
 
 Carried-over bugs (lower priority, still open):
