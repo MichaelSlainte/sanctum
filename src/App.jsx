@@ -593,7 +593,7 @@ RECURRENCE SCOPE: "this" = only that one date, "this_and_future" = that date onw
         // (before migration 008 is run) can't break the name/key loading above.
         try {
           const prof = await sb.from("profiles").select("onboarding_completed", `&id=eq.${session.user.id}`, "");
-          if (!OWNER_IDS.includes(session.user.id) && Array.isArray(prof) && prof[0]?.onboarding_completed === false) {
+          if (!OWNER_IDS.includes(session.user.id) && Array.isArray(prof) && prof[0]?.onboarding_completed !== true) {
             setShowOnboarding(true);
           }
         } catch {}
@@ -658,7 +658,7 @@ RECURRENCE SCOPE: "this" = only that one date, "this_and_future" = that date onw
     // Onboarding gate (see init) — show for non-owners who haven't completed it.
     try {
       const prof = await sb.from("profiles").select("onboarding_completed", `&id=eq.${u.id}`, "");
-      if (!OWNER_IDS.includes(u.id) && Array.isArray(prof) && prof[0]?.onboarding_completed === false) {
+      if (!OWNER_IDS.includes(u.id) && Array.isArray(prof) && prof[0]?.onboarding_completed !== true) {
         setShowOnboarding(true);
       }
     } catch {}
