@@ -152,11 +152,19 @@ export default function Settings({ user, onLogout, theme, onThemeChange, font, o
         sb.from('profiles').delete({ id: user.id }),
       ]);
 
-      // NOTE: Deleting the auth user (auth.admin.deleteUser) requires the
-      // Supabase service role key, which must never be exposed client-side.
-      // The user's auth account remains in Supabase auth but all their data
-      // is gone. To fully remove the auth record, add a Supabase Edge Function
-      // or Vercel API route that calls admin.deleteUser server-side.
+      // Data rows are gone; now delete the Supabase auth user server-side
+      // (requires the service role key). Called while still authenticated.
+      // Best-effort: never let a failure here block logout — the data is
+      // already wiped, so the user must still be signed out.
+      try {
+        const token = localStorage.getItem('sanctum_token');
+        await fetch('/api/delete-account', {
+          method: 'DELETE',
+          headers: { 'Authorization': `Bearer ${token}` },
+        });
+      } catch (e) {
+        console.error('[deleteAllData] auth user delete failed:', e);
+      }
 
       localStorage.clear();
       await onLogout();
