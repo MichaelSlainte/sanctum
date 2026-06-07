@@ -301,8 +301,13 @@ RECURRENCE SCOPE: "this" = only that one date, "this_and_future" = that date onw
       const reply = await callAI({ system: sys, messages: newHistory });
       try {
         const cleaned = reply.replace(/```(?:json)?|```/g, '').trim();
-        const action = parseAction(reply);
-        if (!action) throw new Error('non-json');
+        // Support an array of actions (e.g. the AI schedules several events at once).
+        // Non-event actions use the first; add_event loops over every entry below.
+        const rawAction = parseAction(reply);
+        const actions = Array.isArray(rawAction) ? rawAction : (rawAction ? [rawAction] : null);
+        if (!actions || actions.length === 0) throw new Error('non-json');
+        const action = actions[0];
+        if (!action || !action.action) throw new Error('non-json');
         const parseDate = (dateStr) => {
           if (!dateStr) return todayISO;
           const d = new Date(dateStr);
@@ -337,26 +342,35 @@ RECURRENCE SCOPE: "this" = only that one date, "this_and_future" = that date onw
           setGlobalAIResponse({ text: `Logged ${action.hours}h — ${action.topic} ✓\nAdded to calendar`, type: 'success' });
         } else if (action.action === 'add_event') {
           setGlobalAIHistory([]);
-          const repeat = action.repeat || 'none';
-          const recurring = repeat !== 'none';
-          await sb.from('events').insert({
-            title: action.title,
-            date: parseDate(action.date) || todayISO,
-            start_time: action.start_time || null,
-            end_time: action.end_time || null,
-            category: action.category || 'personal',
-            color: '#388bfd',
-            notes: action.notes || '',
-            repeat,
-            repeat_end:             recurring ? (action.repeat_end || 'forever') : null,
-            repeat_end_date:        recurring && action.repeat_end === 'until' ? (action.repeat_end_date || null) : null,
-            repeat_end_count:       recurring && action.repeat_end === 'count' ? (action.repeat_end_count || 10) : null,
-            repeat_custom_interval: repeat === 'custom' ? (action.repeat_custom_interval || 2) : null,
-            repeat_custom_unit:     repeat === 'custom' ? (action.repeat_custom_unit || 'week') : null,
-            user_id: user?.id,
-          });
+          // Insert every add_event in the array (the AI may schedule several at once).
+          const events = actions.filter(a => a && a.action === 'add_event');
+          for (const ev of events) {
+            const repeat = ev.repeat || 'none';
+            const recurring = repeat !== 'none';
+            await sb.from('events').insert({
+              title: ev.title,
+              date: parseDate(ev.date) || todayISO,
+              start_time: ev.start_time || null,
+              end_time: ev.end_time || null,
+              category: ev.category || 'personal',
+              color: '#388bfd',
+              notes: ev.notes || '',
+              repeat,
+              repeat_end:             recurring ? (ev.repeat_end || 'forever') : null,
+              repeat_end_date:        recurring && ev.repeat_end === 'until' ? (ev.repeat_end_date || null) : null,
+              repeat_end_count:       recurring && ev.repeat_end === 'count' ? (ev.repeat_end_count || 10) : null,
+              repeat_custom_interval: repeat === 'custom' ? (ev.repeat_custom_interval || 2) : null,
+              repeat_custom_unit:     repeat === 'custom' ? (ev.repeat_custom_unit || 'week') : null,
+              user_id: user?.id,
+            });
+          }
           setCalendarRefreshKey(k => k + 1);
-          setGlobalAIResponse({ text: `Added to calendar: "${action.title}" on ${parseDate(action.date)}`, type: 'success' });
+          setGlobalAIResponse({
+            text: events.length === 1
+              ? `Added to calendar: "${events[0].title}" on ${parseDate(events[0].date)}`
+              : `Added ${events.length} events to your calendar ✓`,
+            type: 'success',
+          });
         } else if (action.action === 'delete_event') {
           setGlobalAIHistory([]);
           const rows = await sb.from('events').select('*', `&id=eq.${action.event_id}`, '');

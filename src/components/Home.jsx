@@ -807,6 +807,7 @@ When the user asks to add a task, delete a task, log study hours, add a calendar
 - Log study: {"action":"log_study","hours":2,"topic":"integration","notes":"optional"}
 - Navigate: {"action":"navigate","page":"home|notes|calendar|settings"}
 - Add calendar event: {"action":"add_event","title":"Event title","date":"${todayISO}","start_time":"09:00","end_time":"10:00","category":"personal","notes":"optional notes"}
+  To schedule multiple events, reply with a JSON array of add_event objects.
   category must be one of: personal, career, travel, study, family
   Recurrence (OMIT all of these for a normal one-off event): add "repeat":"daily|weekly|monthly|yearly|custom". Map "every day"→daily, "every Monday"/"weekly"→weekly, "every month"→monthly, "every year"→yearly. For an interval like "every 2 weeks" or "every 3 days" use "repeat":"custom" with "repeat_custom_interval":2 and "repeat_custom_unit":"day|week|month|year" (singular). To bound a series add "repeat_end":"until" with "repeat_end_date":"YYYY-MM-DD", or "repeat_end":"count" with "repeat_end_count":N; if open-ended use "repeat_end":"forever".
 Topic IDs for study: integration, scope, schedule, cost, quality, resource, communications, risk, procurement, stakeholder, agile, ethics
@@ -816,8 +817,15 @@ For all other queries respond in plain conversational text, warm but concise, ma
       const reply = await callAI({ system: sys, messages: [{ role: "user", content: userMsg }] });
 
       try {
-        const action = parseAction(reply);
-        if (!action) throw new Error('non-json');
+        // Support an array of actions (e.g. the AI schedules several events at once).
+        // parseAction returns the array directly for a clean JSON-array reply; a single
+        // object is normalised to a one-element array. Non-event actions use the first;
+        // add_event loops over every add_event entry below.
+        const rawAction = parseAction(reply);
+        const actions = Array.isArray(rawAction) ? rawAction : (rawAction ? [rawAction] : null);
+        if (!actions || actions.length === 0) throw new Error('non-json');
+        const action = actions[0];
+        if (!action || !action.action) throw new Error('non-json');
         const parseDate = (dateStr) => {
           if (!dateStr) return todayISO;
           const d = new Date(dateStr);
@@ -851,26 +859,35 @@ For all other queries respond in plain conversational text, warm but concise, ma
           await loadStudy();
           setAiResponse({ text: `Logged ${action.hours}h — ${action.topic} ✓\nAdded to calendar`, type: "success" });
         } else if (action.action === "add_event") {
-          const repeat = action.repeat || "none";
-          const recurring = repeat !== "none";
-          await sb.from("events").insert({
-            title: action.title,
-            date: parseDate(action.date) || todayISO,
-            start_time: action.start_time || null,
-            end_time: action.end_time || null,
-            category: action.category || "personal",
-            color: "#388bfd",
-            notes: action.notes || "",
-            repeat,
-            repeat_end:             recurring ? (action.repeat_end || "forever") : null,
-            repeat_end_date:        recurring && action.repeat_end === "until" ? (action.repeat_end_date || null) : null,
-            repeat_end_count:       recurring && action.repeat_end === "count" ? (action.repeat_end_count || 10) : null,
-            repeat_custom_interval: repeat === "custom" ? (action.repeat_custom_interval || 2) : null,
-            repeat_custom_unit:     repeat === "custom" ? (action.repeat_custom_unit || "week") : null,
-            user_id: user?.id,
-          });
+          // Insert every add_event in the array (the AI may schedule several at once).
+          const events = actions.filter(a => a && a.action === "add_event");
+          for (const ev of events) {
+            const repeat = ev.repeat || "none";
+            const recurring = repeat !== "none";
+            await sb.from("events").insert({
+              title: ev.title,
+              date: parseDate(ev.date) || todayISO,
+              start_time: ev.start_time || null,
+              end_time: ev.end_time || null,
+              category: ev.category || "personal",
+              color: "#388bfd",
+              notes: ev.notes || "",
+              repeat,
+              repeat_end:             recurring ? (ev.repeat_end || "forever") : null,
+              repeat_end_date:        recurring && ev.repeat_end === "until" ? (ev.repeat_end_date || null) : null,
+              repeat_end_count:       recurring && ev.repeat_end === "count" ? (ev.repeat_end_count || 10) : null,
+              repeat_custom_interval: repeat === "custom" ? (ev.repeat_custom_interval || 2) : null,
+              repeat_custom_unit:     repeat === "custom" ? (ev.repeat_custom_unit || "week") : null,
+              user_id: user?.id,
+            });
+          }
           await loadEvents();
-          setAiResponse({ text: `Added to calendar: "${action.title}" on ${parseDate(action.date)}`, type: "success" });
+          setAiResponse({
+            text: events.length === 1
+              ? `Added to calendar: "${events[0].title}" on ${parseDate(events[0].date)}`
+              : `Added ${events.length} events to your calendar ✓`,
+            type: "success",
+          });
         } else if (action.action === "navigate") {
           setAiResponse({ text: `Opening ${action.page}...`, type: "success" });
           setTimeout(() => onNavigate(action.page), 400);

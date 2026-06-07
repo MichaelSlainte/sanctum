@@ -56,6 +56,12 @@ export function parseAction(text) {
   try {
     return JSON.parse(cleaned);
   } catch {
+    // Clean JSON-array reply (e.g. several add_event objects batched). The
+    // object-only brace scanner below would return just the first {...}, so try
+    // parsing the whole string as an array first when it clearly starts as one.
+    if (cleaned.startsWith("[")) {
+      try { return JSON.parse(cleaned); } catch { /* fall through to brace scan */ }
+    }
     // Fast path failed (e.g. trailing/leading prose). Find the first balanced
     // top-level {...} by scanning, respecting strings and escapes so braces
     // inside string values don't throw off the depth count.
