@@ -83,10 +83,36 @@ BETA_EMAILS array in the Login component in App.jsx gates both login and signup.
 1. Custom trackers appearing in sidebar nav
 2. Custom tracker detail view (log entries)
 3. Convert v1 hardcoded trackers to JSONB format
-4. Calendar ↔ tracker integration
+4. Calendar ↔ tracker integration — AI-context side shipped 2026-06-07 (AI bars read live tracker data + create events); deeper two-way sync (tracker entries ↔ calendar events) still pending
 5. Dynamic home dashboard
 6. Onboarding for new users (partially started — new-user notebook seeding)
 7. Stripe + public launch
+
+## Recently shipped (2026-06-07 session)
+- Calendar ↔ tracker integration (AI-context side): new `src/lib/trackerContext.js` (`fetchTrackerContext` + `isTrackerQuery`, re-exported from `src/lib/chat.js`). Both AI bars — Home `sendAI` and the global FAB `sendGlobalAI` — fetch live tracker data on-demand (only when the query is tracker-related) and inject a plain-text summary into the system prompt, so the AI can answer questions about study hours, applications, finance, trips, Ozzy, and custom trackers, and offer to create calendar events. `api/chat.js` `safeSystem` cap raised 5000 → 12000 (the assembled prompt legitimately reaches ~7k; 5000 was silently truncating the RESPONSE RULES tail). Note: `trackerContext.js` derives finance income/expense from `category` (no `type` column), counts custom-tracker entries by `custom_tracker_id` (no reliable `user_id` on `tracker_entries`), and reads vet visit type from `type` (no `reason` column).
+- Multi-event AI support: `parseAction` (src/lib/chat.js) now returns an array for a clean JSON-array reply (handles a leading `[` before the object-only brace scanner); both AI handlers normalise to an `actions` array and the `add_event` branch loops over every event. Both system prompts instruct the model to batch multiple events as a JSON array.
+- Roadmap track archive fix: added `status` column to `roadmap_tracks` via migration 007 (`supabase/migrations/007_roadmap_tracks_status.sql`, `status text DEFAULT NULL`); `archiveTrack` now sends "active" instead of null on unarchive (a null PATCH body was rejected 400 by PostgREST); the visibility filter (Roadmap.jsx:83) treats both null and "active" as non-archived.
+- Dashboard Customise panel: toggle list now filtered by a `show` field using `hasPmpSubject`, `hasMscSubject`, `hasStudySubjects`, `hasTrips` — new users only see toggles for data they actually have (Active Tasks always shown).
+- Confirmed working, no change needed: tracker detail colour picker updates immediately (`setTracker` is called in `updateTracker`).
+- Confirmed working, no change needed: dashboard cards are already data-gated at render (`hasPmpSubject`, `hasTrips`, `hasMscSubject`, `hasStudySubjects` at Home.jsx:1189-1222), so new users never see empty PMP/Scotland/MSc/study cards.
+
+## Commits today (2026-06-07)
+- 1c372af fix: hide irrelevant cards from dashboard customise panel for new users
+- d72541a docs: migration 007 — add status column to roadmap_tracks
+- e7b4120 fix: roadmap track archive 400 — use active instead of null on unarchive
+- 17a9cca fix: add multi-event array hint to FAB system prompt
+- 9aab143 fix: multi-event array support in all AI call sites + parseAction
+- 99164b1 fix: wire tracker context into Home AI bar; raise safeSystem cap to 12000
+- 9a75b2f feat: calendar↔tracker integration — on-demand tracker context in FAB AI
+
+## Pending bugs (priority order)
+1. Custom trackers in the Customise panel — active custom trackers should appear as toggleable items in the dashboard Customise panel. `dashboardRings` keys off `tracker.id` (default true). Needs a second `.map()` block after the hardcoded items iterating the active custom trackers (`homeCustomTrackers`, Home.jsx:443), and the dashboard render loop should wrap each custom-tracker card in a `dashboardRings[tracker.id] !== false` check.
+2. Modal keyboard overlap on mobile (partially improved).
+3. Swallowed-error pattern in `duplicateNote` / `autoSave` / `flushSave` — failures are silently caught.
+4. Remove debug `console.log`s.
+5. Stray repo files: `verify_*.mjs`, `playwright-report/`, `test-results/` (an uncommitted `.gitignore` edit covers the latter two — confirm none are tracked).
+6. Dead `AIAssistant` component in `src/components/Home.jsx` — defined but never rendered; safe to delete.
+7. Dependabot vulnerabilities.
 
 ## Rules for Claude Code
 - Always use CSS variables, never hardcode colors
