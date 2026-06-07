@@ -4,7 +4,7 @@
 import { useState, useEffect, useRef } from "react";
 import "./styles/base.css";
 import { auth, sb } from "./lib/supabase";
-import { callAI, parseAction } from "./lib/chat";
+import { callAI, parseAction, fetchTrackerContext, isTrackerQuery } from "./lib/chat";
 import { useCrypto } from "./lib/CryptoContext.jsx";
 import { deriveKey, generateSalt, exportKey, importKey } from "./lib/crypto.js";
 import { Icon } from "./components/shared";
@@ -270,6 +270,13 @@ export default function App() {
           ).join('\n');
         }
       }
+      // Load tracker context on-demand — only when the query is tracker-related.
+      // This keeps non-tracker queries fast and avoids sending unnecessary data.
+      let trackerContext = "";
+      if (isTrackerQuery(userMsg)) {
+        trackerContext = await fetchTrackerContext(user?.id);
+      }
+
       const sys = `You are Sanctum AI, a personal assistant embedded in a private life organiser app.
 Today is ${todayISO}. User: Michael, Dublin, Ireland.
 When user mentions dates, always convert to ISO format YYYY-MM-DD in your JSON response.
@@ -277,6 +284,7 @@ Examples: "tomorrow" = ${new Date(Date.now()+86400000).toISOString().slice(0,10)
 For "next Monday", "this Friday" etc., compute the actual upcoming date.
 The user's upcoming events (use the EXACT id when updating or deleting one):
 ${upcomingList}
+${trackerContext ? `\n${trackerContext}\n` : ""}
 RESPONSE RULES — choose one format only:
 - Navigate → reply ONLY with valid JSON, no markdown: {"action":"navigate","page":"home|notes|calendar|settings"}
 - Log study session → reply ONLY with valid JSON, no markdown: {"action":"log_study","hours":2,"topic":"Integration Management","notes":"optional"}
@@ -287,6 +295,7 @@ RESPONSE RULES — choose one format only:
   Include ONLY the fields being changed (always with event_id and scope). "date" is the NEW date; "occurrence_date" is which instance you are targeting.
 - Delete calendar event → reply ONLY with valid JSON, no markdown: {"action":"delete_event","event_id":"<id from the list above>","scope":"this|this_and_future|all","occurrence_date":"YYYY-MM-DD"}
 RECURRENCE SCOPE: "this" = only that one date, "this_and_future" = that date onward, "all" = the whole series. scope and occurrence_date only matter when the target event repeats. If the user asks to change or delete a RECURRING event and has NOT made clear whether they mean just that occurrence, this and future, or the entire series, DO NOT guess and DO NOT output tool JSON — reply in plain text asking which they mean. Never default to "all".
+- Tracker queries → answer in plain conversational text using the TRACKER DATA above. You may also offer to add a calendar event if relevant (e.g. "Want me to schedule a workout for tomorrow?"). If the user says yes, output the add_event JSON.
 - All other queries → plain conversational text, warm but concise, max 2 sentences. No JSON.`;
       const newHistory = [...globalAIHistory, { role: 'user', content: userMsg }];
       const reply = await callAI({ system: sys, messages: newHistory });

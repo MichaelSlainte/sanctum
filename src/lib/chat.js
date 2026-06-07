@@ -86,3 +86,6 @@ export function parseAction(text) {
     return null;
   }
 }
+
+// Re-export tracker helpers so callers only need one import from this module.
+export { fetchTrackerContext, isTrackerQuery } from "./trackerContext";
