@@ -472,13 +472,17 @@ RECURRENCE SCOPE: "this" = only that one date, "this_and_future" = that date onw
     setGlobalAILoading(false);
   };
 
-  // Page state — map legacy page names on restore
-  const [page, setPage] = useState(() => {
+  // Page state — /privacy is directly linkable via URL; otherwise restore the
+  // last page from localStorage (mapping legacy page names to home).
+  const getInitialPage = () => {
+    const path = window.location.pathname.replace('/', '');
+    if (path === 'privacy') return 'privacy';
     const saved = localStorage.getItem("sanctum_page");
     if (!saved || ["dashboard", "ai"].includes(saved)) return "home";
     if (["home","notes","calendar","settings","trackers","study","pet","travel","career","finance"].includes(saved)) return saved;
     return "home";
-  });
+  };
+  const [page, setPage] = useState(getInitialPage);
 
   // Sidebar nav ordering
   const NAV_IDS = NAV.map(n => n.id);
