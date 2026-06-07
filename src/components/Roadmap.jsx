@@ -332,7 +332,7 @@ function Timeline({ project, tracks, milestones, onEditMs, onAddMs, onDeleteTrac
   );
 }
 
-export default function Roadmap() {
+export default function Roadmap({ onHide }) {
   const [projects,   setProjects]   = useState([]);
   const [tracks,     setTracks]     = useState([]);
   const [milestones, setMilestones] = useState([]);
@@ -743,9 +743,14 @@ export default function Roadmap() {
               </div>
             ))}
           </div>
-          <button className="btn xs" onClick={() => setShowNewProject(true)} style={{ flexShrink: 0 }}>
-            <Icon name="plus" size={11} /> New project
-          </button>
+          <div style={{ display: "flex", alignItems: "center", gap: 8, flexShrink: 0 }}>
+            {onHide && (
+              <button className="btn xs ghost" onClick={onHide} style={{ fontSize: 11, color: "var(--t3)" }}>Hide</button>
+            )}
+            <button className="btn xs" onClick={() => setShowNewProject(true)} style={{ flexShrink: 0 }}>
+              <Icon name="plus" size={11} /> New project
+            </button>
+          </div>
         </div>
 
         {/* Project card */}

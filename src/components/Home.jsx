@@ -1298,14 +1298,7 @@ For all other queries respond in plain conversational text, warm but concise, ma
       )}
 
       {showRoadmap ? (
-        <div style={{ position: "relative" }}>
-          <button
-            className="btn xs ghost"
-            onClick={() => { setShowRoadmap(false); localStorage.setItem("sanctum_hide_roadmap", "true"); }}
-            style={{ position: "absolute", top: 10, right: 0, zIndex: 10, fontSize: 11, color: "var(--t3)" }}
-          >Hide</button>
-          <Roadmap />
-        </div>
+        <Roadmap onHide={() => { setShowRoadmap(false); localStorage.setItem("sanctum_hide_roadmap", "true"); }} />
       ) : (
         <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", marginBottom: 18, padding: "10px 14px", background: "var(--bg1)", border: "1px solid var(--b2)", borderRadius: 12 }}>
           <span style={{ fontSize: 11, color: "var(--t3)", fontWeight: 600, textTransform: "uppercase", letterSpacing: ".5px" }}>Roadmap</span>
