@@ -417,10 +417,11 @@ export default function Notes({ user }) {
       try { bodyToSave = await encrypt(body, cryptoKeyRef.current); } catch(e) { console.error('[flushSave] Encrypt error:', e); }
     }
     setAllNotes(prev => prev.map(n => n.id === id ? { ...n, title, body: bodyToSave, tags, updated_at: updated } : n));
-    try { await sb.from("notes").update({ title, body: bodyToSave, tags, updated_at: updated }, { id }); } catch(e) { console.error('[flushSave] Error:', e); }
+    let saveOk = true;
+    try { await sb.from("notes").update({ title, body: bodyToSave, tags, updated_at: updated }, { id }); } catch(e) { console.error('[flushSave] Error:', e); saveOk = false; }
     dirtyRef.current = false;
-    setSaveStatus('saved');
-    setTimeout(() => setSaveStatus(s => s === 'saved' ? 'idle' : s), 1500);
+    setSaveStatus(saveOk ? 'saved' : 'error');
+    setTimeout(() => setSaveStatus(s => (s === 'saved' || s === 'error') ? 'idle' : s), 1500);
   }, []);
 
   // body is read from editorRef at call time so new notes always save current HTML
@@ -438,10 +439,11 @@ export default function Notes({ user }) {
         try { bodyToSave = await encrypt(sbody, cryptoKeyRef.current); } catch(e) { console.error('[autoSave] Encrypt error:', e); }
       }
       setAllNotes(prev => prev.map(n => n.id === sid ? { ...n, title: stitle, body: bodyToSave, tags: stags, updated_at: updated } : n));
-      try { await sb.from("notes").update({ title: stitle, body: bodyToSave, tags: stags, updated_at: updated }, { id: sid }); } catch(e) { console.error('[autoSave] Error:', e); }
+      let saveOk = true;
+      try { await sb.from("notes").update({ title: stitle, body: bodyToSave, tags: stags, updated_at: updated }, { id: sid }); } catch(e) { console.error('[autoSave] Error:', e); saveOk = false; }
       dirtyRef.current = false;
-      setSaveStatus('saved');
-      setTimeout(() => setSaveStatus(s => s === 'saved' ? 'idle' : s), 1500);
+      setSaveStatus(saveOk ? 'saved' : 'error');
+      setTimeout(() => setSaveStatus(s => (s === 'saved' || s === 'error') ? 'idle' : s), 1500);
     }, 700);
   }, []);
 
@@ -1330,6 +1332,7 @@ export default function Notes({ user }) {
                   {cryptoKey && <span style={{marginLeft:'auto',flexShrink:0,fontSize:10,color:'var(--grn)',opacity:.7}}>🔒 encrypted</span>}
                   {saveStatus==='saving' && <span key="saving" className="save-ind saving" style={{flexShrink:0}}>saving...</span>}
                   {saveStatus==='saved'  && <span key="saved"  className="save-ind saved"  style={{flexShrink:0}}>saved ✓</span>}
+                  {saveStatus==='error'  && <span key="error"  className="save-ind error"  style={{flexShrink:0,color:'var(--red)'}}>Save failed</span>}
                 </div>
               </>
             )}
