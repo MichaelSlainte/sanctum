@@ -14,12 +14,45 @@ import Calendar from "./components/Calendar";
 import Settings from "./components/Settings";
 import Onboarding from "./components/Onboarding";
 import Privacy from "./components/Privacy";
+import SetPassword from "./components/SetPassword";
 import Study from "./components/trackers/Study";
 import Ozzy from "./components/trackers/Ozzy";
 import Travel from "./components/trackers/Travel";
 import Career from "./components/trackers/Career";
 import Finance from "./components/trackers/Finance";
 import TrackerHub, { TrackerBackBar, OWNER_IDS } from "./components/trackers/TrackerHub";
+
+// Beta allowlist — only these emails can access Sanctum via the normal login/signup
+// form. Invite links (SetPassword) bypass this gate entirely; see App render below.
+const BETA_EMAILS = [
+  'eng.michaelmarques@outlook.com',
+  'eng.michaelmarques@gmail.com',
+  'tamaralechner4@gmail.com',
+];
+
+// Parse a Supabase invite/recovery auth callback out of window.location.hash.
+// Format: #access_token=...&expires_in=3600&refresh_token=...&type=invite|recovery
+// Returns the parsed tokens (or an error) for the SetPassword screen, else null so
+// normal routing proceeds. An expired/invalid link arrives as #error=...&error_code=...
+function parseAuthHash() {
+  const hash = window.location.hash;
+  if (!hash || hash.length < 2) return null;
+  const params = new URLSearchParams(hash.slice(1));
+  const type = params.get("type");
+  const access_token = params.get("access_token");
+  const error = params.get("error_description") || params.get("error");
+  const errorCode = params.get("error_code");
+  const isAuthCallback = (access_token && (type === "invite" || type === "recovery"));
+  const isAuthError = (error && (errorCode || type === "invite" || type === "recovery"));
+  if (!isAuthCallback && !isAuthError) return null;
+  return {
+    access_token,
+    refresh_token: params.get("refresh_token"),
+    expires_in: parseInt(params.get("expires_in") || "3600", 10),
+    type: type || "invite",
+    error: isAuthError ? error : null,
+  };
+}
 
 // ─── LOGIN ───────────────────────────────────────────────────────────────────
 function Login({ onLogin, onPrivacy }) {
@@ -43,12 +76,6 @@ function Login({ onLogin, onPrivacy }) {
     }
     if (!email || !password) return setError("Please enter your email and password.");
     if (password.length < 8) return setError("Password must be at least 8 characters.");
-    // Beta allowlist — only these emails can access Sanctum
-    const BETA_EMAILS = [
-      'eng.michaelmarques@outlook.com',
-      'eng.michaelmarques@gmail.com',
-      'tamaralechner4@gmail.com',
-    ];
     if (!BETA_EMAILS.includes(email.trim().toLowerCase())) {
       setError('Sanctum is currently in private beta. Request access at hello@trysanctum.app');
       setLoading(false);
@@ -182,6 +209,9 @@ export default function App() {
   const [closeCustomSignal, setCloseCustomSignal] = useState(0);
   const [showOnboarding, setShowOnboarding] = useState(false);
   const [openCreatorSignal, setOpenCreatorSignal] = useState(0);
+  // Supabase invite/recovery callback parsed from window.location.hash on first load.
+  // When set, we render <SetPassword> instead of the normal login/signup screen.
+  const [authCallback, setAuthCallback] = useState(parseAuthHash);
 
   // Load custom trackers on startup so sidebar is populated immediately on login
   useEffect(() => {
@@ -196,6 +226,15 @@ export default function App() {
     };
     load();
   }, [user]);
+
+  // Strip the invite/recovery tokens from the URL once parsed, so a refresh (or the
+  // tokens lingering in browser history) can't re-trigger the flow. The tokens are
+  // already captured in authCallback state above.
+  useEffect(() => {
+    if (window.location.hash && parseAuthHash()) {
+      window.history.replaceState(null, "", window.location.pathname + window.location.search);
+    }
+  }, []);
 
   // Draggable AI FAB position (right-based)
   const [fabPos, setFabPos] = useState(() => {
@@ -701,6 +740,16 @@ RECURRENCE SCOPE: "this" = only that one date, "this_and_future" = that date onw
       }
     }
   };
+  // Finish an invite/recovery flow: SetPassword has already set the password via
+  // PUT /auth/v1/user and handed back a session (hash tokens + updated user). Persist
+  // it to the four localStorage keys (auth.saveSession), then run the normal login
+  // path so the encryption key is derived and the onboarding gate routes new users.
+  const handleInviteComplete = async (sessionData, password) => {
+    auth.saveSession(sessionData);
+    setAuthCallback(null);
+    await handleLogin(sessionData.user, password);
+  };
+
   const handleOnboardingComplete = async (openTracker) => {
     setShowOnboarding(false);
     try { await sb.from('profiles').update({ onboarding_completed: true }, { id: user.id }); }
@@ -731,6 +780,18 @@ RECURRENCE SCOPE: "this" = only that one date, "this_and_future" = that date onw
   };
 
   if (checking) return null;
+  // Invite / recovery callback: a Supabase email link redirected here with tokens in
+  // the URL hash. Render the Set Password screen instead of the normal login/signup
+  // form. Takes priority over everything else so the flow can't be bypassed.
+  if (authCallback) return (
+    <SetPassword
+      callback={authCallback}
+      betaEmails={BETA_EMAILS}
+      onComplete={handleInviteComplete}
+      onCancel={() => setAuthCallback(null)}
+      onPrivacy={() => { setAuthCallback(null); navigate("privacy"); }}
+    />
+  );
   // Privacy is a standalone page that must work with or without login —
   // render it before the auth gate.
   if (page === "privacy") return <Privacy onBack={() => navigate(user ? "settings" : "home")} />;
