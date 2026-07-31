@@ -111,17 +111,6 @@ const htmlToMd = (el) => {
 // Persists across Notes unmount/remount within the same browser session
 const _sessionUnlockedNotes = new Set();
 
-// Starter notebooks seeded for brand-new users with no notebooks yet, so they don't
-// land on an empty notebook list. Generated fresh per call so ids are unique.
-const makeNewUserNotebooks = () => {
-  const t = Date.now();
-  return [
-    { id: `nb-${t}-1`, label: 'General',  icon: 'notes', color: '#8b5cf6', bg: 'rgba(139,92,246,0.15)', sections: [{ id: `sec-${t}-1`, label: 'General' }] },
-    { id: `nb-${t}-2`, label: 'Personal', icon: 'notes', color: '#8b5cf6', bg: 'rgba(139,92,246,0.15)', sections: [{ id: `sec-${t}-2`, label: 'General' }] },
-    { id: `nb-${t}-3`, label: 'Work',     icon: 'notes', color: '#8b5cf6', bg: 'rgba(139,92,246,0.15)', sections: [{ id: `sec-${t}-3`, label: 'General' }] },
-  ];
-};
-
 // ─── NOTES ───────────────────────────────────────────────────────────────────
 export default function Notes({ user }) {
   const { key: cryptoKey, keyLoading } = useCrypto();
@@ -163,9 +152,12 @@ export default function Notes({ user }) {
         // No singleton or empty data (owner new user / first Tamara login) — seed with defaults
         sb.from('notebooks').upsert({ id: singletonId, user_id: user.id, data: DEFAULT_NOTEBOOKS, updated_at: new Date().toISOString() }, 'id').catch(() => {});
       } else {
-        // New user with no notebooks yet — seed a starter set so they don't land on
-        // an empty notebook list, and persist it immediately.
-        saveNotebooks(makeNewUserNotebooks());
+        // New non-owner user with no notebooks yet — show a genuine EMPTY state rather
+        // than seeding hardcoded starter notebooks. Their first notebook is created on
+        // demand when they add a note or notebook. (Existing users with real notebooks
+        // hit the branch above and are never touched.)
+        setNotebooks([]);
+        localStorage.setItem('sanctum_notebooks_v2', JSON.stringify([]));
       }
     }).catch(() => {}); // network error — keep current state (localStorage/defaults)
   }, [user?.id]);
@@ -492,9 +484,20 @@ export default function Notes({ user }) {
 
   // ── CRUD ──────────────────────────────────────────────────────────────
   const newNote = async () => {
-    const nb = notebooks.find(n => n.id === activeNB);
-    const sectionId = activeSection || nb?.sections[0]?.id || '';
-    const note = { notebook: nb?.id || activeNB, section: sectionId, title: '', body: '', tags: '', updated_at: new Date().toISOString().slice(0, 10), user_id: user?.id };
+    let nb = notebooks.find(n => n.id === activeNB) || notebooks[0];
+    let sectionId = activeSection || nb?.sections?.[0]?.id || '';
+    // New user with no notebooks yet — create their first notebook on demand so the
+    // note has a home. This is user-initiated (they clicked "New note"), not an
+    // auto-seed of hardcoded content on load.
+    if (!nb) {
+      const nbId = 'nb-' + Date.now(), secId = 'sec-' + Date.now();
+      nb = { id: nbId, label: 'Notes', icon: 'notes', color: '#8b5cf6', bg: 'rgba(139,92,246,0.15)', sections: [{ id: secId, label: 'General' }] };
+      saveNotebooks([nb]);
+      setActiveNB(nbId); localStorage.setItem('sanctum_active_nb', nbId);
+      setActiveSection(secId); localStorage.setItem('sanctum_active_sec', secId);
+      sectionId = secId;
+    }
+    const note = { notebook: nb.id, section: sectionId, title: '', body: '', tags: '', updated_at: new Date().toISOString().slice(0, 10), user_id: user?.id };
     try {
       const res = await sb.from("notes").insert(note);
       if (!Array.isArray(res) || !res[0]?.id) {
@@ -978,6 +981,13 @@ export default function Notes({ user }) {
         </div>
 
         <div className="notes-sidebar-scroll">
+        {notebooks.length === 0 && (
+          <div style={{padding:'24px 16px',textAlign:'center',color:'var(--t3)',display:'flex',flexDirection:'column',alignItems:'center',gap:8}}>
+            <Icon name="notes" size={26} color="var(--t3)" style={{opacity:.35}}/>
+            <div style={{fontSize:12,fontWeight:600,color:'var(--t2)'}}>No notebooks yet</div>
+            <div style={{fontSize:11,lineHeight:1.5}}>Create your first notebook below to start writing.</div>
+          </div>
+        )}
         {notebooks.map(nb => {
           const isExpanded = expandedNBs.has(nb.id);
           return (
@@ -1095,8 +1105,8 @@ export default function Notes({ user }) {
         {!loading && displayedNotes.length===0 && (
           <div style={{padding:28,textAlign:'center',color:'var(--t3)',display:'flex',flexDirection:'column',alignItems:'center',gap:10}}>
             <Icon name="notes" size={32} color="var(--t3)" style={{opacity:.3}}/>
-            <div style={{fontSize:12}}>No notes in this section</div>
-            <button className="btn xs primary" onClick={newNote}><Icon name="plus" size={11}/> New note</button>
+            <div style={{fontSize:12}}>{notebooks.length === 0 ? "You don't have any notes yet" : 'No notes in this section'}</div>
+            <button className="btn xs primary" onClick={newNote}><Icon name="plus" size={11}/> {notebooks.length === 0 ? 'Create your first note' : 'New note'}</button>
           </div>
         )}
 
