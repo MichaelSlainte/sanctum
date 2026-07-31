@@ -44,9 +44,13 @@ const mdToHtmlWysiwyg = (text) => {
     const hm = line.match(/^(#{1,3}) (.*)/);
     if (hm) { html += `<div class="we-h we-h${hm[1].length}">${inlineFmt(hm[2] || '')}</div>`; continue; }
     if (line.trim() === '---') { html += `<div class="we-hr"><hr></div>`; continue; }
-    if (/^[-*] \[[x ]\] /i.test(line)) {
-      const checked = /^[-*] \[x\] /i.test(line);
-      const content = line.replace(/^[-*] \[[x ]\] /i, '');
+    // Checklist item. The trailing space after "]" is OPTIONAL so that an EMPTY
+    // checklist item survives the round-trip: htmlToMd emits "- [ ] " but the final
+    // .trim() strips the trailing space to "- [ ]", which previously fell through to
+    // the bullet branch below and rendered as a plain list item with literal "[ ]".
+    if (/^[-*] \[[x ]\]/i.test(line)) {
+      const checked = /^[-*] \[x\]/i.test(line);
+      const content = line.replace(/^[-*] \[[x ]\] ?/i, '');
       html += `<div class="we-check"><span class="we-checkbox${checked?' checked':''}" contenteditable="false">${checked?'☑':'☐'}</span>${inlineFmt(content)}</div>`;
       continue;
     }
