@@ -111,6 +111,53 @@ const htmlToMd = (el) => {
   return md.replace(/\n{3,}/g, '\n\n').trim();
 };
 
+// Normalise the editor's top-level structure so every visual line is a single, flat
+// block element. contentEditable leaves bare text nodes and unclassed <div>s, and the
+// old "treat the body as markdown unless it starts with <" reload path could wrap a
+// whole multi-line HTML body into ONE block with the other lines nested inside it.
+// Both broke block formatting: applying Checklist/Bullet to such content collapsed
+// every line into a single item. This flattens nested block <div>s up to the top level
+// and wraps stray text/inline nodes in a we-line div. Idempotent; safe on every load.
+const BLOCK_SELECTOR = '.we-line,.we-h,.we-ul,.we-ol,.we-check,.we-hr,.we-codeblock';
+const normalizeBlocks = (ed) => {
+  if (!ed) return;
+  // Pass 1 — split any plain/we-line block that has nested block <div>s into separate
+  // top-level blocks (leading inline content becomes its own line). Headings, checks,
+  // code blocks and tables are left untouched.
+  for (let again = true, guard = 0; again && guard < 200; guard++) {
+    again = false;
+    for (const child of [...ed.children]) {
+      if (child.tagName !== 'DIV') continue;
+      const cls = child.className || '';
+      if (!(cls === '' || cls.includes('we-line'))) continue;
+      if (child.querySelector('table,pre')) continue;
+      if (!child.querySelector(':scope > div')) continue;
+      const frag = document.createDocumentFragment();
+      const lead = document.createElement('div'); lead.className = 'we-line';
+      while (child.firstChild && !(child.firstChild.nodeType === 1 && child.firstChild.tagName === 'DIV')) {
+        lead.appendChild(child.firstChild);
+      }
+      if (lead.childNodes.length) { if (!lead.innerHTML.trim()) lead.innerHTML = '<br>'; frag.appendChild(lead); }
+      while (child.firstChild) frag.appendChild(child.firstChild); // hoist the nested divs
+      child.replaceWith(frag);
+      again = true; break;
+    }
+  }
+  // Pass 2 — wrap stray top-level text/inline nodes and tag unclassed <div>s as we-line.
+  for (const node of [...ed.childNodes]) {
+    if (node.nodeType === 3) {
+      if (!node.textContent.trim()) { node.remove(); continue; }
+      const w = document.createElement('div'); w.className = 'we-line';
+      node.replaceWith(w); w.appendChild(node);
+    } else if (node.nodeType === 1 && node.tagName === 'DIV' && !node.className.trim()) {
+      node.className = 'we-line';
+      if (!node.innerHTML.trim()) node.innerHTML = '<br>';
+    } else if (node.nodeType === 1 && node.tagName !== 'DIV' && node.tagName !== 'TABLE' && !node.matches(BLOCK_SELECTOR)) {
+      const w = document.createElement('div'); w.className = 'we-line';
+      node.replaceWith(w); w.appendChild(node);
+    }
+  }
+};
 
 // Persists across Notes unmount/remount within the same browser session
 const _sessionUnlockedNotes = new Set();
@@ -308,7 +355,13 @@ export default function Notes({ user }) {
         }
       }
       if (!editorRef.current) return;
-      editorRef.current.innerHTML = body.trimStart().startsWith('<') ? body : mdToHtmlWysiwyg(body);
+      // Detect HTML by the presence of a block tag ANYWHERE, not just a leading "<".
+      // The old startsWith('<') check misfired when the saved HTML began with a bare
+      // text node (e.g. "Buy milk<div>…</div>"): it was treated as markdown and the
+      // whole thing collapsed into one line. A markdown body has no block tags.
+      const looksLikeHtml = /<(?:div|br|p|h[1-6]|hr|pre|table|ul|ol|img|blockquote)\b/i.test(body);
+      editorRef.current.innerHTML = looksLikeHtml ? body : mdToHtmlWysiwyg(body);
+      normalizeBlocks(editorRef.current);
       addCollapseButtons();
       setEditBody(htmlToMd(editorRef.current));
     }
@@ -738,38 +791,68 @@ export default function Notes({ user }) {
     if (blockFmts.includes(fmt)) {
       const sel = window.getSelection();
       if (!sel?.rangeCount) return;
-      let node = sel.getRangeAt(0).startContainer;
-      while (node && node.parentElement && node.parentElement !== ed) node = node.parentElement;
-      const block = (node && node !== ed && node.parentElement === ed) ? node : ed.lastChild;
+      const range = sel.getRangeAt(0);
+      // Resolve the top-level block containing a node. A stray bare text node directly
+      // under the editor (contentEditable leaves these) is wrapped in a we-line first,
+      // so block formatting never operates on a text node.
+      const blockOf = (n) => {
+        let node = n;
+        while (node && node.parentElement && node.parentElement !== ed) node = node.parentElement;
+        if (!node || node === ed || node.parentElement !== ed) return null;
+        if (node.nodeType === 3) {
+          const w = document.createElement('div'); w.className = 'we-line';
+          node.replaceWith(w); w.appendChild(node); return w;
+        }
+        return node;
+      };
 
       if (fmt === 'hr') {
+        const block = blockOf(range.startContainer) || ed.lastElementChild;
         const hrDiv = document.createElement('div'); hrDiv.className = 'we-hr'; hrDiv.innerHTML = '<hr>';
         const next  = document.createElement('div'); next.className  = 'we-line'; next.innerHTML = '<br>';
         if (block) { block.after(hrDiv); hrDiv.after(next); } else { ed.appendChild(hrDiv); ed.appendChild(next); }
         const r = document.createRange(); r.setStart(next, 0); r.collapse(true); sel.removeAllRanges(); sel.addRange(r);
       } else {
-        const copy = block ? block.cloneNode(true) : null;
-        copy?.querySelectorAll('.we-bullet,.we-checkbox,.we-collapse-btn').forEach(s => s.remove());
-        const inner = copy ? (copy.innerHTML.replace(/^<br>$/i,'') || '') : '';
-        const newEl = document.createElement('div');
-        if (fmt === 'ul') {
-          newEl.className = 'we-ul';
-          newEl.innerHTML = `<span class="we-bullet" contenteditable="false">•</span>${inner || '<br>'}`;
-        } else if (fmt === 'check') {
-          newEl.className = 'we-check';
-          newEl.innerHTML = `<span class="we-checkbox" contenteditable="false">☐</span>${inner || '<br>'}`;
-        } else {
-          const classMap = { body:'we-line', h1:'we-h we-h1', h2:'we-h we-h2', h3:'we-h we-h3', ol:'we-ol' };
-          newEl.className = classMap[fmt] || 'we-line';
-          newEl.innerHTML = inner || '<br>';
+        // Convert EVERY block the selection touches — not just the first — so applying a
+        // format to a multi-line selection formats all of those lines instead of merging
+        // them. A collapsed caret resolves to exactly one block (original behaviour).
+        let startBlock = blockOf(range.startContainer) || ed.firstElementChild;
+        let endBlock   = blockOf(range.endContainer)   || startBlock;
+        if (startBlock && endBlock && startBlock !== endBlock &&
+            (startBlock.compareDocumentPosition(endBlock) & Node.DOCUMENT_POSITION_PRECEDING)) {
+          [startBlock, endBlock] = [endBlock, startBlock];
         }
-        if (block) block.replaceWith(newEl); else ed.appendChild(newEl);
-        const tw = document.createTreeWalker(newEl, NodeFilter.SHOW_TEXT, null);
-        let last = null; while (tw.nextNode()) last = tw.currentNode;
+        const blocks = [];
+        for (let b = startBlock; b; b = b.nextElementSibling) { blocks.push(b); if (b === endBlock) break; }
+        if (!blocks.length) blocks.push(null);
+        const convertOne = (block) => {
+          const copy = block ? block.cloneNode(true) : null;
+          copy?.querySelectorAll('.we-bullet,.we-checkbox,.we-collapse-btn').forEach(s => s.remove());
+          const inner = copy ? (copy.innerHTML.replace(/^<br>$/i,'') || '') : '';
+          const newEl = document.createElement('div');
+          if (fmt === 'ul') {
+            newEl.className = 'we-ul';
+            newEl.innerHTML = `<span class="we-bullet" contenteditable="false">•</span>${inner || '<br>'}`;
+          } else if (fmt === 'check') {
+            newEl.className = 'we-check';
+            newEl.innerHTML = `<span class="we-checkbox" contenteditable="false">☐</span>${inner || '<br>'}`;
+          } else {
+            const classMap = { body:'we-line', h1:'we-h we-h1', h2:'we-h we-h2', h3:'we-h we-h3', ol:'we-ol' };
+            newEl.className = classMap[fmt] || 'we-line';
+            newEl.innerHTML = inner || '<br>';
+          }
+          if (block) block.replaceWith(newEl); else ed.appendChild(newEl);
+          return newEl;
+        };
+        let lastNew = null;
+        for (const blk of blocks) lastNew = convertOne(blk);
+        const target = lastNew || ed.lastElementChild;
+        let last = null;
+        if (target) { const tw = document.createTreeWalker(target, NodeFilter.SHOW_TEXT, null); while (tw.nextNode()) last = tw.currentNode; }
         const r = document.createRange();
         if (last) { r.setStart(last, last.length); r.collapse(true); }
-        else { r.selectNodeContents(newEl); r.collapse(false); }
-        sel.removeAllRanges(); sel.addRange(r);
+        else if (target) { r.selectNodeContents(target); r.collapse(false); }
+        sel.removeAllRanges(); if (target) sel.addRange(r);
       }
       const md = htmlToMd(ed); setEditBody(md);
       if (activeNoteRef.current) autoSave(activeNoteRef.current, editTitle, editTags);
