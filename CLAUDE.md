@@ -17,13 +17,15 @@ A private personal life organiser app for Michael (Dublin) and Tamara. Stack: Re
 
 ## Architecture
 - Auth: Custom REST client over Supabase GoTrue. No Supabase JS SDK. Stores access/refresh tokens in localStorage under 4 keys: sanctum_token, sanctum_user, sanctum_refresh, sanctum_expiry. Auto-refresh via 45-min polling interval in App.jsx, on cold start, and on tab visibility change. auth.signOut() clears localStorage only — no server-side token revocation.
-- Database: Supabase PostgreSQL. **RLS is the security boundary** — it is enabled on all user tables and enforces `auth.uid() = user_id` server-side. The GoTrue access token (sanctum_token) is a genuine Supabase JWT for the `authenticated` role, so PostgREST evaluates RLS against it. The `&user_id=eq.<id>` filter the `sb` helper appends is a client-side query convenience, **NOT** a security boundary — a raw REST request with the public anon key can simply omit it, so user isolation depends entirely on RLS. Verified 2026-06-08: all tables RLS-on, anon blocked, cross-tenant authenticated reads blocked (migration 009 closed a stray permissive policy that had been leaking `tracker_entries` to anonymous requests). Known follow-up before public signup: `events_shared_read` is a global grant among authenticated users (`shared = true AND auth.uid() IS NOT NULL`) — scope it to a partner relationship. All DB calls go through the sb helper, which reads sanctum_token from localStorage for the Bearer header.
+- Invite / recovery links: Supabase invite & password-recovery emails redirect to `trysanctum.app/#access_token=…&type=invite|recovery`. On load, App.jsx's `parseAuthHash()` detects the hash tokens and renders the `SetPassword` screen (src/components/SetPassword.jsx) instead of falling through to Login/Signup. SetPassword calls `PUT /auth/v1/user` with the hash access_token to set the password, saves the session to the 4 localStorage keys, clears the hash (history.replaceState), then runs the normal login path (key derivation + onboarding). Invite creation bypasses BETA_EMAILS by design (logs a console error if the invited email isn't allowlisted). Verified live with a real invited user (2026-08-01).
+- Database: Supabase PostgreSQL. **RLS is the security boundary** — it is enabled on all user tables and enforces `auth.uid() = user_id` server-side. The GoTrue access token (sanctum_token) is a genuine Supabase JWT for the `authenticated` role, so PostgREST evaluates RLS against it. The `&user_id=eq.<id>` filter the `sb` helper appends is a client-side query convenience, **NOT** a security boundary — a raw REST request with the public anon key can simply omit it, so user isolation depends entirely on RLS. Verified 2026-06-08 and re-verified 2026-07-31 via live REST probes: all tables RLS-on, anon blocked (`200 */0`), cross-tenant authenticated reads return `*/0`, cross-tenant writes rejected `403` by `WITH CHECK` (migration 009 closed a stray permissive policy that had been leaking `tracker_entries` to anonymous requests). `events_shared_read` — previously a global grant among authenticated users (`shared = true AND auth.uid() IS NOT NULL`) — is now scoped to a mutual `partners` relationship via **migration 010** (`010_scope_shared_events.sql`: new `partners` table + partner-scoped policy). Applied and verified in production (2026-08-01). All DB calls go through the sb helper, which reads sanctum_token from localStorage for the Bearer header. **Pre-public-launch:** the `partners` seed and `OWNER_IDS` are still hardcoded UUID allowlists — replace with a data-driven role/relationship model before opening public signup.
 - E2E encryption: live — notes encrypted at rest via crypto.js + CryptoContext (key derived from password + per-user encryption_salt stored in profiles)
-- AI proxy: api/chat.js (Vercel serverless, Claude Haiku). Validates the Bearer token against Supabase /auth/v1/user using SUPABASE_SERVICE_ROLE_KEY.
+- AI proxy: api/chat.js (Vercel serverless, Claude Haiku). Validates the Bearer token against Supabase /auth/v1/user using SUPABASE_SERVICE_ROLE_KEY (JWT validation runs before the per-user limit so the user id is available). Rate limiting is two-tier: Tier 1 is a cheap in-memory per-IP flood brake (pre-auth); Tier 2 is the real cost control — a per-USER limit keyed on the validated user id (not IP, so it can't be dodged by rotating IPs), backed by Upstash Redis REST (`INCR`+`EXPIRE`) when configured and falling back to the in-memory counter otherwise. **Not yet durable:** `UPSTASH_REDIS_REST_URL` / `UPSTASH_REDIS_REST_TOKEN` are not set in Vercel, so it currently runs in per-instance in-memory fallback (per-user, but resets on cold start / not shared across instances). Set those env vars to enable durable cross-instance limiting.
 - Theme: stored in localStorage key "sanctum_theme", applied via data-theme on <html>
 
 ## File structure
-- src/App.jsx — root app shell, routing, auth, global state, Login component, BETA_EMAILS allowlist
+- src/App.jsx — root app shell, routing, auth, global state, Login component, BETA_EMAILS allowlist, parseAuthHash() invite/recovery detection
+- src/components/SetPassword.jsx — invite/recovery landing screen (set password via PUT /auth/v1/user)
 - src/main.jsx — entry point (mounts app + Vercel Analytics & Speed Insights)
 - src/index.css (reset, imported in main.jsx), src/styles/base.css (full app stylesheet, imported in App.jsx) — global styles
 - src/components/ — page-level components: Home, Notes, Calendar, Settings, Roadmap, shared
@@ -61,14 +63,15 @@ BETA_EMAILS array in the Login component in App.jsx gates both login and signup.
 - custom_trackers: id, user_id, label, description, icon, color, fields JSONB, weekly_goal, archived, created_at
 - profiles: id, user_id, display_name, timezone, encryption_salt
 - notebooks: singleton per user — id (singleton_<userId>), user_id, data JSONB, updated_at
+- partners: id, user_a, user_b, created_at — mutual relationship gating cross-user shared-event visibility (migration 010; RLS: each user reads only rows they belong to). Michael↔Tamara seeded.
 
 ## What is built
 - Auth: custom REST client over Supabase GoTrue, localStorage tokens, 45-min refresh polling + tab-visibility refresh (no Supabase SDK)
 - Private beta: email allowlist gate on login/signup (BETA_EMAILS in App.jsx)
 - Home: greeting (first name only) + full-name avatar initials, AI bar, stat cards (PMP/Scotland/MSc/Tasks), tasks widget, calendar strip, tracker shortcuts, study ring quick-log
-- Notes: three-panel (notebooks/list/editor), WYSIWYG editor, auto-save, fullscreen, PIN lock, E2E encryption, new-user notebook seeding
+- Notes: three-panel (notebooks/list/editor), WYSIWYG editor, auto-save, fullscreen, PIN lock, E2E encryption. New non-owner users get a genuine EMPTY state (no seeded starter notebooks) — their first notebook is created on demand when they add a note. Owners still get DEFAULT_NOTEBOOKS.
 - Calendar: month/week/3day/day/year views, mini date picker, events, category filters, recurring events, timezone support, partner event sharing (owner-only share toggle, "S"/"Shared" badges)
-- Trackers (v1 hardcoded): Study, Career, Finance, Travel, Ozzy — hardcoded hub
+- Trackers (v1 hardcoded): Study, Career, Finance, Travel, Ozzy — hardcoded hub, owner-only (OWNER_IDS). Non-owners never see the v1 trackers and get a genuine "You have no trackers yet" empty state (verified 2026-08-01, no change needed).
 - AI tracker creation flow (v2): describe → AI generates JSONB schema → preview → edit → save to custom_trackers table
 - Generic TrackerRenderer component (src/trackers/TrackerRenderer.jsx) driven by JSONB schema
 - JSONB schema field type contract (src/trackers/schema-spec.js)
@@ -78,6 +81,13 @@ BETA_EMAILS array in the Login component in App.jsx gates both login and signup.
 - Playwright E2E smoke tests (9/9 passing)
 - GitHub Actions CI
 - Settings: themes, profile, privacy section, account info
+
+## Recently shipped (2026-08-01)
+- Invite / recovery flow (PR #9, merged): `parseAuthHash()` + `SetPassword.jsx` handle Supabase invite/recovery hash tokens instead of falling through to Login/Signup. Verified live with a real invited user. (see Architecture › Invite/recovery)
+- Security — shared-event scoping (PR #10, **open**; migration 010 applied & verified in production): `events_shared_read` moved from a global "any authenticated user" grant to a partner-scoped check via the new `partners` table. Reminder: OWNER_IDS / partners seed are hardcoded — make data-driven before public launch.
+- AI rate limiter (PR #11, merged): `api/chat.js` now keyed on validated user id, two-tier (IP flood brake + per-user cost limit, Upstash-backed when configured). ⚠️ UPSTASH_* env vars not yet set in Vercel → running in per-instance in-memory fallback (not durable cross-instance). Set them to finish this.
+- New-user empty states (PR #12, merged): Notes no longer seeds starter notebooks; Trackers already correct (both verified).
+- Notes editor block-collapse fix (PR #13, merged): applying Checklist/format to multi-line content no longer merges every line into one block. Fix = reliable HTML-vs-markdown load detection + `normalizeBlocks()` (flattens nested/ bare-text blocks on load) + multi-block `applyFormat`. Browser-verified for newly-created notes (multi-line → separate checkboxes, toggle + reload persist). **KNOWN OPEN ISSUE:** `normalizeBlocks()` is designed to also repair already-collapsed *existing* notes on load, but that path has NOT been verified against real legacy notes yet — confirm before considering it fully closed.
 
 ## What is NOT built yet (v2 remaining)
 1. Custom trackers appearing in sidebar nav
