@@ -159,6 +159,60 @@ const normalizeBlocks = (ed) => {
   }
 };
 
+// Convert arbitrary/pasted rich HTML into FLAT Sanctum block markup (we-h/we-ol/
+// we-ul/we-line), preserving inline bold/italic/code/links and stripping foreign
+// classes & styles. This is what stops external rich content (e.g. a Claude reply or
+// a web page) from being embedded verbatim — headings/paragraphs/ordered-lists nested
+// inside one block — which is exactly how notes got collapse-corrupted before.
+const _RICH_KEEP_ATTR = { A: ['href', 'target', 'rel'] };
+const _RICH_HEADING = { H1: 'we-h we-h1', H2: 'we-h we-h2', H3: 'we-h we-h3', H4: 'we-h we-h3', H5: 'we-h we-h3', H6: 'we-h we-h3' };
+const cleanInlineHtml = (el) => {
+  const tmp = el.cloneNode(true);
+  tmp.querySelectorAll('*').forEach((n) => {
+    const keep = _RICH_KEEP_ATTR[n.tagName] || [];
+    [...n.attributes].forEach((a) => { if (!keep.includes(a.name)) n.removeAttribute(a.name); });
+  });
+  return tmp.innerHTML.replace(/\s+/g, ' ').trim();
+};
+const richHtmlToBlocks = (sourceHtml) => {
+  const root = document.createElement('div');
+  root.innerHTML = sourceHtml;
+  const out = [];
+  const push = (cls, inner) => { if (inner && inner.trim()) out.push(`<div class="${cls}">${inner}</div>`); };
+  const walk = (container) => {
+    for (const node of [...container.childNodes]) {
+      if (node.nodeType === 3) { const t = node.textContent.replace(/\s+/g, ' ').trim(); if (t) push('we-line', t); continue; }
+      if (node.nodeType !== 1) continue;
+      const tag = node.tagName;
+      if (tag === 'SPAN' && node.classList.contains('we-checkbox')) continue; // drop stray checkbox glyphs
+      if (_RICH_HEADING[tag]) push(_RICH_HEADING[tag], cleanInlineHtml(node));
+      else if (tag === 'OL') { for (const li of node.children) if (li.tagName === 'LI') push('we-ol', cleanInlineHtml(li)); }
+      else if (tag === 'UL') { for (const li of node.children) if (li.tagName === 'LI') push('we-ul', `<span class="we-bullet" contenteditable="false">•</span>${cleanInlineHtml(li)}`); }
+      else if (tag === 'P' || tag === 'DIV') {
+        if (node.querySelector('h1,h2,h3,h4,h5,h6,p,ol,ul')) walk(node);
+        else push(node.classList && node.classList.contains('we-check') ? 'we-check' : 'we-line', cleanInlineHtml(node));
+      } else if (tag === 'BR') { /* skip standalone breaks between blocks */ }
+      else push('we-line', cleanInlineHtml(node));
+    }
+  };
+  walk(root);
+  return out.join('');
+};
+
+// Insert block HTML at the caret as TOP-LEVEL siblings of the current block (never
+// nested), so a paste can't recreate the collapse. Falls back to appending.
+const insertBlocksAtCaret = (ed, blockHtml) => {
+  if (!ed || !blockHtml) return;
+  const frag = document.createRange().createContextualFragment(blockHtml);
+  const lastNew = frag.lastElementChild;
+  const sel = window.getSelection();
+  let block = sel && sel.rangeCount ? sel.getRangeAt(0).startContainer : null;
+  while (block && block.parentElement && block.parentElement !== ed) block = block.parentElement;
+  if (block && block.parentElement === ed) block.after(frag);
+  else ed.appendChild(frag);
+  if (lastNew) { const r = document.createRange(); r.selectNodeContents(lastNew); r.collapse(false); sel.removeAllRanges(); sel.addRange(r); }
+};
+
 // Persists across Notes unmount/remount within the same browser session
 const _sessionUnlockedNotes = new Set();
 
@@ -723,6 +777,27 @@ export default function Notes({ user }) {
     setEditBody(md);
     if (activeNoteRef.current) autoSave(activeNoteRef.current, editTitle, editTags);
   }, [editTitle, editTags, autoSave]);
+
+  // Intercept paste of BLOCK-structured rich HTML (headings/paragraphs/lists — e.g.
+  // copied from a web page or a Claude reply). Left unhandled, the browser embeds that
+  // markup verbatim inside the current block, which is how notes got collapse-corrupted
+  // (a whole document nested inside one we-check line). We convert it to flat Sanctum
+  // blocks and insert them as top-level siblings. Plain-text / inline-only pastes fall
+  // through to the browser default (fast path, no formatting loss).
+  const onEditorPaste = useCallback((e) => {
+    const cd = e.clipboardData;
+    if (!cd) return;
+    const html = cd.getData('text/html');
+    const isBlockRich = html && /<(?:h[1-6]|p|ol|ul|li|table|blockquote|pre)\b/i.test(html);
+    if (!isBlockRich) return; // plain/inline paste → default browser behaviour
+    e.preventDefault();
+    const blocks = richHtmlToBlocks(html);
+    if (blocks) insertBlocksAtCaret(editorRef.current, blocks);
+    else document.execCommand('insertText', false, cd.getData('text/plain'));
+    normalizeBlocks(editorRef.current); // defensively flatten any nesting the insert created
+    addCollapseButtons();
+    syncBody();
+  }, [syncBody]);
 
   // Intercept Enter inside list/checklist items to keep DOM structure clean
   const onEditorKeyDown = useCallback((e) => {
@@ -1384,6 +1459,7 @@ export default function Notes({ user }) {
                   data-placeholder="Start writing..."
                   spellCheck
                   onInput={syncBody}
+                  onPaste={onEditorPaste}
                   onKeyDown={onEditorKeyDown}
                   onKeyUp={updateLineFormat}
                   onBlur={() => { const s = window.getSelection(); if (s?.rangeCount) savedRangeRef.current = s.getRangeAt(0).cloneRange(); }}
