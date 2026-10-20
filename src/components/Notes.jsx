@@ -7,7 +7,7 @@ import { Icon, Modal, DEFAULT_NOTEBOOKS } from "./shared";
 import { OWNER_IDS } from "./trackers/TrackerHub";
 import { useCrypto } from "../lib/CryptoContext.jsx";
 import { encrypt, decrypt, isEncrypted, isEncryptedWithoutKey } from "../lib/crypto.js";
-import { unlockWithPassword, encryptionEnabled } from "../lib/encryptionKey.js";
+import { unlockWithPassword, encryptionEnabled, encryptPlaintextNotes } from "../lib/encryptionKey.js";
 
 const sanitizeHtml = (html) => {
   const div = document.createElement('div');
@@ -311,7 +311,6 @@ export default function Notes({ user }) {
   const [loadError,  setLoadError]  = useState(null); // failed notes/notebooks read — never shown as "empty"
   const [saveStatus, setSaveStatus] = useState('idle');
   const [migrating,  setMigrating]  = useState(false);
-  const migratedRef = useRef(false);
   const saveTimer   = useRef(null);
   const dirtyRef    = useRef(false);
   const pendingSave = useRef({ id: null, title: '', body: '', tags: '' });
@@ -554,26 +553,6 @@ export default function Notes({ user }) {
     }
     setLoading(false);
   };
-
-  // ── Background migration: encrypt plaintext notes on first login with key ──
-  useEffect(() => {
-    if (!cryptoKey || migratedRef.current || loading) return;
-    const plainNotes = allNotes.filter(n => n.body && !isEncrypted(n.body) && !isDraftId(n.id) && !draftsRef.current.has(n.id));
-    if (plainNotes.length === 0) { migratedRef.current = true; return; }
-    migratedRef.current = true;
-    const runMigration = async () => {
-      setMigrating(true);
-      for (const note of plainNotes) {
-        try {
-          const encrypted = await encrypt(note.body, cryptoKey);
-          await sb.from("notes").update({ body: encrypted }, { id: note.id });
-          setAllNotes(prev => prev.map(n => n.id === note.id ? { ...n, body: encrypted } : n));
-        } catch {}
-      }
-      setMigrating(false);
-    };
-    runMigration();
-  }, [cryptoKey, loading]); // eslint-disable-line react-hooks/exhaustive-deps
 
   // ── Saving ────────────────────────────────────────────────────────────
   // Keep a draft in memory (never written to the DB as-is).
@@ -1318,6 +1297,16 @@ export default function Notes({ user }) {
       setEncPwd(''); setUnlockRequested(false);
       setKeyError(null);
       setCryptoKey(key);
+      // Encrypt notes still stored as plaintext; reflect the new bodies locally.
+      setMigrating(true);
+      encryptPlaintextNotes(key)
+        .then(({ migrated, failed }) => {
+          const byId = new Map(migrated.map(m => [m.id, m.body]));
+          if (byId.size) setAllNotes(prev => prev.map(n => byId.has(n.id) && !draftsRef.current.has(n.id) ? { ...n, body: byId.get(n.id) } : n));
+          if (failed) console.error(`[unlockNote] note migration: ${failed} note(s) left for next unlock`);
+        })
+        .catch(err => console.error('[unlockNote] note migration failed:', err))
+        .finally(() => setMigrating(false));
     } catch (err) {
       setEncError(err?.message || 'Could not unlock.');
     } finally {

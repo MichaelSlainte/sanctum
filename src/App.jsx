@@ -7,7 +7,7 @@ import { auth, sb } from "./lib/supabase";
 import { callAI, parseAction, fetchTrackerContext, isTrackerQuery } from "./lib/chat";
 import { useCrypto } from "./lib/CryptoContext.jsx";
 import { deriveKey } from "./lib/crypto.js";
-import { ensurePersistedSalt, purgeLegacyKeyCache } from "./lib/encryptionKey.js";
+import { ensurePersistedSalt, purgeLegacyKeyCache, encryptPlaintextNotes } from "./lib/encryptionKey.js";
 import { Icon } from "./components/shared";
 import Home from "./components/Home";
 import Notes from "./components/Notes";
@@ -711,7 +711,12 @@ RECURRENCE SCOPE: "this" = only that one date, "this_and_future" = that date onw
       setKeyError(null);
       try {
         const salt = await ensurePersistedSalt(u.id);
-        setCryptoKey(await deriveKey(password, salt)); // memory only — see encryptionKey.js
+        const key = await deriveKey(password, salt);
+        setCryptoKey(key); // memory only — see encryptionKey.js
+        // Encrypt any notes still stored as plaintext (background; counts only in logs).
+        encryptPlaintextNotes(key)
+          .then(r => { if (r.failed) console.error(`[handleLogin] note migration: ${r.failed} note(s) left for next login`); })
+          .catch(err => console.error('[handleLogin] note migration failed:', err));
       } catch (keyErr) {
         console.error('[handleLogin] encryption key setup failed:', keyErr);
         setKeyError(keyErr?.message || "Couldn't set up note encryption.");

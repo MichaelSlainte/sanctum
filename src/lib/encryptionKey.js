@@ -7,7 +7,7 @@
 // sessionStorage or IndexedDB, because any XSS could read those. The cost is
 // a password prompt after every reload / relaunch.
 import { sb, auth } from './supabase.js';
-import { deriveKey, decrypt, generateSalt } from './crypto.js';
+import { deriveKey, decrypt, encrypt, isEncrypted, generateSalt } from './crypto.js';
 
 export const saltStorageName = (userId) => `sanctum_enc_salt_${userId}`;
 
@@ -83,4 +83,35 @@ export async function unlockWithPassword({ userId, email, password, ciphertext }
     ? proveByCiphertext(ciphertext)
     : async () => !!(await auth.signIn(email, password))?.access_token;
   return unlockWith(getKey, prove, 'Incorrect password.');
+}
+
+// ── One-off migration ─────────────────────────────────────────────────────
+// Encrypt this user's notes that are still stored as plaintext. Called after
+// every successful unlock (login, or the Notes password prompt); a no-op once
+// nothing is left. Safe to re-run and to race with normal saves:
+//  - the key must first decrypt an existing encrypted note (if there is one),
+//    so a wrong key never encrypts anything;
+//  - each write only applies while the row is STILL plaintext
+//    (body=not.like.ENC:v1:*), so it can't overwrite a newer encrypted save;
+//  - a failed write leaves the row as-is for the next run.
+// Returns { migrated: [{ id, body }], failed } — never logs note content.
+export async function encryptPlaintextNotes(key) {
+  const rows = await sb.from('notes').select('id,body', '', '', { strict: true });
+  const plain = rows.filter(r => r.body && !isEncrypted(r.body));
+  if (!plain.length) return { migrated: [], failed: 0 };
+  const sample = rows.find(r => isEncrypted(r.body));
+  if (sample && !(await proveByCiphertext(sample.body)(key))) {
+    throw new Error('Key does not match existing notes; migration skipped.');
+  }
+  const migrated = [];
+  let failed = 0;
+  for (const r of plain) {
+    try {
+      const body = await encrypt(r.body, key);
+      const res = await sb.from('notes').update({ body }, { id: r.id }, '&body=not.like.ENC:v1:*');
+      if (Array.isArray(res) && res.length === 1) migrated.push({ id: r.id, body });
+      else failed++; // includes "already encrypted by a concurrent save" — fine, nothing lost
+    } catch { failed++; }
+  }
+  return { migrated, failed };
 }
