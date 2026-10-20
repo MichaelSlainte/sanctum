@@ -34,10 +34,9 @@ export async function ensurePersistedSalt(userId) {
 }
 
 // Salt for re-deriving an EXISTING key. Never generates one: a new salt
-// could not decrypt anything already stored.
+// could not decrypt anything already stored. A failed read throws.
 export async function loadSalt(userId) {
-  const rows = await sb.from('profiles').select('encryption_salt', `&id=eq.${userId}`, '');
-  const salt = rows[0]?.encryption_salt || localStorage.getItem(saltStorageName(userId));
+  const salt = await readProfileSalt(userId) || localStorage.getItem(saltStorageName(userId));
   if (!salt) throw new Error('No encryption salt found for this account.');
   return salt;
 }

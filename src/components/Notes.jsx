@@ -230,11 +230,12 @@ export default function Notes({ user }) {
     try { const s = localStorage.getItem('sanctum_notebooks_v2'); if (s) return JSON.parse(s); } catch {}
     return isOwner ? DEFAULT_NOTEBOOKS : [];
   });
-  useEffect(() => {
+  // Strict read: a failed request must never look like "no notebooks", or the
+  // owner branch below would seed DEFAULT_NOTEBOOKS over the real tree.
+  const loadNotebooks = useCallback(() => {
     if (!user?.id) return;
     const singletonId = `singleton_${user.id}`;
-    sb.from('notebooks').select('*', '', '').then((res) => {
-      const rows = Array.isArray(res) ? res : [];
+    sb.from('notebooks').select('*', '', '', { strict: true }).then((rows) => {
       const singleton = rows.find(r => r.id === singletonId);
       if (singleton && Array.isArray(singleton.data) && singleton.data.length > 0) {
         // One-time self-heal: non-owner accounts that were seeded with the default
@@ -265,8 +266,12 @@ export default function Notes({ user }) {
         setNotebooks([]);
         localStorage.setItem('sanctum_notebooks_v2', JSON.stringify([]));
       }
-    }).catch(() => {}); // network error — keep current state (localStorage/defaults)
-  }, [user?.id]);
+    }).catch((err) => { // request failed — keep current state, write nothing
+      console.error('[loadNotebooks] Error:', err);
+      setLoadError("Couldn't load your notebooks.");
+    });
+  }, [user?.id]); // eslint-disable-line react-hooks/exhaustive-deps
+  useEffect(() => { loadNotebooks(); }, [loadNotebooks]);
   const saveNotebooks = useCallback(async (nbs) => {
     setNotebooks(nbs);
     localStorage.setItem('sanctum_notebooks_v2', JSON.stringify(nbs));
@@ -300,6 +305,7 @@ export default function Notes({ user }) {
   const [editBody,   setEditBody]   = useState('');
   const [editTags,   setEditTags]   = useState('');
   const [loading,    setLoading]    = useState(false);
+  const [loadError,  setLoadError]  = useState(null); // failed notes/notebooks read — never shown as "empty"
   const [saveStatus, setSaveStatus] = useState('idle');
   const [migrating,  setMigrating]  = useState(false);
   const migratedRef = useRef(false);
@@ -467,8 +473,9 @@ export default function Notes({ user }) {
   useEffect(() => { if (user?.id) loadNotes(); }, [user?.id]);
   const loadNotes = async () => {
     setLoading(true);
+    setLoadError(null);
     try {
-      const data = await sb.from("notes").select("*");
+      const data = await sb.from("notes").select("*", undefined, undefined, { strict: true });
       if (Array.isArray(data)) {
         // Normalize notebook/section: match by id OR label (case-insensitive) → canonical id
         const normalized = data.map(n => {
@@ -512,7 +519,11 @@ export default function Notes({ user }) {
           openNote(first, false);
         }
       }
-    } catch { setAllNotes([]); }
+    } catch (err) {
+      // Keep whatever is on screen; an empty list here would be a lie.
+      console.error('[loadNotes] Error:', err);
+      setLoadError("Couldn't load your notes.");
+    }
     setLoading(false);
   };
 
@@ -1320,7 +1331,13 @@ export default function Notes({ user }) {
         </div>
 
         {loading && <div className="loading" style={{padding:20,textAlign:'center',fontSize:12,color:'var(--t3)'}}>Loading...</div>}
-        {!loading && displayedNotes.length===0 && (
+        {loadError && (
+          <div className="notes-load-error" style={{padding:16,textAlign:'center',display:'flex',flexDirection:'column',alignItems:'center',gap:8}}>
+            <div style={{fontSize:12,color:'var(--red)'}}>{loadError}</div>
+            <button className="btn xs" onClick={() => { loadNotebooks(); loadNotes(); }}>Retry</button>
+          </div>
+        )}
+        {!loading && !loadError && displayedNotes.length===0 && (
           <div style={{padding:28,textAlign:'center',color:'var(--t3)',display:'flex',flexDirection:'column',alignItems:'center',gap:10}}>
             <Icon name="notes" size={32} color="var(--t3)" style={{opacity:.3}}/>
             <div style={{fontSize:12}}>{notebooks.length === 0 ? "You don't have any notes yet" : 'No notes in this section'}</div>
