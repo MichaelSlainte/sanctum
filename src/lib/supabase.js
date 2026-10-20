@@ -126,7 +126,9 @@ export const ensureValidToken = async () => {
 
 export const sb = {
   from: (table) => ({
-    select: async (cols = "*", filters = "", order = "created_at.desc") => {
+    // opts.strict: throw on an HTTP error instead of returning [], for callers
+    // that must tell "no rows" apart from "request failed".
+    select: async (cols = "*", filters = "", order = "created_at.desc", opts = {}) => {
       await ensureValidToken();
       const session = auth.getSession();
       const headers = { apikey: SUPABASE_KEY, "Content-Type": "application/json" };
@@ -134,8 +136,12 @@ export const sb = {
       const orderParam = order ? `&order=${order}` : "";
       const userFilter = session ? `&user_id=eq.${session.user.id}` : "";
       const res = await fetch(`${SUPABASE_URL}/rest/v1/${table}?select=${cols}${orderParam}${userFilter}${filters}`, { headers });
-      if (!res.ok) return [];
+      if (!res.ok) {
+        if (opts.strict) throw new Error(`select ${table} failed: HTTP ${res.status}`);
+        return [];
+      }
       const data = await res.json();
+      if (opts.strict && !Array.isArray(data)) throw new Error(`select ${table} failed: unexpected response`);
       return Array.isArray(data) ? data : [];
     },
     insert: async (data) => {

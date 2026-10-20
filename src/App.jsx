@@ -6,7 +6,8 @@ import "./styles/base.css";
 import { auth, sb } from "./lib/supabase";
 import { callAI, parseAction, fetchTrackerContext, isTrackerQuery } from "./lib/chat";
 import { useCrypto } from "./lib/CryptoContext.jsx";
-import { deriveKey, generateSalt, exportKey, importKey } from "./lib/crypto.js";
+import { deriveKey, importKey } from "./lib/crypto.js";
+import { ensurePersistedSalt, cacheSessionKey } from "./lib/encryptionKey.js";
 import { Icon } from "./components/shared";
 import Home from "./components/Home";
 import Notes from "./components/Notes";
@@ -191,7 +192,7 @@ const TRACKER_ITEMS = [
 
 // ─── APP ─────────────────────────────────────────────────────────────────────
 export default function App() {
-  const { setKey: setCryptoKey, setKeyLoading } = useCrypto();
+  const { setKey: setCryptoKey, setKeyLoading, setKeyError } = useCrypto();
   const [user, setUser] = useState(null);
   const [checking, setChecking] = useState(true);
   const [profileName, setProfileName] = useState("");
@@ -683,9 +684,8 @@ RECURRENCE SCOPE: "this" = only that one date, "this_and_future" = that date onw
     setUser(u);
 
     // Step 1: fetch profile (best-effort — never blocks key derivation)
-    let profileSalt = null;
     try {
-      const profile = await sb.from("profiles").select("display_name,timezone,encryption_salt", `&id=eq.${u.id}`, "");
+      const profile = await sb.from("profiles").select("display_name,timezone", `&id=eq.${u.id}`, "");
       if (Array.isArray(profile) && profile[0]?.display_name) {
         localStorage.setItem(`sanctum_display_name_${u.id}`, profile[0].display_name);
         setProfileName(profile[0].display_name);
@@ -697,9 +697,6 @@ RECURRENCE SCOPE: "this" = only that one date, "this_and_future" = that date onw
           setProfileName(derived);
           sb.from("profiles").upsert({ id: u.id, display_name: derived }, "id").catch(() => {});
         }
-      }
-      if (Array.isArray(profile) && profile[0]?.encryption_salt) {
-        profileSalt = profile[0].encryption_salt;
       }
     } catch (err) {
       console.error('[handleLogin] profile fetch error:', err);
@@ -713,28 +710,20 @@ RECURRENCE SCOPE: "this" = only that one date, "this_and_future" = that date onw
       }
     } catch {}
 
-    // Step 2: derive encryption key — always runs, independent of profile fetch
+    // Step 2: derive encryption key — always runs, independent of profile fetch.
+    // The salt must be confirmed saved on the server first (ensurePersistedSalt);
+    // if it isn't, no key is set, notes stay locked and Notes shows keyError.
     if (password) {
       setKeyLoading(true);
-      const SALT_LS_KEY = `sanctum_enc_salt_${u.id}`;
-      const SESSION_KEY = `sanctum_session_key_${u.id}`;
-      // Priority: Supabase profile → localStorage → generate new
-      let salt = profileSalt || localStorage.getItem(SALT_LS_KEY);
-      if (!salt) {
-        salt = await generateSalt();
-        // Try profiles table (needs encryption_salt column — see SQL note in commit)
-        sb.from("profiles").update({ encryption_salt: salt }, { id: u.id }).catch(() => {});
-      }
-      // Always persist salt locally so the same key is derived on every login in this browser
-      localStorage.setItem(SALT_LS_KEY, salt);
+      setKeyError(null);
       try {
+        const salt = await ensurePersistedSalt(u.id);
         const key = await deriveKey(password, salt);
-        // Persist key in sessionStorage so page reloads don't lose it
-        const exported = await exportKey(key);
-        sessionStorage.setItem(SESSION_KEY, exported);
+        await cacheSessionKey(u.id, key); // so page reloads don't lose it
         setCryptoKey(key);
       } catch (keyErr) {
-        console.error('[handleLogin] key derivation failed:', keyErr);
+        console.error('[handleLogin] encryption key setup failed:', keyErr);
+        setKeyError(keyErr?.message || "Couldn't set up note encryption.");
       } finally {
         setKeyLoading(false);
       }
