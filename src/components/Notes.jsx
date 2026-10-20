@@ -1151,7 +1151,7 @@ export default function Notes({ user }) {
     if (!encPwd || unlocking || !currentNote) return;
     setUnlocking(true); setEncError('');
     try {
-      const key = await unlockWithPassword(user.id, encPwd, currentNote.body);
+      const key = await unlockWithPassword({ userId: user.id, email: user.email, password: encPwd, ciphertext: currentNote.body });
       setEncPwd(''); setUnlockRequested(false);
       setKeyError(null);
       setCryptoKey(key);

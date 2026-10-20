@@ -2,12 +2,13 @@
 // Sanctum — Private and confidential. Unauthorised use prohibited.
 // https://sanctum.app
 //
-// Getting the notes encryption key: salt lookup, key derivation and the
-// per-tab key cache. The key never leaves the browser.
-import { sb } from './supabase.js';
-import { deriveKey, exportKey, decrypt, generateSalt } from './crypto.js';
+// Getting the notes encryption key: salt lookup, key derivation and unlock.
+// The key lives ONLY in memory (CryptoContext state): never in localStorage,
+// sessionStorage or IndexedDB, because any XSS could read those. The cost is
+// a password prompt after every reload / relaunch.
+import { sb, auth } from './supabase.js';
+import { deriveKey, decrypt, generateSalt } from './crypto.js';
 
-export const sessionKeyName = (userId) => `sanctum_session_key_${userId}`;
 export const saltStorageName = (userId) => `sanctum_enc_salt_${userId}`;
 
 const readProfileSalt = async (userId) => {
@@ -41,21 +42,37 @@ export async function loadSalt(userId) {
   return salt;
 }
 
-// Cache the key for this tab so a reload doesn't ask for the password again.
-export async function cacheSessionKey(userId, key) {
-  try { sessionStorage.setItem(sessionKeyName(userId), await exportKey(key)); }
-  catch { /* storage unavailable — key stays in memory for this page only */ }
+// Pre-#26-follow-up builds cached the raw key in sessionStorage. Remove any
+// leftover copy so it doesn't outlive this change.
+export function purgeLegacyKeyCache() {
+  try {
+    for (const k of Object.keys(sessionStorage)) if (k.startsWith('sanctum_session_key_')) sessionStorage.removeItem(k);
+  } catch { /* storage unavailable — nothing to purge */ }
 }
 
-// Derive the key from the password and prove it opens `ciphertext` before
-// handing it back. A wrong key must never be used: notes saved with it would
-// be unreadable with the right password.
-export async function unlockWithPassword(userId, password, ciphertext) {
-  const key = await deriveKey(password, await loadSalt(userId));
-  if (ciphertext) {
-    try { await decrypt(ciphertext, key); }
-    catch { throw new Error('Incorrect password.'); }
-  }
-  await cacheSessionKey(userId, key);
+// ── Unlock ────────────────────────────────────────────────────────────────
+// An unlock = a method that produces a key + a proof that it's the RIGHT key.
+// A wrong key must never be used: notes saved with it would be unreadable with
+// the right password. To add another method later (e.g. WebAuthn PRF), write a
+// `getKey` for it and call unlockWith(getKey, proveByCiphertext(ct)).
+
+// Proof: the key decrypts an existing encrypted note.
+export const proveByCiphertext = (ciphertext) => async (key) => {
+  try { await decrypt(ciphertext, key); return true; } catch { return false; }
+};
+
+export async function unlockWith(getKey, prove, failMessage = "Couldn't unlock your notes.") {
+  const key = await getKey();
+  if (!(await prove(key))) throw new Error(failMessage);
   return key;
+}
+
+// Password method. Proof is the user's newest encrypted note if they have one;
+// otherwise (nothing encrypted yet) the auth server must accept the password.
+export async function unlockWithPassword({ userId, email, password, ciphertext }) {
+  const getKey = async () => deriveKey(password, await loadSalt(userId));
+  const prove = ciphertext
+    ? proveByCiphertext(ciphertext)
+    : async () => !!(await auth.signIn(email, password))?.access_token;
+  return unlockWith(getKey, prove, 'Incorrect password.');
 }

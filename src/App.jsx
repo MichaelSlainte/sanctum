@@ -6,8 +6,8 @@ import "./styles/base.css";
 import { auth, sb } from "./lib/supabase";
 import { callAI, parseAction, fetchTrackerContext, isTrackerQuery } from "./lib/chat";
 import { useCrypto } from "./lib/CryptoContext.jsx";
-import { deriveKey, importKey } from "./lib/crypto.js";
-import { ensurePersistedSalt, cacheSessionKey } from "./lib/encryptionKey.js";
+import { deriveKey } from "./lib/crypto.js";
+import { ensurePersistedSalt, purgeLegacyKeyCache } from "./lib/encryptionKey.js";
 import { Icon } from "./components/shared";
 import Home from "./components/Home";
 import Notes from "./components/Notes";
@@ -613,6 +613,7 @@ RECURRENCE SCOPE: "this" = only that one date, "this_and_future" = that date onw
     document.documentElement.style.setProperty("--sans", savedFamily);
 
     const init = async () => {
+      purgeLegacyKeyCache(); // the key is memory-only now; drop any old sessionStorage copy
       let session = auth.getSession();
       if (!session) {
         const refreshed = await auth.refreshSession();
@@ -620,17 +621,7 @@ RECURRENCE SCOPE: "this" = only that one date, "this_and_future" = that date onw
       }
       if (session) {
         setUser(session.user);
-        // Restore encryption key from sessionStorage (set at login, survives page reloads)
-        const SESSION_KEY = `sanctum_session_key_${session.user.id}`;
-        const exportedKey = sessionStorage.getItem(SESSION_KEY);
-        if (exportedKey) {
-          try {
-            const key = await importKey(exportedKey);
-            setCryptoKey(key);
-          } catch (e) {
-            console.error('[init] key restore failed:', e);
-          }
-        }
+        // No key on cold start by design (memory-only). Notes asks for the password.
         // Fetch display_name from profiles table — takes priority over user_metadata
         try {
           const profile = await sb.from("profiles").select("display_name,timezone", `&id=eq.${session.user.id}`, "");
@@ -652,21 +643,23 @@ RECURRENCE SCOPE: "this" = only that one date, "this_and_future" = that date onw
       setChecking(false);
     };
     init();
-    // Auto-refresh every 45 minutes
-    const interval = setInterval(async () => {
-      const session = auth.getSession();
+    // Refresh the token when it's near expiry. If it has expired and can't be
+    // refreshed, the session is over: drop the notes key with it and log out.
+    // (Don't gate on getSession() — it deletes an expired token and returns null,
+    // which used to leave the app "logged in" with no token and the key in memory.)
+    const checkSession = async () => {
+      if (!localStorage.getItem("sanctum_refresh")) return; // not logged in
       const expiry = parseInt(localStorage.getItem("sanctum_expiry") || "0");
-      if (session && Date.now() > expiry - 300000) await auth.refreshSession();
-    }, 45 * 60 * 1000);
+      if (Date.now() < expiry - 300000) return;
+      if (await auth.refreshSession()) return;
+      if (Date.now() >= expiry) await handleLogout();
+    };
+    // Auto-refresh every 45 minutes
+    const interval = setInterval(checkSession, 45 * 60 * 1000);
 
     // Proactive refresh when user returns to the tab after an absence
     const handleVisibility = async () => {
-      if (document.visibilityState === "visible") {
-        const expiry = parseInt(localStorage.getItem("sanctum_expiry") || "0");
-        if (localStorage.getItem("sanctum_token") && Date.now() > expiry - 300000) {
-          await auth.refreshSession();
-        }
-      }
+      if (document.visibilityState === "visible") await checkSession();
     };
     document.addEventListener("visibilitychange", handleVisibility);
 
@@ -718,9 +711,7 @@ RECURRENCE SCOPE: "this" = only that one date, "this_and_future" = that date onw
       setKeyError(null);
       try {
         const salt = await ensurePersistedSalt(u.id);
-        const key = await deriveKey(password, salt);
-        await cacheSessionKey(u.id, key); // so page reloads don't lose it
-        setCryptoKey(key);
+        setCryptoKey(await deriveKey(password, salt)); // memory only — see encryptionKey.js
       } catch (keyErr) {
         console.error('[handleLogin] encryption key setup failed:', keyErr);
         setKeyError(keyErr?.message || "Couldn't set up note encryption.");
@@ -749,7 +740,7 @@ RECURRENCE SCOPE: "this" = only that one date, "this_and_future" = that date onw
     if (openTracker) { navigate('trackers'); setOpenCreatorSignal(Date.now()); }
   };
 
-  const handleLogout = async () => { await auth.signOut(); setUser(null); setProfileName(""); setPage("home"); localStorage.removeItem("sanctum_page"); };
+  const handleLogout = async () => { setCryptoKey(null); setKeyError(null); purgeLegacyKeyCache(); await auth.signOut(); setUser(null); setProfileName(""); setPage("home"); localStorage.removeItem("sanctum_page"); };
 
   const onFabTouchStart = (e) => {
     const t = e.touches[0];
