@@ -32,6 +32,9 @@ jobs:
         env:
           TEST_EMAIL: ${{ secrets.TEST_EMAIL }}
           TEST_PASSWORD: ${{ secrets.TEST_PASSWORD }}
+          # Dedicated non-owner account for the notes encryption tests
+          TEST_EMAIL_2: ${{ secrets.TEST_EMAIL_2 }}
+          TEST_PASSWORD_2: ${{ secrets.TEST_PASSWORD_2 }}
 
       - name: Upload report
         uses: actions/upload-artifact@v4

@@ -3,8 +3,30 @@
 // https://sanctum.app
 import { test, expect, type Page } from "@playwright/test";
 
-const EMAIL = process.env.TEST_EMAIL ?? "";
-const PASSWORD = process.env.TEST_PASSWORD ?? "";
+// Runs on the dedicated NON-OWNER test account so no CI run touches a real
+// user's data (a password login now also runs the plaintext-note migration).
+const EMAIL = process.env.TEST_EMAIL_2 ?? "";
+const PASSWORD = process.env.TEST_PASSWORD_2 ?? "";
+const SUPABASE_URL = "https://hqlgwisfkkosgekotojz.supabase.co";
+const SUPABASE_KEY = "sb_publishable_Eky9AvrbiYjejxogwxwJ6Q_x7eoySQ4";
+const OWNER_IDS = ["d86cb548-3254-46d4-9322-fc5a45043037", "8e2d598c-94b2-497c-a44a-a773e7d8ff6a"];
+const V1_TRACKERS = ["Study", "Career", "Finance", "Travel", "Ozzy"];
+
+test.skip(!EMAIL || !PASSWORD, "TEST_EMAIL_2 / TEST_PASSWORD_2 not set");
+
+test.beforeAll(async () => {
+  const s = await (await fetch(`${SUPABASE_URL}/auth/v1/token?grant_type=password`, {
+    method: "POST", headers: { apikey: SUPABASE_KEY, "Content-Type": "application/json" },
+    body: JSON.stringify({ email: EMAIL, password: PASSWORD }),
+  })).json();
+  expect(s.access_token, "test account login").toBeTruthy();
+  expect(OWNER_IDS, "smoke tests must NOT run on an owner account").not.toContain(s.user.id);
+  // Skip the new-user onboarding overlay for the test account.
+  await fetch(`${SUPABASE_URL}/rest/v1/profiles?id=eq.${s.user.id}`, {
+    method: "PATCH", headers: { apikey: SUPABASE_KEY, Authorization: `Bearer ${s.access_token}`, "Content-Type": "application/json" },
+    body: JSON.stringify({ onboarding_completed: true }),
+  });
+});
 
 async function login(page: Page) {
   await page.goto("/");
@@ -52,18 +74,33 @@ test.describe("Sanctum smoke tests", () => {
     await expect(page.locator("[class*='calendar'], [class*='month'], [class*='week']").first()).toBeVisible({ timeout: 15000 });
   });
 
-  test("navigate to Trackers — hub loads, Career tracker is visible", async ({ page }) => {
+  test("navigate to Trackers — hub loads", async ({ page }) => {
     await login(page);
     await page.locator(".sidebar .nav-item:has-text('Trackers')").first().click();
-    await expect(page.locator("text=Career").first()).toBeVisible({ timeout: 15000 });
+    await expect(page.getByText("Your Trackers")).toBeVisible({ timeout: 15000 });
   });
 
-  test("navigate to Career tracker — Applications table is visible", async ({ page }) => {
+  // Regression test for the cross-tenant v1 tracker leak.
+  // Bug: the Archived section in TrackerHub.jsx (~line 1130) renders v1 trackers
+  // with no isOwner check, and the list comes from the browser-wide localStorage
+  // key "sanctum_archived_trackers" (App.jsx ~line 558), not a per-user one. So on a
+  // shared browser a non-owner sees the owner's archived v1 trackers (+ Restore).
+  // The test seeds that key to reproduce an owner having archived them earlier.
+  // TODO(link): <bug link — not filed yet; repo is public, see PR #27>
+  // EXPECTED TO FAIL until the tracker fix lands. When it starts passing,
+  // Playwright reports "expected to fail, but passed": remove test.fail() then.
+  test("non-owner sees NO v1 trackers in the active grid or Archived", async ({ page }) => {
+    test.fail();
+    await page.addInitScript(() => localStorage.setItem("sanctum_archived_trackers", JSON.stringify(["study", "career", "finance", "travel", "pet"])));
     await login(page);
     await page.locator(".sidebar .nav-item:has-text('Trackers')").first().click();
-    await expect(page.locator("text=Career").first()).toBeVisible({ timeout: 15000 });
-    await page.locator("text=Career").first().click();
-    await expect(page.locator("table.app-table").first()).toBeVisible({ timeout: 15000 });
+    await expect(page.getByText("Your Trackers")).toBeVisible({ timeout: 15000 });
+    const toggle = page.locator(".archived-section > button");
+    if ((await toggle.textContent())?.includes("▶")) await toggle.click(); // make sure Archived is expanded
+    for (const name of V1_TRACKERS) {
+      await expect(page.locator(".tracker-hub").getByText(name, { exact: true }), `${name} in active grid`).toHaveCount(0);
+      await expect(page.locator(".archived-section").getByText(name, { exact: true }), `${name} in Archived`).toHaveCount(0);
+    }
   });
 
   test("navigate to Settings — page loads without errors", async ({ page }) => {

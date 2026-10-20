@@ -29,6 +29,7 @@ const BETA_EMAILS = [
   'eng.michaelmarques@outlook.com',
   'eng.michaelmarques@gmail.com',
   'tamaralechner4@gmail.com',
+  'eng.michaelmarques+sanctum-e2e@gmail.com', // E2E test account (non-owner) — TEST_EMAIL_2
 ];
 
 // Parse a Supabase invite/recovery auth callback out of window.location.hash.
