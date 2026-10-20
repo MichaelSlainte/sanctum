@@ -119,7 +119,8 @@ export default function Ozzy({ user }) {
       data.forEach(row => {
         if (row.key.startsWith('study_config')) return; // study tracker keys — not custom fields
         if (row.key === "photo_url" && row.value) {
-          setOzzyPhoto(storage.getPublicUrl("pets", row.value));
+          // Private bucket: short-lived signed URL, never a public one.
+          storage.createSignedUrl("pets", row.value, 600).then(u => { if (u) setOzzyPhoto(u); });
         } else if (row.key === "diet") {
           try { setDiet(JSON.parse(row.value)); } catch {}
         } else if (row.key in DEFAULT_PROFILE) {
@@ -136,7 +137,8 @@ export default function Ozzy({ user }) {
       if (!Array.isArray(data) || data.length === 0) return;
       setDocs(prev => {
         const meta = { ...prev };
-        data.forEach(row => { meta[row.name] = { filename: row.filename, uploaded_at: row.uploaded_at, url: row.url }; });
+        // Keep only the storage path; files are opened through signed URLs.
+        data.forEach(row => { meta[row.name] = { filename: row.filename, uploaded_at: row.uploaded_at, path: row.path || storage.pathFromLegacyUrl("pets", row.url) }; });
         return meta;
       });
     }).catch(() => {});
@@ -188,26 +190,32 @@ export default function Ozzy({ user }) {
   };
 
   const handleDocUpload = async (docName, file) => {
-    if (!file) return;
+    if (!file || !user?.id) return;
     try {
-      const path = `${user?.id || 'shared'}/${docName.replace(/\s+/g, '_')}_${Date.now()}`;
-      await storage.upload('pets', path, file);
-      const url = storage.getPublicUrl('pets', path);
-      const meta = { filename: file.name, uploaded_at: new Date().toISOString(), url };
+      // Path must start with the owner's uid: storage RLS checks that folder.
+      const path = `${user.id}/${docName.replace(/\s+/g, '_')}_${Date.now()}`;
+      const up = await storage.upload('pets', path, file);
+      if (up?.error || up?.statusCode) throw new Error(up?.message || up?.error || 'upload failed');
+      const meta = { filename: file.name, uploaded_at: new Date().toISOString(), path };
       setDocs(prev => {
         const updated = { ...prev, [docName]: meta };
         localStorage.setItem("sanctum_ozzy_docs_meta", JSON.stringify(updated));
         return updated;
       });
-      await sb.from("ozzy_docs").insert({ name: docName, filename: file.name, uploaded_at: meta.uploaded_at, url, user_id: user?.id });
-    } catch {}
+      const res = await sb.from("ozzy_docs").insert({ name: docName, filename: file.name, uploaded_at: meta.uploaded_at, path, user_id: user.id });
+      if (!Array.isArray(res)) throw new Error('ozzy_docs insert failed');
+    } catch (err) {
+      console.error('[Ozzy] document upload failed:', err);
+    }
   };
 
-  const downloadDoc = (docName) => {
+  const downloadDoc = async (docName) => {
     const meta = docs[docName];
-    if (!meta?.url) return;
+    const path = meta?.path || storage.pathFromLegacyUrl("pets", meta?.url);
+    const url = await storage.createSignedUrl("pets", path, 60); // signed on click, valid 60s
+    if (!url) { console.error('[Ozzy] could not sign document URL'); return; }
     const link = document.createElement("a");
-    link.href = meta.url;
+    link.href = url;
     link.download = meta.filename || docName;
     link.target = '_blank';
     link.click();
@@ -338,7 +346,8 @@ export default function Ozzy({ user }) {
                   const uploadRes = await storage.upload("pets", path, file);
                   if (uploadRes?.error) throw new Error(uploadRes.error.message || "Upload failed");
                   await sb.from("ozzy_profile").upsert({ key: "photo_url", value: path, user_id: user?.id }, "key,user_id");
-                  setOzzyPhoto(storage.getPublicUrl("pets", path) + `?t=${Date.now()}`);
+                  const signed = await storage.createSignedUrl("pets", path, 600);
+                  if (signed) setOzzyPhoto(signed);
                 } catch (err) {
                   console.error("[Ozzy] photo upload failed:", err);
                 } finally {

@@ -804,7 +804,7 @@ export default function TrackerHub({ archivedTrackers = [], onArchive, onUnarchi
         ]);
 
         const photoRow = Array.isArray(ozzyRows) ? ozzyRows.find(r => r.key === "photo_url") : null;
-        if (photoRow?.value) setOzzyPhoto(storage.getPublicUrl("pets", photoRow.value));
+        if (photoRow?.value) storage.createSignedUrl("pets", photoRow.value, 600).then(u => { if (u) setOzzyPhoto(u); }); // private bucket
 
         const studyHours = Array.isArray(sessions)
           ? sessions.reduce((sum, s) => sum + (s.hours || 0), 0) : 0;
