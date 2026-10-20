@@ -7,6 +7,7 @@ import { Icon, Modal, DEFAULT_NOTEBOOKS } from "./shared";
 import { OWNER_IDS } from "./trackers/TrackerHub";
 import { useCrypto } from "../lib/CryptoContext.jsx";
 import { encrypt, decrypt, isEncrypted, isEncryptedWithoutKey } from "../lib/crypto.js";
+import { unlockWithPassword } from "../lib/encryptionKey.js";
 
 const sanitizeHtml = (html) => {
   const div = document.createElement('div');
@@ -218,7 +219,7 @@ const _sessionUnlockedNotes = new Set();
 
 // ─── NOTES ───────────────────────────────────────────────────────────────────
 export default function Notes({ user }) {
-  const { key: cryptoKey, keyLoading } = useCrypto();
+  const { key: cryptoKey, setKey: setCryptoKey, keyLoading } = useCrypto();
   const cryptoKeyRef = useRef(cryptoKey);
   useEffect(() => { cryptoKeyRef.current = cryptoKey; }, [cryptoKey]);
   // ── Notebooks (Supabase + localStorage backed) ───────────────────────
@@ -320,9 +321,14 @@ export default function Notes({ user }) {
   const decryptFailedRef = useRef(null); // id of the active note whose decrypt failed
   const [decryptFailedId, setDecryptFailedId] = useState(null);
   const [unlockRequested, setUnlockRequested] = useState(false);
+  const [encPwd,    setEncPwd]    = useState('');
+  const [encError,  setEncError]  = useState('');
+  const [unlocking, setUnlocking] = useState(false);
+  const encPwdRef = useRef(null);
   // True when saving this note would overwrite ciphertext we can't read (no key
   // loaded, or decryption failed). Every title/body/tags write goes through
   // autoSave/flushSave, which check this first and ask for the password instead.
+  useEffect(() => { if (unlockRequested) encPwdRef.current?.focus(); }, [unlockRequested]);
   const isBodyWriteBlocked = useCallback((id) => {
     const n = allNotesRef.current.find(x => x.id === id);
     if (n && isEncryptedWithoutKey(n.body, cryptoKeyRef.current)) return true;
@@ -454,6 +460,7 @@ export default function Notes({ user }) {
     setRecoveryPwd('');
     setRecoveryError('');
     setUnlockRequested(false);
+    setEncPwd(''); setEncError('');
   }, [activeNote]);
 
   // ── Load ──────────────────────────────────────────────────────────────
@@ -1123,6 +1130,25 @@ export default function Notes({ user }) {
   };
 
   const currentNote    = allNotes.find(n => n.id === activeNote);
+  // Encrypted body we can't show: 'nokey' (unlock with password), 'loading'
+  // (key being derived) or 'failed' (wrong key). The editor is read-only then.
+  const bodyLock = !currentNote ? null
+    : decryptFailedId === currentNote.id ? 'failed'
+    : isEncryptedWithoutKey(currentNote.body, cryptoKey) ? (keyLoading ? 'loading' : 'nokey')
+    : null;
+  const unlockNote = async () => {
+    if (!encPwd || unlocking || !currentNote) return;
+    setUnlocking(true); setEncError('');
+    try {
+      const key = await unlockWithPassword(user.id, encPwd, currentNote.body);
+      setEncPwd(''); setUnlockRequested(false);
+      setCryptoKey(key);
+    } catch (err) {
+      setEncError(err?.message || 'Could not unlock.');
+    } finally {
+      setUnlocking(false);
+    }
+  };
   const currentNB      = notebooks.find(n => n.id === activeNB);
   const currentSection = currentNB?.sections.find(s => s.id === activeSection);
   const _nbLower       = activeNB?.toLowerCase().trim() || '';
@@ -1378,6 +1404,7 @@ export default function Notes({ user }) {
                 )}
               </button>
               <div style={{flex:1}}/>
+              {!bodyLock && (<>
               <select
                 className="note-format-select"
                 value={lineFormat}
@@ -1400,6 +1427,7 @@ export default function Notes({ user }) {
               <button className="note-tool-btn" title="Insert table" onMouseDown={e=>{e.preventDefault();applyFormat('table');}}><Icon name="table" size={13} /></button>
               <button className="note-tool-btn" title="Link"          onMouseDown={e=>{e.preventDefault();applyFormat('link');}}><Icon name="link" size={13} /></button>
               <div className="note-toolbar-sep"/>
+              </>)}
               <span style={{fontSize:10,color:'var(--t3)',fontFamily:'var(--mono)',padding:'0 3px',flexShrink:0}}>
                 {editBody.split(/\s+/).filter(Boolean).length}w
               </span>
@@ -1471,6 +1499,7 @@ export default function Notes({ user }) {
                   }}
                   onBlur={()=>{if(renameTarget?.type==='note') commitRename();}}
                   onKeyDown={e=>{if(renameTarget?.type==='note'&&e.key==='Enter'){commitRename();e.target.blur();}}}
+                  readOnly={!!bodyLock}
                   placeholder="Untitled note"/>
 
                 {/* Meta */}
@@ -1479,11 +1508,48 @@ export default function Notes({ user }) {
                   <span className="note-meta-item"><Icon name="folder" size={10} color="var(--t3)"/> {currentNB?.label}{currentSection?.label ? ` / ${currentSection.label}` : ''}</span>
                 </div>
 
-                {/* WYSIWYG contentEditable editor */}
+                {/* Encrypted note with no usable key: read-only, ask for the password */}
+                {bodyLock && (
+                  <div className="note-enc-lock" style={{display:'flex',flexDirection:'column',alignItems:'center',justifyContent:'center',flex:1,gap:14,padding:40}}>
+                    <svg width="44" height="44" viewBox="0 0 24 24" fill="none" stroke="var(--t3)" strokeWidth="1.5">
+                      <rect x="3" y="11" width="18" height="11" rx="2"/>
+                      <path d="M7 11V7a5 5 0 0 1 10 0v4"/>
+                    </svg>
+                    <div style={{fontSize:15,fontWeight:600,color:'var(--t1)'}}>
+                      {bodyLock === 'failed' ? "This note can't be decrypted" : bodyLock === 'loading' ? 'Decrypting…' : 'This note is encrypted'}
+                    </div>
+                    {bodyLock === 'failed' && (
+                      <div style={{fontSize:13,color:'var(--t3)',textAlign:'center',maxWidth:320}}>It may have been encrypted with a different password. It stays read-only so it can't be overwritten.</div>
+                    )}
+                    {bodyLock === 'nokey' && (<>
+                      <div style={{fontSize:13,color:'var(--t3)'}}>Enter password to unlock</div>
+                      {unlockRequested && <div style={{fontSize:12,color:'var(--amber)'}}>Unlock to make changes — nothing was saved.</div>}
+                      <input
+                        ref={encPwdRef}
+                        type="password"
+                        placeholder="Account password"
+                        autoComplete="current-password"
+                        value={encPwd}
+                        onChange={e => { setEncPwd(e.target.value); setEncError(''); }}
+                        onKeyDown={e => e.key === 'Enter' && unlockNote()}
+                        disabled={unlocking}
+                        style={{textAlign:'center',fontSize:16,background:'var(--bg2)',border:'1px solid var(--b2)',borderRadius:10,padding:'10px 16px',color:'var(--t1)',width:240}}
+                        autoFocus
+                      />
+                      {encError && <div style={{fontSize:12,color:'var(--red)'}}>{encError}</div>}
+                      <button className="btn primary" onClick={unlockNote} disabled={!encPwd || unlocking}>{unlocking ? 'Unlocking…' : 'Unlock'}</button>
+                    </>)}
+                  </div>
+                )}
+
+                {/* WYSIWYG contentEditable editor — kept mounted (loadBody needs the ref)
+                    but not editable and hidden while the body is locked */}
                 <div
                   ref={editorRef}
                   className="note-body-wysiwyg"
-                  contentEditable
+                  contentEditable={!bodyLock}
+                  hidden={!!bodyLock}
+                  aria-hidden={!!bodyLock}
                   suppressContentEditableWarning
                   data-placeholder="Start writing..."
                   spellCheck
@@ -1516,7 +1582,7 @@ export default function Notes({ user }) {
                 />
 
                 {/* Mobile bottom formatting toolbar */}
-                <div className="mobile-editor-toolbar">
+                {!bodyLock && <div className="mobile-editor-toolbar">
                   <button className="note-tool-btn" onMouseDown={e=>{e.preventDefault();applyFormat('bold');}}><strong>B</strong></button>
                   <button className="note-tool-btn" onMouseDown={e=>{e.preventDefault();applyFormat('italic');}}><em>I</em></button>
                   <button className="note-tool-btn" onMouseDown={e=>{e.preventDefault();applyFormat('h1');}}>H1</button>
@@ -1524,13 +1590,13 @@ export default function Notes({ user }) {
                   <button className="note-tool-btn" onMouseDown={e=>{e.preventDefault();applyFormat('ul');}}>•—</button>
                   <button className="note-tool-btn" onMouseDown={e=>{e.preventDefault();applyFormat('check');}}>☐</button>
                   <button className="note-tool-btn" onMouseDown={e=>{e.preventDefault();applyFormat('code');}}><Icon name="code" size={12}/></button>
-                </div>
+                </div>}
 
                 {/* Tags */}
                 <div className="note-tags-bar">
                   <Icon name="tag" size={11} color="var(--t3)"/>
                   {editTags.split(',').filter(t=>t.trim()).map(t=><span key={t} className="nli-tag">{t.trim()}</span>)}
-                  <input className="note-tags-input" placeholder="Add tags: work, idea, ..." value={editTags} onChange={e=>onTagsChange(e.target.value)}/>
+                  <input className="note-tags-input" placeholder="Add tags: work, idea, ..." value={editTags} readOnly={!!bodyLock} onChange={e=>onTagsChange(e.target.value)}/>
                   {cryptoKey && <span style={{marginLeft:'auto',flexShrink:0,fontSize:10,color:'var(--grn)',opacity:.7}}>🔒 encrypted</span>}
                   {saveStatus==='saving' && <span key="saving" className="save-ind saving" style={{flexShrink:0}}>saving...</span>}
                   {saveStatus==='saved'  && <span key="saved"  className="save-ind saved"  style={{flexShrink:0}}>saved ✓</span>}
