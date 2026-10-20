@@ -219,7 +219,7 @@ const _sessionUnlockedNotes = new Set();
 
 // ─── NOTES ───────────────────────────────────────────────────────────────────
 export default function Notes({ user }) {
-  const { key: cryptoKey, setKey: setCryptoKey, keyLoading } = useCrypto();
+  const { key: cryptoKey, setKey: setCryptoKey, keyLoading, keyError, setKeyError } = useCrypto();
   const cryptoKeyRef = useRef(cryptoKey);
   useEffect(() => { cryptoKeyRef.current = cryptoKey; }, [cryptoKey]);
   // ── Notebooks (Supabase + localStorage backed) ───────────────────────
@@ -1142,6 +1142,7 @@ export default function Notes({ user }) {
     try {
       const key = await unlockWithPassword(user.id, encPwd, currentNote.body);
       setEncPwd(''); setUnlockRequested(false);
+      setKeyError(null);
       setCryptoKey(key);
     } catch (err) {
       setEncError(err?.message || 'Could not unlock.');
@@ -1489,6 +1490,9 @@ export default function Notes({ user }) {
               </div>
             ) : (
               <>
+                {keyError && !cryptoKey && !bodyLock && (
+                  <div style={{fontSize:12,color:'var(--red)',padding:'8px 0'}}>Encryption isn't set up: {keyError}</div>
+                )}
                 {/* Title */}
                 <input className="note-title-input"
                   ref={titleInputRef}
@@ -1524,6 +1528,7 @@ export default function Notes({ user }) {
                     {bodyLock === 'nokey' && (<>
                       <div style={{fontSize:13,color:'var(--t3)'}}>Enter password to unlock</div>
                       {unlockRequested && <div style={{fontSize:12,color:'var(--amber)'}}>Unlock to make changes — nothing was saved.</div>}
+                      {keyError && <div style={{fontSize:12,color:'var(--red)',textAlign:'center',maxWidth:320}}>{keyError}</div>}
                       <input
                         ref={encPwdRef}
                         type="password"

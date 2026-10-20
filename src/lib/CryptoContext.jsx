@@ -3,12 +3,13 @@
 // https://sanctum.app
 import { createContext, useContext, useState } from 'react';
 
-const CryptoContext = createContext({ key: null, setKey: () => {}, keyLoading: false, setKeyLoading: () => {} });
+const CryptoContext = createContext({ key: null, setKey: () => {}, keyLoading: false, setKeyLoading: () => {}, keyError: null, setKeyError: () => {} });
 
 export function CryptoProvider({ children }) {
   const [key, setKey] = useState(null);
   const [keyLoading, setKeyLoading] = useState(false);
-  return <CryptoContext.Provider value={{ key, setKey, keyLoading, setKeyLoading }}>{children}</CryptoContext.Provider>;
+  const [keyError, setKeyError] = useState(null); // set when login couldn't set up the key
+  return <CryptoContext.Provider value={{ key, setKey, keyLoading, setKeyLoading, keyError, setKeyError }}>{children}</CryptoContext.Provider>;
 }
 
 export const useCrypto = () => useContext(CryptoContext);
