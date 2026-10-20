@@ -7,7 +7,7 @@ import { Icon, Modal, DEFAULT_NOTEBOOKS } from "./shared";
 import { OWNER_IDS } from "./trackers/TrackerHub";
 import { useCrypto } from "../lib/CryptoContext.jsx";
 import { encrypt, decrypt, isEncrypted, isEncryptedWithoutKey } from "../lib/crypto.js";
-import { unlockWithPassword } from "../lib/encryptionKey.js";
+import { unlockWithPassword, encryptionEnabled, encryptPlaintextNotes } from "../lib/encryptionKey.js";
 
 const sanitizeHtml = (html) => {
   const div = document.createElement('div');
@@ -217,6 +217,9 @@ const insertBlocksAtCaret = (ed, blockHtml) => {
 // Persists across Notes unmount/remount within the same browser session
 const _sessionUnlockedNotes = new Set();
 
+// New notes created with no key get a temporary id and no DB row until unlock.
+const isDraftId = (id) => typeof id === 'string' && id.startsWith('draft-');
+
 // ─── NOTES ───────────────────────────────────────────────────────────────────
 export default function Notes({ user }) {
   const { key: cryptoKey, setKey: setCryptoKey, keyLoading, keyError, setKeyError } = useCrypto();
@@ -230,11 +233,12 @@ export default function Notes({ user }) {
     try { const s = localStorage.getItem('sanctum_notebooks_v2'); if (s) return JSON.parse(s); } catch {}
     return isOwner ? DEFAULT_NOTEBOOKS : [];
   });
-  useEffect(() => {
+  // Strict read: a failed request must never look like "no notebooks", or the
+  // owner branch below would seed DEFAULT_NOTEBOOKS over the real tree.
+  const loadNotebooks = useCallback(() => {
     if (!user?.id) return;
     const singletonId = `singleton_${user.id}`;
-    sb.from('notebooks').select('*', '', '').then((res) => {
-      const rows = Array.isArray(res) ? res : [];
+    sb.from('notebooks').select('*', '', '', { strict: true }).then((rows) => {
       const singleton = rows.find(r => r.id === singletonId);
       if (singleton && Array.isArray(singleton.data) && singleton.data.length > 0) {
         // One-time self-heal: non-owner accounts that were seeded with the default
@@ -265,8 +269,12 @@ export default function Notes({ user }) {
         setNotebooks([]);
         localStorage.setItem('sanctum_notebooks_v2', JSON.stringify([]));
       }
-    }).catch(() => {}); // network error — keep current state (localStorage/defaults)
-  }, [user?.id]);
+    }).catch((err) => { // request failed — keep current state, write nothing
+      console.error('[loadNotebooks] Error:', err);
+      setLoadError("Couldn't load your notebooks.");
+    });
+  }, [user?.id]); // eslint-disable-line react-hooks/exhaustive-deps
+  useEffect(() => { loadNotebooks(); }, [loadNotebooks]);
   const saveNotebooks = useCallback(async (nbs) => {
     setNotebooks(nbs);
     localStorage.setItem('sanctum_notebooks_v2', JSON.stringify(nbs));
@@ -300,9 +308,9 @@ export default function Notes({ user }) {
   const [editBody,   setEditBody]   = useState('');
   const [editTags,   setEditTags]   = useState('');
   const [loading,    setLoading]    = useState(false);
+  const [loadError,  setLoadError]  = useState(null); // failed notes/notebooks read — never shown as "empty"
   const [saveStatus, setSaveStatus] = useState('idle');
   const [migrating,  setMigrating]  = useState(false);
-  const migratedRef = useRef(false);
   const saveTimer   = useRef(null);
   const dirtyRef    = useRef(false);
   const pendingSave = useRef({ id: null, title: '', body: '', tags: '' });
@@ -325,10 +333,30 @@ export default function Notes({ user }) {
   const [encError,  setEncError]  = useState('');
   const [unlocking, setUnlocking] = useState(false);
   const encPwdRef = useRef(null);
+
+  // ── No-key drafts ─────────────────────────────────────────────────────
+  // While encryption is on and no key is loaded, note edits (and new notes)
+  // live ONLY here, in memory: id → { title, body, tags, isNew }. They are
+  // encrypted and written when the key arrives (flushDrafts). New notes get a
+  // temporary "draft-…" id and no DB row until then.
+  const draftsRef = useRef(new Map());
+  const [draftIds, setDraftIds] = useState(() => new Set());
+  const syncDraftIds = () => setDraftIds(new Set(draftsRef.current.keys()));
+  // Fail closed: until the profile says otherwise, assume encryption is on.
+  const encryptionOnRef = useRef(true);
+  const [encryptionOn, setEncryptionOn] = useState(true);
+  useEffect(() => {
+    if (!user?.id) return;
+    encryptionEnabled(user.id).then(on => { encryptionOnRef.current = on; setEncryptionOn(on); });
+  }, [user?.id]);
+  const needsKey = useCallback(() => encryptionOnRef.current !== false && !cryptoKeyRef.current, []);
   // True when saving this note would overwrite ciphertext we can't read (no key
   // loaded, or decryption failed). Every title/body/tags write goes through
   // autoSave/flushSave, which check this first and ask for the password instead.
-  useEffect(() => { if (unlockRequested) encPwdRef.current?.focus(); }, [unlockRequested]);
+  // Focus the password field only for the full lock panel. Never while the user
+  // is typing in an editable note (the unlock bar), or keystrokes get stolen.
+  const bodyLockRef = useRef(null);
+  useEffect(() => { if (unlockRequested && bodyLockRef.current === 'nokey') encPwdRef.current?.focus(); }, [unlockRequested]);
   const isBodyWriteBlocked = useCallback((id) => {
     const n = allNotesRef.current.find(x => x.id === id);
     if (n && isEncryptedWithoutKey(n.body, cryptoKeyRef.current)) return true;
@@ -418,7 +446,8 @@ export default function Notes({ user }) {
     const note = allNotes.find(n => n.id === activeNote);
     if (!note) return;
     async function loadBody() {
-      let body = note.body || '';
+      const draft = draftsRef.current.get(note.id); // unsaved in-memory edits win
+      let body = draft ? draft.body : (note.body || '');
       let failed = false;
       if (isEncrypted(body)) {
         if (cryptoKey) {
@@ -467,8 +496,9 @@ export default function Notes({ user }) {
   useEffect(() => { if (user?.id) loadNotes(); }, [user?.id]);
   const loadNotes = async () => {
     setLoading(true);
+    setLoadError(null);
     try {
-      const data = await sb.from("notes").select("*");
+      const data = await sb.from("notes").select("*", undefined, undefined, { strict: true });
       if (Array.isArray(data)) {
         // Normalize notebook/section: match by id OR label (case-insensitive) → canonical id
         const normalized = data.map(n => {
@@ -488,7 +518,9 @@ export default function Notes({ user }) {
           }
           return { ...n, notebook: nbVal, section: secVal };
         });
-        setAllNotes(normalized);
+        // Keep new notes that only exist as in-memory drafts.
+        const draftNotes = allNotesRef.current.filter(n => isDraftId(n.id) && draftsRef.current.has(n.id));
+        setAllNotes([...draftNotes, ...normalized]);
         // Restore last-viewed note by ID first; fall back to notebook/section, then first note
         const storedNoteId = localStorage.getItem('sanctum_active_note');
         let first = storedNoteId ? normalized.find(n => String(n.id) === storedNoteId) : null;
@@ -503,7 +535,9 @@ export default function Notes({ user }) {
           if (!first && resolvedNB) first = normalized.find(n => n.notebook.toLowerCase() === resolvedNB.toLowerCase());
           if (!first && normalized.length > 0) first = normalized[0];
         }
-        if (first) {
+        // Don't yank the user off a note they opened (e.g. a new draft) while this load was in flight.
+        const userPicked = activeNoteRef.current && [...draftNotes, ...normalized].some(n => n.id === activeNoteRef.current);
+        if (first && !userPicked) {
           const nbId  = first.notebook || DEFAULT_NOTEBOOKS[0]?.id || '';
           const secId = first.section  || '';
           setActiveNB(nbId);   localStorage.setItem('sanctum_active_nb', nbId);
@@ -512,76 +546,145 @@ export default function Notes({ user }) {
           openNote(first, false);
         }
       }
-    } catch { setAllNotes([]); }
+    } catch (err) {
+      // Keep whatever is on screen; an empty list here would be a lie.
+      console.error('[loadNotes] Error:', err);
+      setLoadError("Couldn't load your notes.");
+    }
     setLoading(false);
   };
 
-  // ── Background migration: encrypt plaintext notes on first login with key ──
-  useEffect(() => {
-    if (!cryptoKey || migratedRef.current || loading) return;
-    const plainNotes = allNotes.filter(n => n.body && !isEncrypted(n.body));
-    if (plainNotes.length === 0) { migratedRef.current = true; return; }
-    migratedRef.current = true;
-    const runMigration = async () => {
-      setMigrating(true);
-      for (const note of plainNotes) {
-        try {
-          const encrypted = await encrypt(note.body, cryptoKey);
-          await sb.from("notes").update({ body: encrypted }, { id: note.id });
-          setAllNotes(prev => prev.map(n => n.id === note.id ? { ...n, body: encrypted } : n));
-        } catch {}
-      }
-      setMigrating(false);
-    };
-    runMigration();
-  }, [cryptoKey, loading]); // eslint-disable-line react-hooks/exhaustive-deps
+  // ── Saving ────────────────────────────────────────────────────────────
+  // Keep a draft in memory (never written to the DB as-is).
+  const holdDraft = useCallback((id, fields) => {
+    const prev = draftsRef.current.get(id);
+    draftsRef.current.set(id, { isNew: prev?.isNew ?? isDraftId(id), ...fields }); // new object: flushDrafts compares identity
+    syncDraftIds();
+    setAllNotes(p => p.map(n => n.id === id ? { ...n, title: fields.title, tags: fields.tags } : n));
+  }, []);
 
-  // ── Auto-save (700ms debounce) ────────────────────────────────────────
+  // Encrypt + write every draft. Runs when the key arrives, and again if
+  // drafts change while a flush is in flight.
+  const flushingRef = useRef(false);
+  const flushAgainRef = useRef(false);
+  const flushDrafts = useCallback(async () => {
+    if (flushingRef.current) { flushAgainRef.current = true; return; }
+    flushingRef.current = true;
+    try {
+      do {
+        flushAgainRef.current = false;
+        for (const [id, d] of [...draftsRef.current]) {
+          const key = cryptoKeyRef.current;
+          if (!key) return; // key gone (logout) — keep drafts in memory
+          const note = allNotesRef.current.find(n => n.id === id);
+          if (!note) { draftsRef.current.delete(id); continue; } // note was deleted meanwhile
+          try {
+            const body = await encrypt(d.body, key);
+            const updated = new Date().toISOString();
+            let realId = id;
+            if (d.isNew) {
+              const res = await sb.from("notes").insert({ notebook: note.notebook, section: note.section, title: d.title, body, tags: d.tags, updated_at: updated, user_id: user?.id });
+              const row = Array.isArray(res) ? res[0] : null;
+              if (!row?.id) throw new Error('insert failed');
+              realId = row.id;
+              setAllNotes(p => p.map(n => n.id === id ? row : n));
+              allNotesRef.current = allNotesRef.current.map(n => n.id === id ? row : n);
+              if (activeNoteRef.current === id) {
+                activeNoteRef.current = row.id; setActiveNote(row.id);
+                localStorage.setItem('sanctum_active_note', String(row.id));
+              }
+            } else {
+              const res = await sb.from("notes").update({ title: d.title, body, tags: d.tags, updated_at: updated }, { id });
+              if (!Array.isArray(res) || res.length !== 1) throw new Error('update failed');
+              setAllNotes(p => p.map(n => n.id === id ? { ...n, title: d.title, body, tags: d.tags, updated_at: updated } : n));
+            }
+            // Edited again while we were writing? Keep the newer draft (under the real id).
+            const latest = draftsRef.current.get(id);
+            draftsRef.current.delete(id);
+            if (latest && latest !== d) { draftsRef.current.set(realId, { ...latest, isNew: false }); flushAgainRef.current = true; }
+          } catch (err) {
+            console.error('[flushDrafts] Error:', err);
+            setSaveStatus('error'); // draft stays in memory; retried on the next flush
+          }
+        }
+      } while (flushAgainRef.current);
+    } finally {
+      flushingRef.current = false;
+      syncDraftIds();
+    }
+  }, [user?.id]);
+  useEffect(() => { if (cryptoKey && draftsRef.current.size) flushDrafts(); }, [cryptoKey, flushDrafts]);
+
+  // THE gate for note-body writes. Returns true when the write was handled here
+  // and the caller must NOT send it:
+  //  - body is ciphertext we can't read → refuse (isBodyWriteBlocked)
+  //  - no key while encryption is on    → keep in memory, ask for the password
+  //  - a draft is pending for this note → update the draft, let flushDrafts write it
+  const divertBodyWrite = useCallback((id, fields) => {
+    if (isBodyWriteBlocked(id)) { setUnlockRequested(true); return true; }
+    const keyless = needsKey();
+    if (keyless || draftsRef.current.has(id) || isDraftId(id)) {
+      holdDraft(id, fields);
+      if (keyless) setUnlockRequested(true); else flushDrafts();
+      return true;
+    }
+    return false;
+  }, [isBodyWriteBlocked, needsKey, holdDraft, flushDrafts]);
+
+  // The single DB write for title/body/tags edits (autosave + flush on blur/switch).
+  const writeNote = useCallback(async (id, title, body, tags, where) => {
+    dirtyRef.current = false;
+    if (divertBodyWrite(id, { title, body, tags })) return;
+    let bodyToSave = body; // plaintext only reachable when the account has no encryption salt
+    if (cryptoKeyRef.current) {
+      try { bodyToSave = await encrypt(body, cryptoKeyRef.current); }
+      catch (e) {
+        console.error(`[${where}] Encrypt error:`, e);
+        holdDraft(id, { title, body, tags }); setSaveStatus('error'); // never fall back to plaintext
+        return;
+      }
+    }
+    setSaveStatus('saving');
+    const updated = new Date().toISOString();
+    setAllNotes(prev => prev.map(n => n.id === id ? { ...n, title, body: bodyToSave, tags, updated_at: updated } : n));
+    let saveOk = true;
+    try {
+      const res = await sb.from("notes").update({ title, body: bodyToSave, tags, updated_at: updated }, { id });
+      if (!Array.isArray(res)) saveOk = false;
+    } catch(e) { console.error(`[${where}] Error:`, e); saveOk = false; }
+    setSaveStatus(saveOk ? 'saved' : 'error');
+    setTimeout(() => setSaveStatus(s => (s === 'saved' || s === 'error') ? 'idle' : s), 1500);
+  }, [divertBodyWrite, holdDraft]);
+
   const flushSave = useCallback(async () => {
     if (!dirtyRef.current) return;
     if (saveTimer.current) { clearTimeout(saveTimer.current); saveTimer.current = null; }
     const { id, title, body, tags } = pendingSave.current;
     if (!id) return;
-    if (isBodyWriteBlocked(id)) { dirtyRef.current = false; setUnlockRequested(true); return; }
-    setSaveStatus('saving');
-    const updated = new Date().toISOString();
-    let bodyToSave = body;
-    if (cryptoKeyRef.current) {
-      try { bodyToSave = await encrypt(body, cryptoKeyRef.current); } catch(e) { console.error('[flushSave] Encrypt error:', e); }
-    }
-    setAllNotes(prev => prev.map(n => n.id === id ? { ...n, title, body: bodyToSave, tags, updated_at: updated } : n));
-    let saveOk = true;
-    try { await sb.from("notes").update({ title, body: bodyToSave, tags, updated_at: updated }, { id }); } catch(e) { console.error('[flushSave] Error:', e); saveOk = false; }
-    dirtyRef.current = false;
-    setSaveStatus(saveOk ? 'saved' : 'error');
-    setTimeout(() => setSaveStatus(s => (s === 'saved' || s === 'error') ? 'idle' : s), 1500);
-  }, [isBodyWriteBlocked]);
+    await writeNote(id, title, body, tags, 'flushSave');
+  }, [writeNote]);
 
   // body is read from editorRef at call time so new notes always save current HTML
   const autoSave = useCallback((id, title, tags) => {
-    if (isBodyWriteBlocked(id)) { setUnlockRequested(true); return; }
-    dirtyRef.current = true;
     const body = sanitizeHtml(editorRef.current?.innerHTML || '');
+    // No debounce for diverted writes: a draft must exist before the tab can close.
+    if (divertBodyWrite(id, { title, body, tags })) return;
+    dirtyRef.current = true;
     pendingSave.current = { id, title, body, tags };
     if (saveTimer.current) clearTimeout(saveTimer.current);
-    saveTimer.current = setTimeout(async () => {
-      const { id: sid, title: stitle, body: sbody, tags: stags } = pendingSave.current;
-      // Re-check: the lock state can change during the debounce window.
-      if (isBodyWriteBlocked(sid)) { dirtyRef.current = false; setUnlockRequested(true); return; }
-      setSaveStatus('saving');
-      const updated = new Date().toISOString();
-      let bodyToSave = sbody;
-      if (cryptoKeyRef.current) {
-        try { bodyToSave = await encrypt(sbody, cryptoKeyRef.current); } catch(e) { console.error('[autoSave] Encrypt error:', e); }
-      }
-      setAllNotes(prev => prev.map(n => n.id === sid ? { ...n, title: stitle, body: bodyToSave, tags: stags, updated_at: updated } : n));
-      let saveOk = true;
-      try { await sb.from("notes").update({ title: stitle, body: bodyToSave, tags: stags, updated_at: updated }, { id: sid }); } catch(e) { console.error('[autoSave] Error:', e); saveOk = false; }
-      dirtyRef.current = false;
-      setSaveStatus(saveOk ? 'saved' : 'error');
-      setTimeout(() => setSaveStatus(s => (s === 'saved' || s === 'error') ? 'idle' : s), 1500);
+    saveTimer.current = setTimeout(() => {
+      const p = pendingSave.current;
+      writeNote(p.id, p.title, p.body, p.tags, 'autoSave'); // re-checks the gate at fire time
     }, 700);
-  }, [isBodyWriteBlocked]);
+  }, [divertBodyWrite, writeNote]);
+
+  // Unsaved drafts → warn before the tab closes or reloads.
+  useEffect(() => {
+    if (draftIds.size === 0) return;
+    const warn = (e) => { e.preventDefault(); e.returnValue = ''; };
+    window.addEventListener('beforeunload', warn);
+    return () => window.removeEventListener('beforeunload', warn);
+  }, [draftIds]);
 
   const addCollapseButtons = () => {
     const ed = editorRef.current; if (!ed) return;
@@ -642,6 +745,16 @@ export default function Notes({ user }) {
       sectionId = secId;
     }
     const note = { notebook: nb.id, section: sectionId, title: '', body: '', tags: '', updated_at: new Date().toISOString().slice(0, 10), user_id: user?.id };
+    if (needsKey()) {
+      // No key: no DB row yet. The note lives in memory until unlock (flushDrafts inserts it).
+      const draftNote = { ...note, id: `draft-${Date.now()}` };
+      draftsRef.current.set(draftNote.id, { isNew: true, title: '', body: '', tags: '' });
+      syncDraftIds();
+      setAllNotes(prev => [draftNote, ...prev]);
+      openNote(draftNote);
+      setTimeout(() => titleInputRef.current?.focus(), 80);
+      return;
+    }
     try {
       const res = await sb.from("notes").insert(note);
       if (!Array.isArray(res) || !res[0]?.id) {
@@ -662,6 +775,13 @@ export default function Notes({ user }) {
     const nid = id || activeNote; if (!nid) return;
     const target = allNotes.find(n => n.id === nid);
     if (target?.locked && !_sessionUnlockedNotes.has(String(nid))) { setNoteMenu(null); return; }
+    if (isDraftId(nid)) { // never reached the DB
+      draftsRef.current.delete(nid); syncDraftIds();
+      setAllNotes(prev => prev.filter(n => n.id !== nid));
+      if (nid === activeNote) { setActiveNote(null); setEditTitle(''); setEditBody(''); setEditTags(''); localStorage.removeItem('sanctum_active_note'); }
+      setNoteMenu(null);
+      return;
+    }
     try {
       const ok = await sb.from("notes").delete({ id: nid });
       if (!ok) {
@@ -688,8 +808,15 @@ export default function Notes({ user }) {
 
   const duplicateNote = async (id) => {
     const note = allNotes.find(n => n.id === id); if (!note) return;
+    const plainSource = note.body && !isEncrypted(note.body);
+    // Drafts, or a plaintext source with no key: unlock first (the copy would be plaintext).
+    if (isDraftId(id) || draftsRef.current.has(id) || (plainSource && needsKey())) { setUnlockRequested(true); setNoteMenu(null); return; }
     const { id: _id, ...rest } = note;
     const dup = { ...rest, title: (note.title || 'Untitled') + ' copy', updated_at: new Date().toISOString().slice(0, 10), user_id: user?.id };
+    if (plainSource && cryptoKeyRef.current) {
+      try { dup.body = await encrypt(note.body, cryptoKeyRef.current); }
+      catch (err) { console.error('[duplicateNote] Encrypt error:', err); setNoteMenu(null); return; }
+    }
     try {
       const res = await sb.from("notes").insert(dup);
       const created = Array.isArray(res) && res[0] ? res[0] : { ...dup, id: Date.now().toString() };
@@ -707,7 +834,7 @@ export default function Notes({ user }) {
     const nbLabel  = nbConf?.label  || toNBId;
     const secLabel = secConf?.label || toSecId;
     setAllNotes(prev => prev.map(n => n.id === noteId ? { ...n, notebook: nbId, section: secId } : n));
-    try { await sb.from("notes").update({ notebook: nbLabel, section: secLabel }, { id: noteId }); } catch {}
+    if (!isDraftId(noteId)) { try { await sb.from("notes").update({ notebook: nbLabel, section: secLabel }, { id: noteId }); } catch {} }
     setMoveModal(null); setNoteMenu(null);
   };
 
@@ -722,6 +849,7 @@ export default function Notes({ user }) {
 
   const toggleNoteLock = () => {
     if (!currentNote) return;
+    if (isDraftId(currentNote.id)) { setUnlockRequested(true); return; } // save (unlock) first
     if (currentNote.locked) { setPinModal('remove'); setPinInput(''); setPinError(false); }
     else                    { setPinModal('set');    setPinInput(''); setPinConfirm(''); setPinError(false); }
   };
@@ -1020,7 +1148,8 @@ export default function Notes({ user }) {
     saveNotebooks(updatedNBs);
     if (activeSection===secId) { const rem=nb.sections.filter(s=>s.id!==secId); if(rem[0]) selectSection(rem[0].id,parentId); }
     setAllNotes(prev => prev.filter(n => n.section !== secId));
-    try { await Promise.all(noteIdsToDelete.map(id => sb.from("notes").delete({ id }))); } catch {}
+    noteIdsToDelete.filter(isDraftId).forEach(id => draftsRef.current.delete(id)); syncDraftIds();
+    try { await Promise.all(noteIdsToDelete.filter(id => !isDraftId(id)).map(id => sb.from("notes").delete({ id }))); } catch {}
     setNbMenu(null);
   };
   const commitRename = async () => {
@@ -1136,14 +1265,48 @@ export default function Notes({ user }) {
     : decryptFailedId === currentNote.id ? 'failed'
     : isEncryptedWithoutKey(currentNote.body, cryptoKey) ? (keyLoading ? 'loading' : 'nokey')
     : null;
+  bodyLockRef.current = bodyLock;
+  // Plaintext / new note, no key yet: editable, but held in memory until unlock.
+  const showUnlockBar = encryptionOn !== false && !cryptoKey && !keyLoading && !bodyLock && !!currentNote
+    && (unlockRequested || draftIds.has(currentNote.id));
+  const renderUnlockForm = (autoFocus) => (
+    <>
+      <input
+        ref={encPwdRef}
+        type="password"
+        placeholder="Account password"
+        autoComplete="current-password"
+        value={encPwd}
+        onChange={e => { setEncPwd(e.target.value); setEncError(''); }}
+        onKeyDown={e => e.key === 'Enter' && unlockNote()}
+        disabled={unlocking}
+        style={{textAlign:'center',fontSize:16,background:'var(--bg2)',border:'1px solid var(--b2)',borderRadius:10,padding:'10px 16px',color:'var(--t1)',width:240}}
+        autoFocus={autoFocus}
+      />
+      {encError && <div style={{fontSize:12,color:'var(--red)'}}>{encError}</div>}
+      <button className="btn primary" onClick={() => unlockNote()} disabled={!encPwd || unlocking}>{unlocking ? 'Unlocking…' : 'Unlock'}</button>
+    </>
+  );
   const unlockNote = async () => {
-    if (!encPwd || unlocking || !currentNote) return;
+    if (!encPwd || unlocking) return;
     setUnlocking(true); setEncError('');
+    const proof = isEncrypted(currentNote?.body) ? currentNote.body
+      : allNotes.filter(n => isEncrypted(n.body)).sort((a, b) => String(b.updated_at).localeCompare(String(a.updated_at)))[0]?.body;
     try {
-      const key = await unlockWithPassword(user.id, encPwd, currentNote.body);
+      const key = await unlockWithPassword({ userId: user.id, email: user.email, password: encPwd, ciphertext: proof });
       setEncPwd(''); setUnlockRequested(false);
       setKeyError(null);
       setCryptoKey(key);
+      // Encrypt notes still stored as plaintext; reflect the new bodies locally.
+      setMigrating(true);
+      encryptPlaintextNotes(key)
+        .then(({ migrated, failed }) => {
+          const byId = new Map(migrated.map(m => [m.id, m.body]));
+          if (byId.size) setAllNotes(prev => prev.map(n => byId.has(n.id) && !draftsRef.current.has(n.id) ? { ...n, body: byId.get(n.id) } : n));
+          if (failed) console.error(`[unlockNote] note migration: ${failed} note(s) left for next unlock`);
+        })
+        .catch(err => console.error('[unlockNote] note migration failed:', err))
+        .finally(() => setMigrating(false));
     } catch (err) {
       setEncError(err?.message || 'Could not unlock.');
     } finally {
@@ -1320,7 +1483,13 @@ export default function Notes({ user }) {
         </div>
 
         {loading && <div className="loading" style={{padding:20,textAlign:'center',fontSize:12,color:'var(--t3)'}}>Loading...</div>}
-        {!loading && displayedNotes.length===0 && (
+        {loadError && (
+          <div className="notes-load-error" style={{padding:16,textAlign:'center',display:'flex',flexDirection:'column',alignItems:'center',gap:8}}>
+            <div style={{fontSize:12,color:'var(--red)'}}>{loadError}</div>
+            <button className="btn xs" onClick={() => { loadNotebooks(); loadNotes(); }}>Retry</button>
+          </div>
+        )}
+        {!loading && !loadError && displayedNotes.length===0 && (
           <div style={{padding:28,textAlign:'center',color:'var(--t3)',display:'flex',flexDirection:'column',alignItems:'center',gap:10}}>
             <Icon name="notes" size={32} color="var(--t3)" style={{opacity:.3}}/>
             <div style={{fontSize:12}}>{notebooks.length === 0 ? "You don't have any notes yet" : 'No notes in this section'}</div>
@@ -1490,7 +1659,15 @@ export default function Notes({ user }) {
               </div>
             ) : (
               <>
-                {keyError && !cryptoKey && !bodyLock && (
+                {showUnlockBar && (
+                  <div className="note-unlock-bar" style={{display:'flex',flexWrap:'wrap',alignItems:'center',justifyContent:'center',gap:10,padding:'10px 12px',margin:'4px 0 8px',border:'1px solid var(--b2)',borderRadius:10,background:'var(--bg2)'}}>
+                    <div style={{fontSize:13,color:'var(--amber)',flexBasis:'100%',textAlign:'center'}}>
+                      Not saved yet. Enter your password to encrypt and save{draftIds.size > 1 ? ` (${draftIds.size} notes waiting)` : ''}.
+                    </div>
+                    {renderUnlockForm(false)}
+                  </div>
+                )}
+                {keyError && !cryptoKey && !bodyLock && !showUnlockBar && (
                   <div style={{fontSize:12,color:'var(--red)',padding:'8px 0'}}>Encryption isn't set up: {keyError}</div>
                 )}
                 {/* Title */}
@@ -1529,20 +1706,7 @@ export default function Notes({ user }) {
                       <div style={{fontSize:13,color:'var(--t3)'}}>Enter password to unlock</div>
                       {unlockRequested && <div style={{fontSize:12,color:'var(--amber)'}}>Unlock to make changes — nothing was saved.</div>}
                       {keyError && <div style={{fontSize:12,color:'var(--red)',textAlign:'center',maxWidth:320}}>{keyError}</div>}
-                      <input
-                        ref={encPwdRef}
-                        type="password"
-                        placeholder="Account password"
-                        autoComplete="current-password"
-                        value={encPwd}
-                        onChange={e => { setEncPwd(e.target.value); setEncError(''); }}
-                        onKeyDown={e => e.key === 'Enter' && unlockNote()}
-                        disabled={unlocking}
-                        style={{textAlign:'center',fontSize:16,background:'var(--bg2)',border:'1px solid var(--b2)',borderRadius:10,padding:'10px 16px',color:'var(--t1)',width:240}}
-                        autoFocus
-                      />
-                      {encError && <div style={{fontSize:12,color:'var(--red)'}}>{encError}</div>}
-                      <button className="btn primary" onClick={unlockNote} disabled={!encPwd || unlocking}>{unlocking ? 'Unlocking…' : 'Unlock'}</button>
+                      {renderUnlockForm(true)}
                     </>)}
                   </div>
                 )}

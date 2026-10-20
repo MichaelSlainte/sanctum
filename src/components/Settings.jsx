@@ -81,14 +81,14 @@ export default function Settings({ user, onLogout, theme, onThemeChange, font, o
         notes, tasks, events, sessions,
         applications, finance, trips, notebooks
       ] = await Promise.all([
-        sb.from('notes').select('*'),
+        sb.from('notes').select('*', undefined, undefined, { strict: true }), // never export a failed read as "no notes"
         sb.from('tasks').select('*'),
         sb.from('events').select('*'),
         sb.from('study_sessions').select('*'),
         sb.from('applications').select('*'),
         sb.from('finance').select('*'),
         sb.from('trips').select('*'),
-        sb.from('notebooks').select('*'),
+        sb.from('notebooks').select('*', undefined, undefined, { strict: true }),
       ]);
 
       const exportData = {

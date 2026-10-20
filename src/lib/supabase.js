@@ -153,13 +153,14 @@ export const sb = {
       const res = await fetch(`${SUPABASE_URL}/rest/v1/${table}`, { method: "POST", headers, body: JSON.stringify(payload) });
       return res.json();
     },
-    update: async (data, match) => {
+    // extraFilters: optional raw PostgREST filters ("&col=op.value") for conditional updates.
+    update: async (data, match, extraFilters = "") => {
       await ensureValidToken();
       const session = auth.getSession();
       const headers = { apikey: SUPABASE_KEY, "Content-Type": "application/json", Prefer: "return=representation" };
       if (session) headers.Authorization = `Bearer ${session.token}`;
       const params = Object.entries(match).map(([k, v]) => `${k}=eq.${v}`).join("&");
-      const res = await fetch(`${SUPABASE_URL}/rest/v1/${table}?${params}`, { method: "PATCH", headers, body: JSON.stringify(data) });
+      const res = await fetch(`${SUPABASE_URL}/rest/v1/${table}?${params}${extraFilters}`, { method: "PATCH", headers, body: JSON.stringify(data) });
       if (res.status === 204 || res.status === 200 && res.headers.get('content-length') === '0') return [];
       if (!res.ok) return null;
       return res.json();
