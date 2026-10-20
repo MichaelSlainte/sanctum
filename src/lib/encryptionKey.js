@@ -34,6 +34,14 @@ export async function ensurePersistedSalt(userId) {
   return salt;
 }
 
+// Does this account use note encryption (has a salt)? Fails closed: if the
+// profile can't be read, assume yes, so nothing is written in plaintext.
+export async function encryptionEnabled(userId) {
+  if (localStorage.getItem(saltStorageName(userId))) return true;
+  try { return !!(await readProfileSalt(userId)); }
+  catch { return true; }
+}
+
 // Salt for re-deriving an EXISTING key. Never generates one: a new salt
 // could not decrypt anything already stored. A failed read throws.
 export async function loadSalt(userId) {
