@@ -58,3 +58,10 @@ export async function decrypt(stored, key) {
 export function isEncrypted(body) {
   return typeof body === 'string' && body.startsWith(ENC_PREFIX);
 }
+
+// True when a stored body is ciphertext but no key is loaded to read it.
+// Writing anything over such a body would destroy the note, so callers must
+// treat it as read-only until the key is unlocked.
+export function isEncryptedWithoutKey(body, key) {
+  return isEncrypted(body) && !key;
+}

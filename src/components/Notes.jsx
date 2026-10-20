@@ -6,7 +6,7 @@ import { sb, auth } from "../lib/supabase";
 import { Icon, Modal, DEFAULT_NOTEBOOKS } from "./shared";
 import { OWNER_IDS } from "./trackers/TrackerHub";
 import { useCrypto } from "../lib/CryptoContext.jsx";
-import { encrypt, decrypt, isEncrypted } from "../lib/crypto.js";
+import { encrypt, decrypt, isEncrypted, isEncryptedWithoutKey } from "../lib/crypto.js";
 
 const sanitizeHtml = (html) => {
   const div = document.createElement('div');
@@ -312,6 +312,22 @@ export default function Notes({ user }) {
   const touchNoteRef   = useRef(null);
   const longPressTimer = useRef(null);
   const didTouchDrag   = useRef(false);
+
+  // ── Ciphertext write guard ────────────────────────────────────────────
+  // allNotesRef mirrors state so the memoised save callbacks see current bodies.
+  const allNotesRef = useRef(allNotes);
+  allNotesRef.current = allNotes;
+  const decryptFailedRef = useRef(null); // id of the active note whose decrypt failed
+  const [decryptFailedId, setDecryptFailedId] = useState(null);
+  const [unlockRequested, setUnlockRequested] = useState(false);
+  // True when saving this note would overwrite ciphertext we can't read (no key
+  // loaded, or decryption failed). Every title/body/tags write goes through
+  // autoSave/flushSave, which check this first and ask for the password instead.
+  const isBodyWriteBlocked = useCallback((id) => {
+    const n = allNotesRef.current.find(x => x.id === id);
+    if (n && isEncryptedWithoutKey(n.body, cryptoKeyRef.current)) return true;
+    return decryptFailedRef.current != null && decryptFailedRef.current === id;
+  }, []);
   // Collapsible panels
   const [sidebarCollapsed, setSidebarCollapsed] = useState(() => localStorage.getItem('sanctum_sidebar_col') === 'true');
   const [nbSearch, setNbSearch] = useState('');
@@ -397,9 +413,11 @@ export default function Notes({ user }) {
     if (!note) return;
     async function loadBody() {
       let body = note.body || '';
+      let failed = false;
       if (isEncrypted(body)) {
         if (cryptoKey) {
           try { body = await decrypt(body, cryptoKey); } catch {
+            failed = true;
             body = '<div class="we-line" style="color:var(--t3);font-style:italic">⚠️ Decryption failed — this note may have been encrypted with a different password or key.</div>';
           }
         } else if (keyLoading) {
@@ -408,6 +426,9 @@ export default function Notes({ user }) {
           body = '<div class="we-line" style="color:var(--t3);font-style:italic">🔒 This note is encrypted. Log in with your password to decrypt.</div>';
         }
       }
+      // A note we failed to decrypt must never be saved over (see isBodyWriteBlocked).
+      decryptFailedRef.current = failed ? note.id : null;
+      setDecryptFailedId(failed ? note.id : null);
       if (!editorRef.current) return;
       // Detect HTML by the presence of a block tag ANYWHERE, not just a leading "<".
       // The old startsWith('<') check misfired when the saved HTML began with a bare
@@ -432,6 +453,7 @@ export default function Notes({ user }) {
     setShowPinRecovery(false);
     setRecoveryPwd('');
     setRecoveryError('');
+    setUnlockRequested(false);
   }, [activeNote]);
 
   // ── Load ──────────────────────────────────────────────────────────────
@@ -513,6 +535,7 @@ export default function Notes({ user }) {
     if (saveTimer.current) { clearTimeout(saveTimer.current); saveTimer.current = null; }
     const { id, title, body, tags } = pendingSave.current;
     if (!id) return;
+    if (isBodyWriteBlocked(id)) { dirtyRef.current = false; setUnlockRequested(true); return; }
     setSaveStatus('saving');
     const updated = new Date().toISOString();
     let bodyToSave = body;
@@ -525,18 +548,21 @@ export default function Notes({ user }) {
     dirtyRef.current = false;
     setSaveStatus(saveOk ? 'saved' : 'error');
     setTimeout(() => setSaveStatus(s => (s === 'saved' || s === 'error') ? 'idle' : s), 1500);
-  }, []);
+  }, [isBodyWriteBlocked]);
 
   // body is read from editorRef at call time so new notes always save current HTML
   const autoSave = useCallback((id, title, tags) => {
+    if (isBodyWriteBlocked(id)) { setUnlockRequested(true); return; }
     dirtyRef.current = true;
     const body = sanitizeHtml(editorRef.current?.innerHTML || '');
     pendingSave.current = { id, title, body, tags };
     if (saveTimer.current) clearTimeout(saveTimer.current);
     saveTimer.current = setTimeout(async () => {
+      const { id: sid, title: stitle, body: sbody, tags: stags } = pendingSave.current;
+      // Re-check: the lock state can change during the debounce window.
+      if (isBodyWriteBlocked(sid)) { dirtyRef.current = false; setUnlockRequested(true); return; }
       setSaveStatus('saving');
       const updated = new Date().toISOString();
-      const { id: sid, title: stitle, body: sbody, tags: stags } = pendingSave.current;
       let bodyToSave = sbody;
       if (cryptoKeyRef.current) {
         try { bodyToSave = await encrypt(sbody, cryptoKeyRef.current); } catch(e) { console.error('[autoSave] Encrypt error:', e); }
@@ -548,7 +574,7 @@ export default function Notes({ user }) {
       setSaveStatus(saveOk ? 'saved' : 'error');
       setTimeout(() => setSaveStatus(s => (s === 'saved' || s === 'error') ? 'idle' : s), 1500);
     }, 700);
-  }, []);
+  }, [isBodyWriteBlocked]);
 
   const addCollapseButtons = () => {
     const ed = editorRef.current; if (!ed) return;
@@ -785,6 +811,9 @@ export default function Notes({ user }) {
   // blocks and insert them as top-level siblings. Plain-text / inline-only pastes fall
   // through to the browser default (fast path, no formatting loss).
   const onEditorPaste = useCallback((e) => {
+    if (activeNoteRef.current && isBodyWriteBlocked(activeNoteRef.current)) {
+      e.preventDefault(); setUnlockRequested(true); return;
+    }
     const cd = e.clipboardData;
     if (!cd) return;
     const html = cd.getData('text/html');
@@ -797,7 +826,7 @@ export default function Notes({ user }) {
     normalizeBlocks(editorRef.current); // defensively flatten any nesting the insert created
     addCollapseButtons();
     syncBody();
-  }, [syncBody]);
+  }, [syncBody, isBodyWriteBlocked]);
 
   // Intercept Enter inside list/checklist items to keep DOM structure clean
   const onEditorKeyDown = useCallback((e) => {
