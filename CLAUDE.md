@@ -34,7 +34,8 @@ A private personal life organiser app for Michael (Dublin) and Tamara. Stack: Re
 - src/components/trackers/ — tracker components: TrackerHub, TrackerCreator, Study, Career, Finance, Travel, Ozzy
 - src/trackers/TrackerRenderer.jsx — generic JSONB schema-driven tracker renderer
 - src/trackers/schema-spec.js — field type contract for JSONB tracker schemas
-- src/lib/ — utilities: supabase.js (sb helper + custom auth), crypto.js, CryptoContext.jsx, chat.js (shared callAI/parseAction AI transport)
+- src/lib/ — utilities: supabase.js (sb helper + custom auth + storage incl. createSignedUrl), crypto.js, encryptionKey.js (salt, unlock, plaintext-note migration), useSignedUrl.js (self-refreshing signed URLs), CryptoContext.jsx, chat.js (shared callAI/parseAction AI transport)
+- docs/handoff.md — current state + next steps; docs/security/ — incident notes (redacted)
 - api/chat.js — Vercel serverless AI proxy (Claude Haiku)
 
 ## Design system
@@ -49,6 +50,11 @@ OWNER_IDS exported from src/components/trackers/TrackerHub.jsx.
 - Tamara: 8e2d598c-94b2-497c-a44a-a773e7d8ff6a
 
 Gates: v1 hardcoded trackers, Home AI suggestion chips, PMP study chart, default notebooks (owners only), calendar share toggle. Imported/used across App.jsx, Home.jsx, Notes.jsx, Calendar.jsx, TrackerHub.jsx. This is a hardcoded UUID allowlist — replace with a data-driven role model before public launch.
+
+## Test accounts
+- `TEST_EMAIL_2` / `TEST_PASSWORD_2` (`eng.michaelmarques+sanctum-e2e@gmail.com`): the ONLY E2E account. Non-owner, not in `partners`, in BETA_EMAILS. Specs refuse to run if it's an owner. Also use it for RLS probes from a NON-partner account.
+- `TEST_EMAIL` (Michael's real account): **retired** from tests and CI. Don't use it for anything that writes.
+- `SUPABASE_SERVICE_ROLE_KEY`: GitHub secret, used only by the "Policy inventory check" CI step (`API_ONLY=1`, no app server). Never in the client bundle or committed files.
 
 ## Private beta
 BETA_EMAILS array in the Login component in App.jsx gates both login and signup. To add a new user: add their email to BETA_EMAILS AND create the Supabase auth user. Client-side gate only — not a security boundary (the real boundary is who can create Supabase accounts + RLS).
@@ -80,7 +86,7 @@ BETA_EMAILS array in the Login component in App.jsx gates both login and signup.
 - Forgot-password flow (Supabase /auth/v1/recover)
 - Mobile hardening: iOS input-zoom fix (inputs ≥16px), viewport-fit=cover, interactive-widget=resizes-content, bottom-sheet modal lifted above bottom nav, sticky modal header
 - Vercel Analytics + Speed Insights
-- Playwright E2E smoke tests (9/9 passing)
+- Playwright E2E: 24 tests, all on the non-owner `TEST_EMAIL_2` account. `notes-encryption.spec.ts` (8), `sanctum.spec.ts` smoke (9, incl. 1 `test.fail()` regression test for the v1-tracker leak), `security.spec.ts` (7, incl. the exact-policy-set check, which runs only in a service-role CI step)
 - GitHub Actions CI
 - Settings: themes, profile, privacy section, account info
 
@@ -99,6 +105,13 @@ BETA_EMAILS array in the Login component in App.jsx gates both login and signup.
   - `onPaste` rich-HTML sanitizer (`richHtmlToBlocks` + `insertBlocksAtCaret`) — the editor previously had NO paste handler, so pasting block-structured HTML (a Claude reply, a web page) embedded it verbatim *inside* the current block, nesting a whole document in one `we-check` line. Block-rich pastes are now converted to flat Sanctum blocks and inserted as top-level siblings; plain/inline pastes keep the browser default.
   - **Legacy-note repair — VERIFIED, issue closed (2026-08-02).** `normalizeBlocks()` also repairs already-collapsed **existing/legacy** notes on load, not just newly-created ones. This was the last open question on the fix (it had only ever been browser-tested against fresh notes). Michael manually confirmed it in production against his own real, previously-corrupted notes — they now display correctly. Note this was hands-on verification, not automated coverage: there is no regression test guarding the legacy-repair path, so a future change to `normalizeBlocks()` or the load-detection logic could silently break it again.
 - Housekeeping: orphaned branch `fix/checklist-format` deleted (origin + local). Its `normalizeBlocks` body was byte-identical to what PR #16 merged; its only other unique content was superseded seeding/`newNote` code replaced by PR #12.
+
+## Recently shipped (2026-10-20/21)
+Full summary + next steps: **`docs/handoff.md`**.
+- **#26** (`e027e35`): encrypted notes opened without a key are read-only (no plaintext over ciphertext); login confirms the salt is saved before using it.
+- **#27** (`001a2c9`): no note body is ever written in plaintext without a key (in-memory drafts); the migration actually runs; strict reads for notes/notebooks/salt/export; the key is memory-only and cleared on logout/expiry; E2E moved to the test account.
+- **#32** (`66b2ca8`): security incident 2026-10-20 (migrations 011 + 012): shared-events leak, `ozzy_docs` `USING (true)`, public `pets` bucket fixed; Ozzy files via signed URLs (`useSignedUrl`); CI exact-policy-set check. Advisories GHSA-4m5r-w254-7fw4 (publish now, after removing tester names) and GHSA-p4h3-9mvv-q7pm (after the tracker PR): both private drafts.
+- Verified in prod: all notes encrypted (Michael 16/0, Tamara 2/0); non-owner probe zeros, except v1 trackers in Archived (tracker PR).
 
 ## What is NOT built yet (v2 remaining)
 1. Custom trackers appearing in sidebar nav
@@ -122,7 +135,7 @@ BETA_EMAILS array in the Login component in App.jsx gates both login and signup.
 - Roadmap header layout: "Hide" + "+ New project" now sit in one flex row (gap:8) via an `onHide` prop passed from Home into Roadmap, replacing the absolutely-positioned Hide button that overlapped New project. (bd715ac)
 - Notes save error handling: `flushSave`/`autoSave` use a `saveOk` flag so a failed DB write shows "Save failed" in `var(--red)` for ~1.5s instead of a false "saved ✓"; catch blocks standardised to `console.error('[fn] Error:', …)`; `duplicateNote`'s silent catch now logs. (df45f8b, a4bbed5)
 - Housekeeping: `.gitignore` updated (`verify_*.mjs` added); dead `AIAssistant` component removed from Home.jsx (123 lines); `Sanctum_Admin_Guide.pdf` deleted from the working tree. (09e852d, 1d55e12)
-- Dependabot: **12 open alerts as of 2026-08-02** (9 high, 2 moderate, 1 low) across 6 open Dependabot PRs (#4 vite/vite-plugin-pwa, #5 js-yaml, #6 brace-expansion, #7 sharp, #8 fast-uri, #15 postcss). `npm audit` separately reports 7 vulnerabilities (6 high, 1 low) — the counts differ because Dependabot counts per-advisory alerts and audit dedupes by package; the bulk on both sides is `sharp` → libvips CVEs. (The previous "0 open alerts / audit clean (0 vulnerabilities)" line here was stale — it was true on 2026-06-07 and was never updated.)
+- Dependabot (as of 2026-10-21): **12 open PRs**: #31 vite, #30 brace-expansion, #29 sharp, #28 source-map-js, #25, #24, #22, #21, #20, #19, #15, #4. See `docs/handoff.md` §4.
 - CORS fix: `api/chat.js` now allows `trysanctum.app` (plus the Vercel fallback) via an allowlist-echo pattern + `Vary: Origin`. (4a953a8)
 - JWT validation: already fully implemented in `api/chat.js` (validates the Bearer token against `/auth/v1/user`) — no change needed.
 - GDPR account deletion: new `api/delete-account.js` serverless function (JWT-validated `DELETE`, calls the Supabase admin endpoint `/auth/v1/admin/users/{id}` with the service role key); `Settings.deleteAllData` now calls it after the data wipe and before logout. `SUPABASE_SERVICE_ROLE_KEY` confirmed present in Vercel. (87ecc15)
@@ -139,6 +152,8 @@ BETA_EMAILS array in the Login component in App.jsx gates both login and signup.
 - 9a75b2f feat: calendar↔tracker integration — on-demand tracker context in FAB AI
 
 ## Pending work (priority order)
+0. **Tracker PR (next):** `profiles.ui_prefs`; v1 trackers owners-only (incl. Archived); logout/user-switch clear `sanctum_*` (keep 7 device prefs); migrate owners' layout into `ui_prefs`; flip the `test.fail()` regression test. Full plan: `docs/handoff.md` §3.
+0b. **Other follow-ups** (`docs/handoff.md` §4): privacy wording; note titles/tags/notebook names plaintext; WebAuthn PRF unlock + PBKDF2 600k; `sb.select` fail-open callers; GDPR deletion of storage files; Dependabot; duplicate Vercel projects; OWASP audit; secret clean-up.
 1. GDPR sweep — COMPLETE (2026-06-07): privacy policy shipped at /privacy; cookie consent not required (no tracking cookies, localStorage is exempt from ePrivacy); RoPA is internal.
 
 Carried-over bugs (lower priority, still open):
