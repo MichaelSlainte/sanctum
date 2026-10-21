@@ -66,6 +66,9 @@ async function openKeylessTab(page: Page, activeNoteId?: string) {
     localStorage.setItem("sanctum_refresh", s.refresh_token);
     localStorage.setItem("sanctum_expiry", String(Date.now() + s.expires_in * 1000));
     localStorage.setItem("sanctum_page", "notes");
+    // A returning tab: this browser's last user is this user (userStorage.js),
+    // so per-user state like the active note is kept, not cleared as leftovers.
+    localStorage.setItem("sanctum_last_uid", s.user.id);
     if (id) localStorage.setItem("sanctum_active_note", String(id)); else localStorage.removeItem("sanctum_active_note");
   }, [session, activeNoteId ?? ""] as const);
   await page.goto("/");

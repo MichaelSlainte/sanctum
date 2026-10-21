@@ -82,6 +82,63 @@ test("ozzy_docs: no cross-user read/write; own rows work", async () => {
   expect((await del.json()).length, "own delete").toBe(1);
 });
 
+// ── Migration 013: Ozzy data tables (same rule as ozzy_docs) ─────────────
+for (const [table, ownRow] of [
+  ["ozzy_weights",     { date: "2026-01-01", kg: 1 }],
+  ["ozzy_custom_docs", { name: "[E2E] own custom doc" }],
+] as const) {
+  test(`${table}: no cross-user read/write; own rows work`, async () => {
+    expect(await rows(`${table}?select=id`, anonH), "anon read").toEqual([]);
+    expect(await rows(`${table}?select=id&user_id=in.(${OWNERS.join(",")})`, userH()), "non-partner read of owners").toEqual([]);
+
+    // No-op PATCH on the owner's rows → must touch 0 rows.
+    const patch = await fetch(`${URL}/rest/v1/${table}?user_id=eq.${OWNER}`, {
+      method: "PATCH", headers: { ...userH(), "Content-Type": "application/json", Prefer: "return=representation" },
+      body: JSON.stringify({ user_id: OWNER }),
+    });
+    expect(await patch.json().catch(() => []), "cross-user patch").toEqual([]);
+
+    for (const [who, headers] of [["tester-as-owner", userH()], ["anon", anonH]] as const) {
+      const r = await fetch(`${URL}/rest/v1/${table}`, {
+        method: "POST", headers: { ...headers, "Content-Type": "application/json", Prefer: "return=representation" },
+        body: JSON.stringify({ user_id: OWNER, client_id: `e2e-forged-${Date.now()}`, ...ownRow }),
+      });
+      expect([401, 403], `${who} insert must be rejected (got ${r.status})`).toContain(r.status);
+    }
+
+    // Own row: insert → read → delete.
+    const ins = await fetch(`${URL}/rest/v1/${table}`, {
+      method: "POST", headers: { ...userH(), "Content-Type": "application/json", Prefer: "return=representation" },
+      body: JSON.stringify({ user_id: tester.user.id, client_id: `e2e-${Date.now()}`, ...ownRow }),
+    });
+    expect(ins.status, "own insert").toBe(201);
+    const [own] = await ins.json();
+    expect((await rows(`${table}?select=id&id=eq.${own.id}`, userH())).length).toBe(1);
+    const del = await fetch(`${URL}/rest/v1/${table}?id=eq.${own.id}`, { method: "DELETE", headers: { ...userH(), Prefer: "return=representation" } });
+    expect((await del.json()).length, "own delete").toBe(1);
+  });
+}
+
+// ── profiles (incl. ui_prefs, migration 013): own row only ──────────────
+test("profiles: owners' rows not readable or writable; own ui_prefs round-trips", async () => {
+  expect(await rows("profiles?select=id", anonH), "anon read").toEqual([]);
+  expect(await rows(`profiles?select=id,ui_prefs&id=in.(${OWNERS.join(",")})`, userH()), "non-owner read of owners").toEqual([]);
+  const patch = await fetch(`${URL}/rest/v1/profiles?id=eq.${OWNER}`, {
+    method: "PATCH", headers: { ...userH(), "Content-Type": "application/json", Prefer: "return=representation" },
+    body: JSON.stringify({ id: OWNER }), // no-op: never changes the owner's row even if it matched
+  });
+  expect(await patch.json().catch(() => []), "cross-user patch").toEqual([]);
+
+  // Own row: write the current ui_prefs back unchanged and read it.
+  const [mine] = await rows(`profiles?select=ui_prefs&id=eq.${tester.user.id}`, userH());
+  expect(mine, "own profile row readable (and ui_prefs column exists: migration 013)").toBeTruthy();
+  const own = await fetch(`${URL}/rest/v1/profiles?id=eq.${tester.user.id}`, {
+    method: "PATCH", headers: { ...userH(), "Content-Type": "application/json", Prefer: "return=representation" },
+    body: JSON.stringify({ ui_prefs: mine.ui_prefs }),
+  });
+  expect((await own.json()).length, "own patch").toBe(1);
+});
+
 // ── Findings 3 + 4: pets bucket ──────────────────────────────────────────
 const objUrl = (route: string, path: string) => `${URL}/storage/v1/object/${route}/pets/${path}`;
 const sign = (path: string, headers: Record<string, string>) =>
@@ -142,6 +199,21 @@ const EXPECTED_POLICIES: Record<string, [name: string, cmd: string, roles: strin
     ["events_own", "ALL", ["public"]], // dashboard-created; pinned from the 2026-10-21 inventory
     ["events_shared_read", "SELECT", ["public"]], // migration 010
   ],
+  "public.ozzy_custom_docs": [ // migration 013, same rule as ozzy_docs
+    ["ozzy_custom_docs_delete", "DELETE", ["authenticated"]],
+    ["ozzy_custom_docs_insert", "INSERT", ["authenticated"]],
+    ["ozzy_custom_docs_read", "SELECT", ["authenticated"]],
+    ["ozzy_custom_docs_update", "UPDATE", ["authenticated"]],
+  ],
+  "public.ozzy_weights": [ // migration 013, same rule as ozzy_docs
+    ["ozzy_weights_delete", "DELETE", ["authenticated"]],
+    ["ozzy_weights_insert", "INSERT", ["authenticated"]],
+    ["ozzy_weights_read", "SELECT", ["authenticated"]],
+    ["ozzy_weights_update", "UPDATE", ["authenticated"]],
+  ],
+  // TODO(013): pin "public.profiles" (dashboard-created policies) from migration
+  // 013's CHECK 2 output. Until then the CI policy step fails on "tables covered",
+  // which is intended: profiles must not go unpinned.
   "public.ozzy_docs": [
     ["ozzy_docs_delete", "DELETE", ["authenticated"]],
     ["ozzy_docs_insert", "INSERT", ["authenticated"]],
