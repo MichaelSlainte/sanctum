@@ -35,8 +35,9 @@ Where things stand after the notes-encryption and security work of 2026-10-20/21
 
 - **PR A: merged** (#34, `46d1f02`). Item 2 + the test flip. Verified on prod 2026-10-21: the security probes pass and the v1-tracker test passes against trysanctum.app.
 - **PR B** (`feat/ui-prefs-logout-clear`): everything else below, plus the agreed changes in this list, plus a sidebar tidy-up (archived v1 trackers are hidden under Trackers) and a forgot-password warning (login + reset screen: a reset leaves existing notes unreadable). **To merge:**
-  1. Apply `supabase/migrations/013_ui_prefs_ozzy_data.sql` (SQL editor) **before** deploying.
-  2. Run its CHECK 2 and pin the `profiles` policy names in `EXPECTED_POLICIES` (`tests/security.spec.ts`, TODO(013)). Until then the CI policy step fails on purpose.
+  1. ✅ Apply `supabase/migrations/013_ui_prefs_ozzy_data.sql` (SQL editor) **before** deploying.
+  2. ✅ Applied 2026-10-21; CHECKs 1–3 OK. `profiles` has one policy, `"Users can manage own profile"` (ALL, `{public}`, `auth.uid() = id`, no WITH CHECK), now pinned in `EXPECTED_POLICIES`.
+     - **Follow-up (migration 014, not urgent):** replace it with explicit per-command policies `TO authenticated` with explicit WITH CHECK, and cap the size of `ui_prefs` (`CHECK (pg_column_size(ui_prefs) < 65536)`).
   3. After deploy, each owner loads the app once on every device that has Ozzy weight entries; the weight log moves to `ozzy_weights`. (Unsynced entries are kept and shown until then, and logout never drops them.)
   - Salt: the localStorage → DB seeding fallback is **removed** (all 6 accounts had a DB salt, 2026-10-21).
   - Test account: the notes specs pass with the rotated `TEST_PASSWORD_2`, so no notes/salt reset was added.

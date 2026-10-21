@@ -211,9 +211,11 @@ const EXPECTED_POLICIES: Record<string, [name: string, cmd: string, roles: strin
     ["ozzy_weights_read", "SELECT", ["authenticated"]],
     ["ozzy_weights_update", "UPDATE", ["authenticated"]],
   ],
-  // TODO(013): pin "public.profiles" (dashboard-created policies) from migration
-  // 013's CHECK 2 output. Until then the CI policy step fails on "tables covered",
-  // which is intended: profiles must not go unpinned.
+  "public.profiles": [
+    // Dashboard-created; pinned from migration 013 CHECK 2 (2026-10-21):
+    // ALL, USING (auth.uid() = id), no WITH CHECK (so USING applies to writes too).
+    ["Users can manage own profile", "ALL", ["public"]],
+  ],
   "public.ozzy_docs": [
     ["ozzy_docs_delete", "DELETE", ["authenticated"]],
     ["ozzy_docs_insert", "INSERT", ["authenticated"]],
