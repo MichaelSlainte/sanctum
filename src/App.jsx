@@ -8,6 +8,8 @@ import { callAI, parseAction, fetchTrackerContext, isTrackerQuery } from "./lib/
 import { useCrypto } from "./lib/CryptoContext.jsx";
 import { deriveKey } from "./lib/crypto.js";
 import { ensurePersistedSalt, purgeLegacyKeyCache, encryptPlaintextNotes } from "./lib/encryptionKey.js";
+import { uiPrefs, flushUiPrefs, resetUiPrefs } from "./lib/uiPrefs.js";
+import { prepareUserStorage, clearUserStorage } from "./lib/userStorage.js";
 import { Icon } from "./components/shared";
 import Home from "./components/Home";
 import Notes from "./components/Notes";
@@ -15,7 +17,7 @@ import Calendar from "./components/Calendar";
 import Settings from "./components/Settings";
 import Onboarding from "./components/Onboarding";
 import Privacy from "./components/Privacy";
-import SetPassword from "./components/SetPassword";
+import SetPassword, { NotesResetWarning } from "./components/SetPassword";
 import Study from "./components/trackers/Study";
 import Ozzy from "./components/trackers/Ozzy";
 import Travel from "./components/trackers/Travel";
@@ -63,6 +65,7 @@ function Login({ onLogin, onPrivacy }) {
   const [error, setError] = useState("");
   const [loading, setLoading] = useState(false);
   const [mode, setMode] = useState("login");
+  const [confirmReset, setConfirmReset] = useState(false); // forgot-password: warning shown, awaiting confirm
 
   const attempts = useRef(0);
   const lockUntil = useRef(0);
@@ -132,22 +135,36 @@ function Login({ onLogin, onPrivacy }) {
           {loading ? "Please wait..." : mode === "login" ? "Sign in" : "Create account"}
         </button>
         <div style={{ textAlign: "center", marginTop: 18, fontSize: 12, color: "var(--t3)" }}>
-          {mode === "login" && (
+          {mode === "login" && confirmReset && (
+            <div style={{ textAlign: "left", marginTop: 12 }}>
+              <NotesResetWarning />
+              <div style={{ display: "flex", gap: 8, justifyContent: "center" }}>
+                <button className="btn" onClick={() => setConfirmReset(false)} disabled={loading}>Cancel</button>
+                <button className="btn primary" disabled={loading}
+                  onClick={async () => {
+                    setLoading(true); setError("");
+                    try {
+                      const res = await fetch(`${SUPABASE_URL}/auth/v1/recover`, {
+                        method: "POST",
+                        headers: { apikey: SUPABASE_KEY, "Content-Type": "application/json" },
+                        body: JSON.stringify({ email })
+                      });
+                      if (res.ok) setError("✓ Password reset email sent. Check your inbox.");
+                      else setError("Could not send reset email. Check the address and try again.");
+                    } catch { setError("Connection error. Try again."); }
+                    setLoading(false); setConfirmReset(false);
+                  }}>
+                  Send reset email
+                </button>
+              </div>
+            </div>
+          )}
+          {mode === "login" && !confirmReset && (
             <div style={{ textAlign: "center", marginTop: 12 }}>
               <button className="btn ghost" style={{ fontSize: 12, color: "var(--t3)", background: "none", border: "none", cursor: "pointer", textDecoration: "underline" }}
-                onClick={async () => {
+                onClick={() => {
                   if (!email) return setError("Enter your email address first, then click forgot password.");
-                  setLoading(true); setError("");
-                  try {
-                    const res = await fetch(`${SUPABASE_URL}/auth/v1/recover`, {
-                      method: "POST",
-                      headers: { apikey: SUPABASE_KEY, "Content-Type": "application/json" },
-                      body: JSON.stringify({ email })
-                    });
-                    if (res.ok) setError("✓ Password reset email sent. Check your inbox.");
-                    else setError("Could not send reset email. Check the address and try again.");
-                  } catch { setError("Connection error. Try again."); }
-                  setLoading(false);
+                  setError(""); setConfirmReset(true);
                 }}>
                 Forgot password?
               </button>
@@ -527,47 +544,53 @@ RECURRENCE SCOPE: "this" = only that one date, "this_and_future" = that date onw
 
   // Sidebar nav ordering
   const NAV_IDS = NAV.map(n => n.id);
-  const [navOrder, setNavOrder] = useState(() => {
+  // Per-user layout state comes from profiles.ui_prefs (uiPrefs.js). These
+  // readers run at mount (empty prefs) and again via applyAppPrefs() once the
+  // signed-in user's prefs are loaded.
+  const readNavOrder = () => {
     try {
-      const s = JSON.parse(localStorage.getItem("sanctum_nav_order"));
+      const s = JSON.parse(uiPrefs.getItem("sanctum_nav_order"));
       if (Array.isArray(s)) {
         const filtered = s.filter(id => NAV_IDS.includes(id));
         const withMissing = [...filtered, ...NAV_IDS.filter(id => !filtered.includes(id))];
-        if (withMissing.length === NAV_IDS.length) {
-          localStorage.setItem("sanctum_nav_order", JSON.stringify(withMissing));
-          return withMissing;
-        }
+        if (withMissing.length === NAV_IDS.length) return withMissing;
       }
     } catch {}
     return NAV_IDS;
-  });
+  };
+  const readTrackersExpanded = () => uiPrefs.getItem("sanctum_trackers_expanded") === "true";
+  const readArchivedTrackers = () => {
+    try { return JSON.parse(uiPrefs.getItem("sanctum_archived_trackers")) || []; }
+    catch { return []; }
+  };
+  const [navOrder, setNavOrder] = useState(readNavOrder);
   const [navDragOver, setNavDragOver] = useState(null);
   const [navDragging, setNavDragging] = useState(null);
   const navDragId = useRef(null);
 
-  const [trackersExpanded, setTrackersExpanded] = useState(() =>
-    localStorage.getItem("sanctum_trackers_expanded") === "true"
-  );
+  const [trackersExpanded, setTrackersExpanded] = useState(readTrackersExpanded);
   const toggleTrackersExpanded = () => {
     setTrackersExpanded(v => {
       const next = !v;
-      localStorage.setItem("sanctum_trackers_expanded", String(next));
+      uiPrefs.setItem("sanctum_trackers_expanded", String(next));
       return next;
     });
   };
 
-  const [archivedTrackers, setArchivedTrackers] = useState(() => {
-    try { return JSON.parse(localStorage.getItem("sanctum_archived_trackers")) || []; }
-    catch { return []; }
-  });
+  const [archivedTrackers, setArchivedTrackers] = useState(readArchivedTrackers);
+  const applyAppPrefs = () => {
+    setNavOrder(readNavOrder());
+    setTrackersExpanded(readTrackersExpanded());
+    setArchivedTrackers(readArchivedTrackers());
+  };
   const archiveTracker = (id) => setArchivedTrackers(prev => {
     const next = [...new Set([...prev, id])];
-    localStorage.setItem("sanctum_archived_trackers", JSON.stringify(next));
+    uiPrefs.setItem("sanctum_archived_trackers", JSON.stringify(next));
     return next;
   });
   const unarchiveTracker = (id) => setArchivedTrackers(prev => {
     const next = prev.filter(x => x !== id);
-    localStorage.setItem("sanctum_archived_trackers", JSON.stringify(next));
+    uiPrefs.setItem("sanctum_archived_trackers", JSON.stringify(next));
     return next;
   });
 
@@ -589,7 +612,7 @@ RECURRENCE SCOPE: "this" = only that one date, "this_and_future" = that date onw
       const from = next.indexOf(navDragId.current), to = next.indexOf(id);
       if (from === -1 || to === -1) return prev;
       next.splice(from, 1); next.splice(to, 0, navDragId.current);
-      localStorage.setItem("sanctum_nav_order", JSON.stringify(next));
+      uiPrefs.setItem("sanctum_nav_order", JSON.stringify(next));
       return next;
     });
     setNavDragOver(null); setNavDragging(null); navDragId.current = null;
@@ -621,6 +644,10 @@ RECURRENCE SCOPE: "this" = only that one date, "this_and_future" = that date onw
         if (refreshed) session = auth.getSession();
       }
       if (session) {
+        // Per-user storage first (user-switch clear, ui_prefs load, owners' one-time
+        // migration): components read ui_prefs synchronously when they mount.
+        await prepareUserStorage(session.user.id, OWNER_IDS.includes(session.user.id));
+        applyAppPrefs();
         setUser(session.user);
         // No key on cold start by design (memory-only). Notes asks for the password.
         // Fetch display_name from profiles table — takes priority over user_metadata
@@ -631,6 +658,8 @@ RECURRENCE SCOPE: "this" = only that one date, "this_and_future" = that date onw
             localStorage.setItem(key, profile[0].display_name);
             setProfileName(profile[0].display_name);
           }
+          // Calendar reads the timezone from localStorage, which logout clears.
+          if (Array.isArray(profile) && profile[0]?.timezone) localStorage.setItem("sanctum_timezone", profile[0].timezone);
         } catch {}
         // Onboarding gate — separate guarded query so a missing column
         // (before migration 008 is run) can't break the name/key loading above.
@@ -675,11 +704,15 @@ RECURRENCE SCOPE: "this" = only that one date, "this_and_future" = that date onw
   }, [user, checking]);
 
   const handleLogin = async (u, password) => {
+    // Before setUser: see init. Also clears a previous user's state on a switch.
+    await prepareUserStorage(u.id, OWNER_IDS.includes(u.id));
+    applyAppPrefs();
     setUser(u);
 
     // Step 1: fetch profile (best-effort — never blocks key derivation)
     try {
       const profile = await sb.from("profiles").select("display_name,timezone", `&id=eq.${u.id}`, "");
+      if (Array.isArray(profile) && profile[0]?.timezone) localStorage.setItem("sanctum_timezone", profile[0].timezone);
       if (Array.isArray(profile) && profile[0]?.display_name) {
         localStorage.setItem(`sanctum_display_name_${u.id}`, profile[0].display_name);
         setProfileName(profile[0].display_name);
@@ -746,7 +779,18 @@ RECURRENCE SCOPE: "this" = only that one date, "this_and_future" = that date onw
     if (openTracker) { navigate('trackers'); setOpenCreatorSignal(Date.now()); }
   };
 
-  const handleLogout = async () => { setCryptoKey(null); setKeyError(null); purgeLegacyKeyCache(); await auth.signOut(); setUser(null); setProfileName(""); setPage("home"); localStorage.removeItem("sanctum_page"); };
+  // Logout (also session expiry, via checkSession). Save pending prefs while the
+  // token still works, revoke the session, then clear this user's sanctum_* keys
+  // (userStorage.js keeps only device prefs, the salt cache and unsynced Ozzy data).
+  const handleLogout = async () => {
+    setCryptoKey(null); setKeyError(null); purgeLegacyKeyCache();
+    await flushUiPrefs().catch(() => {});
+    await auth.signOut();
+    clearUserStorage();
+    resetUiPrefs();
+    applyAppPrefs(); // back to defaults
+    setUser(null); setProfileName(""); setPage("home");
+  };
 
   const onFabTouchStart = (e) => {
     const t = e.touches[0];
@@ -890,7 +934,7 @@ RECURRENCE SCOPE: "this" = only that one date, "this_and_future" = that date onw
                     </span>
                     <div className="drag-handle" style={{ marginLeft: 0 }}><Icon name="grab" size={12} /></div>
                   </div>
-                  {isOwner && trackersExpanded && TRACKER_ITEMS.map(t => (
+                  {isOwner && trackersExpanded && TRACKER_ITEMS.filter(t => !archivedTrackers.includes(t.id)).map(t => (
                     <div
                       key={t.id}
                       className={`nav-item${page === t.id ? " active" : ""}`}
