@@ -1,0 +1,75 @@
+<!--
+Copyright © 2026 Michael FR Marques & Tamara Lechner. All rights reserved.
+Sanctum — Private and confidential. Unauthorised use prohibited.
+https://sanctum.app
+-->
+
+# Handoff — 2026-10-21
+
+Where things stand after the notes-encryption and security work of 2026-10-20/21, and what comes next. Read with `CLAUDE.md`. Incident details: `docs/security/2026-10-20-rls-storage-incident.md`.
+
+## 1. Merged
+
+| PR | Merge | What it fixed |
+|---|---|---|
+| **#26** | `e027e35` | **Notes: never write over ciphertext.** An encrypted note opened with no key loaded (new tab, PWA relaunch) showed an *editable* placeholder, and typing saved it as plaintext over the ciphertext, destroying the note. Now that note is read-only, with an "Enter password to unlock" prompt, and the password is checked against the note's own ciphertext. Login confirms the encryption salt is saved (written, then read back) before using it, and a failed salt read no longer generates a new salt. |
+| **#27** | `001a2c9` | **Notes: the remaining encryption gaps.** (1) With no key, *no* note body is ever written in plaintext: edits and new notes stay as in-memory drafts (`divertBodyWrite` gate), with an unlock bar and a warning on tab close, and are encrypted and saved on unlock. (2) The plaintext→ciphertext migration actually runs now (`encryptPlaintextNotes`, after login/unlock, conditional on the row still being plaintext). The old one never ran when the key was already loaded. (3) Failed reads of notes, notebooks, salt and export show an error instead of looking empty. A failed notebooks read had been able to write the default notebooks over an owner's real tree. (4) **The key is memory-only and non-extractable**, cleared on logout and on session expiry (`checkSession`). The password is needed after every reload. (5) All E2E tests moved to the non-owner test account. |
+| **#32** | `66b2ca8` | **Security incident 2026-10-20** (migrations `011_security_fixes.sql`, `012_security_policy_inventory.sql`). Shared events were readable by any logged-in user (a dashboard-created policy OR'd past migration 010). `ozzy_docs` had `USING (true)`. The `pets` bucket was public, and anon could list it. Now: `ozzy_docs` and pets storage are owner-or-partner read and owner-only write (`is_partner_of()`); the bucket is private; Ozzy's photo and documents load only through short-lived signed URLs (`useSignedUrl`, which refreshes before expiry). CI asserts the **exact policy set** per table through a service-role-only inventory function. |
+
+**Verified in production (2026-10-21):**
+- **Notes:** Michael 16 encrypted / 0 plaintext; Tamara 2 / 0. The 2026-09-05 note migrated on login.
+- **Ozzy photo:** loads via a signed URL, with no `/object/public/` requests.
+- **Non-owner probe** (test account, the same role as the beta testers):
+  - shared events `*/0`, `ozzy_docs` `*/0`;
+  - pets: 0 files at the bucket root and 0 in owner folders; signing, downloading or fetching the owner photo publicly → 400;
+  - **v1 trackers: still visible in Archived** (expected; fixed by the tracker PR below).
+
+## 2. Security advisories (both private drafts)
+
+| Advisory | Severity | Covers | Publish when | Before publishing |
+|---|---|---|---|---|
+| **GHSA-4m5r-w254-7fw4** | high | the four 2026-10-20 RLS/storage findings | now: fixed and verified (#32) | **Remove the beta testers' usernames** (`leoarkiteto`, `aitoolsgpt2025`) and the "Michael's Gmail test account" mention (Accounts section, line ~33). Change those to "2 invited beta testers" and "an owner-controlled test account", as in the repo's incident note. Remove the "PRIVATE — full version" header line. Set the vulnerable range to `< main@66b2ca8` and the patched version to `main@66b2ca8` (they currently read `<= main@e027e35` / none). |
+| **GHSA-p4h3-9mvv-q7pm** | low | v1 tracker names visible to non-owners via the browser-wide Archived state | after the tracker PR merges and the regression test passes | No personal identifiers inside. Remove "Private until the fix ships" and set the patched version to the tracker PR's merge commit. |
+
+## 3. Next: the tracker PR (plan agreed, not started)
+
+Branch from `main`. Decisions already made:
+
+1. **`profiles.ui_prefs jsonb`** (new migration `013_…`, default `'{}'`). It holds per-user UI state: `archived_trackers`, `tracker_order`, `trackers_expanded`, plus the owners' layout (`dashboard_rings`, `home_widget_order`, `ring_order`, `nav_order`, `hide_roadmap`, `roadmap_collapsed`, `study_collapsed`, `study_ring_source`). **profiles RLS is own-row only** (probed 2026-10-20: the non-owner sees only its own row, and a PATCH on an owner row returns `[]`). Re-confirm in the PR, and add `profiles` to `security_policy_inventory()` and to `EXPECTED_POLICIES` in `tests/security.spec.ts`.
+2. **v1 trackers render only for `OWNER_IDS`**, both the active grid and the **Archived** section and its count (`TrackerHub.jsx` ~1119–1140; the active grid is already gated).
+3. **Logout and user-switch clear the `sanctum_*` keys.** That means everything except the 7 device preferences: `sanctum_theme`, `sanctum_font`, `sanctum_sidebar_col`, `sanctum_list_col`, `sanctum_notes_fs`, `sanctum_ai_btn_pos`, `sanctum_cal_view`.
+   - **Logout:** clear in `handleLogout`.
+   - **User switch:** a session can expire without logout, so also clear at login when the user id differs from `sanctum_last_uid`.
+   - **Caches that leak to the next user** of a shared browser, all to be cleared: `sanctum_notebooks_v2`, `sanctum_study_subjects`, `sanctum_tracker_entries`, `sanctum_ozzy_*` (7), `sanctum_pmbok_topics`, `sanctum_pmp_date`, `sanctum_pmp_target`, `sanctum_study_goal`.
+4. **Owners keep their layout.** On first login after deploy, copy their existing localStorage layout/tracker keys into `ui_prefs`, *then* clear the old keys. Read and write `ui_prefs` from then on.
+5. **Flip the regression test.** In `tests/sanctum.spec.ts` ("non-owner sees NO v1 trackers…"), remove `test.fail()` and replace the `TODO(link)` with GHSA-p4h3-9mvv-q7pm. Add a test that seeds old caches and checks that, after logout, only the 7 device keys remain.
+6. After merge: run the non-owner probe again (all four zeros, including no v1 trackers), then publish GHSA-p4h3.
+
+## 4. Remaining follow-ups (not scheduled)
+
+- **Privacy wording must be literally true.** The sidebar's "End-to-end encrypted" (`App.jsx` ~946) and the Home badge (`Home.jsx` ~246) cover the whole app, but only note **bodies** are E2E. "Notes are end-to-end encrypted" (`Privacy.jsx` ~48, ~55, ~108; Onboarding "Notes — End-to-end encrypted") is also too broad (next item).
+- **Note titles, tags and notebook names are plaintext.** Either encrypt them (titles/tags with the same key; notebook names live in `notebooks.data` JSONB), or word every claim as "note contents".
+- **Unlock friction and key strength.**
+  - **Fingerprint / Face ID unlock via WebAuthn PRF.** `encryptionKey.js` is ready for it: `unlockWith(getKey, prove)`, so a passkey method only adds a `getKey`.
+  - **PBKDF2 100k → 600k (OWASP).** This changes the derived key, so it needs a stored per-user iteration count and a one-time re-encryption at the next login (derive the old key, decrypt, re-encrypt with the new key).
+- **`sb.select` still returns `[]` on errors for non-notes callers.** Notes, notebooks, salt, profile salt and the notes export are strict (`{ strict: true }`). Still lenient: `App.jsx` (custom_trackers, events ×4, profiles ×4), `Calendar.jsx` (5), `Home.jsx` (11), `Roadmap.jsx` (7), `Settings.jsx` (8 other tables), `Career`/`Finance`/`Travel` (1 each), `Ozzy.jsx` (3), `Study.jsx` (7), `TrackerHub.jsx` (7), `trackerContext.js` (7). Audit each: any that *writes* based on an empty read is dangerous (like the notebooks bug).
+- **GDPR deletion.** `api/delete-account.js` deletes the auth user (admin API) after `Settings.deleteAllData` wipes the tables, but **storage files under `pets/<uid>/` are never deleted**. Add storage deletion (service role) and confirm no table rows survive (for example `partners`).
+- **Dependabot: 12 open PRs.** #31 vite 8.1.6, #30 brace-expansion, #29 sharp 0.35.5, #28 source-map-js, #25 js-yaml, #24 baseline-browser-mapping, #22 browserslist, #21 nanoid, #20 @humanfs/node, #19 fast-uri, #15 postcss, #4 vite + vite-plugin-pwa (likely superseded by #31). Merge them one at a time with CI.
+- **Duplicate Vercel projects.** `sanctum` and `sanctum-26vy` both deploy every PR. Decide which one serves trysanctum.app and the Vercel fallback, then remove the other (and its preview comments).
+- **OWASP checklist audit.** Run the `/security-audit` command (ASVS-style pass: auth/session, access control, input handling, headers/CSP, logging, dependencies).
+- **Password / secret clean-up.**
+  - **GitHub:** delete the retired `TEST_EMAIL` / `TEST_PASSWORD` secrets (Michael's real account).
+  - **Local:** remove `TEST_EMAIL` / `TEST_PASSWORD` from `.env.local`.
+  - **Rotate Michael's password:** it sat in CI secrets and a local env file.
+  - **Service-role key:** keep `SUPABASE_SERVICE_ROLE_KEY` only in GitHub secrets (one CI step) and Vercel server env.
+  - **AI rate limiting:** set `UPSTASH_REDIS_REST_URL` / `_TOKEN` in Vercel so the rate limit persists across instances.
+
+## 5. Test accounts
+
+- **`TEST_EMAIL_2` / `TEST_PASSWORD_2`:** the **only** E2E account. It's `eng.michaelmarques+sanctum-e2e@gmail.com`: non-owner, not in `partners`, in `BETA_EMAILS`. Stored in `.env.local` (gitignored) and GitHub secrets. All specs refuse to run if it's an owner. Its test data is created and deleted by the specs.
+- **`TEST_EMAIL` (Michael's real account): retired** from tests and CI. Only one-off, read-only owner probes have used it (counts, no content). The secrets still exist (see clean-up above).
+- **`SUPABASE_SERVICE_ROLE_KEY`:** GitHub secret, used by one CI step ("Policy inventory check"), with no app server running (`API_ONLY=1`).
+- **Suites:**
+  - `tests/notes-encryption.spec.ts` (8);
+  - `tests/sanctum.spec.ts` (9, one of them `test.fail()`);
+  - `tests/security.spec.ts` (7; the exact-policy test runs only in that CI step).
