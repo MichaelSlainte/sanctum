@@ -142,6 +142,7 @@ BETA_EMAILS array in the Login component in App.jsx gates both login and signup.
 1. GDPR sweep — COMPLETE (2026-06-07): privacy policy shipped at /privacy; cookie consent not required (no tracking cookies, localStorage is exempt from ePrivacy); RoPA is internal.
 
 Carried-over bugs (lower priority, still open):
+- **Privacy claim wording (must be literally true):** the sidebar says "End-to-end encrypted" on every page (App.jsx ~946) and Home shows an "End-to-end encrypted" badge (Home.jsx ~246), but only note BODIES are E2E. Ozzy, calendar, trackers, tasks and note titles/tags are protected by RLS, not E2E. Reword (e.g. "Notes end-to-end encrypted"). Onboarding ("Notes — End-to-end encrypted") and Privacy.jsx's notes lines are already accurate. Re-check Privacy.jsx ~108 when doing this.
 - Custom trackers in the Customise panel — active custom trackers should appear as toggleable items. `dashboardRings` keys off `tracker.id` (default true); needs a second `.map()` block after the hardcoded items iterating `homeCustomTrackers` (Home.jsx:443), and a `dashboardRings[tracker.id] !== false` guard in the dashboard render loop.
 - Modal keyboard overlap on mobile (partially improved).
 
