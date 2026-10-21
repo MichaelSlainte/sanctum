@@ -24,21 +24,24 @@ Where things stand after the notes-encryption and security work of 2026-10-20/21
   - pets: 0 files at the bucket root and 0 in owner folders; signing, downloading or fetching the owner photo publicly → 400;
   - **v1 trackers: still visible in Archived** (expected; fixed by the tracker PR below).
 
-## 2. Security advisories (both private drafts)
+## 2. Security advisories
 
 | Advisory | Severity | Covers | Publish when | Before publishing |
 |---|---|---|---|---|
-| **GHSA-4m5r-w254-7fw4** | high | the four 2026-10-20 RLS/storage findings | now: fixed and verified (#32) | **Remove the beta testers' usernames** (`leoarkiteto`, `aitoolsgpt2025`) and the "Michael's Gmail test account" mention (Accounts section, line ~33). Change those to "2 invited beta testers" and "an owner-controlled test account", as in the repo's incident note. Remove the "PRIVATE — full version" header line. Set the vulnerable range to `< main@66b2ca8` and the patched version to `main@66b2ca8` (they currently read `<= main@e027e35` / none). |
-| **GHSA-p4h3-9mvv-q7pm** | low | v1 tracker names visible to non-owners via the browser-wide Archived state | **now:** PR A merged (#34, `46d1f02`); non-owner probe re-run on prod 2026-10-21, all zero incl. no v1 trackers | No personal identifiers inside. Remove "Private until the fix ships" and set the patched version to `main@46d1f02`. |
+| **GHSA-4m5r-w254-7fw4** | high | the four 2026-10-20 RLS/storage findings | **next:** redacted text prepared 2026-10-21, awaiting Michael's review. Fixed and verified (#32) | **Remove the beta testers' usernames** (`leoarkiteto`, `aitoolsgpt2025`) and the "Michael's Gmail test account" mention (Accounts section, line ~33). Change those to "2 invited beta testers" and "an owner-controlled test account", as in the repo's incident note. Remove the "PRIVATE — full version" header line. Set the vulnerable range to `< main@66b2ca8` and the patched version to `main@66b2ca8` (they currently read `<= main@e027e35` / none). |
+| **GHSA-p4h3-9mvv-q7pm** | low | v1 tracker names visible to non-owners via the browser-wide Archived state | **✅ Published 2026-10-21.** Patched `main@15ac042` (PR B completes the fix: PR A `46d1f02` hid the trackers, PR B scoped the storage). CWE-200. | done |
 
-## 3. Next: the tracker work (split into two PRs, agreed 2026-10-21)
+## 3. Tracker work: done (2026-10-21)
+
+**Both PRs are merged and verified in production.** PR B: #35, merge `15ac042`. Production deploy confirmed: the live bundle matches a local `main` build. Non-owner probe on prod: 9/9 API checks (the exact-policy check passed in CI) and 12/12 UI tests. **Still to do:** each owner opens the app once on every device that has Ozzy weight entries. The rest of this section is the record of what was planned and done.
+
 
 - **PR A: merged** (#34, `46d1f02`). Item 2 + the test flip. Verified on prod 2026-10-21: the security probes pass and the v1-tracker test passes against trysanctum.app.
-- **PR B** (`feat/ui-prefs-logout-clear`): everything else below, plus the agreed changes in this list, plus a sidebar tidy-up (archived v1 trackers are hidden under Trackers) and a forgot-password warning (login + reset screen: a reset leaves existing notes unreadable). **To merge:**
+- **PR B: merged** (#35, `15ac042`, branch `feat/ui-prefs-logout-clear`): everything else below, plus the agreed changes in this list, plus a sidebar tidy-up (archived v1 trackers are hidden under Trackers) and a forgot-password warning (login + reset screen: a reset leaves existing notes unreadable). **To merge:**
   1. ✅ Apply `supabase/migrations/013_ui_prefs_ozzy_data.sql` (SQL editor) **before** deploying.
   2. ✅ Applied 2026-10-21; CHECKs 1–3 OK. `profiles` has one policy, `"Users can manage own profile"` (ALL, `{public}`, `auth.uid() = id`, no WITH CHECK), now pinned in `EXPECTED_POLICIES`.
      - **Follow-up (migration 014, not urgent):** replace it with explicit per-command policies `TO authenticated` with explicit WITH CHECK, and cap the size of `ui_prefs` (`CHECK (pg_column_size(ui_prefs) < 65536)`).
-  3. After deploy, each owner loads the app once on every device that has Ozzy weight entries; the weight log moves to `ozzy_weights`. (Unsynced entries are kept and shown until then, and logout never drops them.)
+  3. ⏳ After deploy, each owner loads the app once on every device that has Ozzy weight entries; the weight log moves to `ozzy_weights`. (Unsynced entries are kept and shown until then, and logout never drops them.)
   - Salt: the localStorage → DB seeding fallback is **removed** (all 6 accounts had a DB salt, 2026-10-21).
   - Test account: the notes specs pass with the rotated `TEST_PASSWORD_2`, so no notes/salt reset was added.
 - **PR B, agreed changes:**
@@ -77,7 +80,9 @@ Decisions already made:
 - **`sb.select` still returns `[]` on errors for non-notes callers.** Notes, notebooks, salt, profile salt and the notes export are strict (`{ strict: true }`). Still lenient: `App.jsx` (custom_trackers, events ×4, profiles ×4), `Calendar.jsx` (5), `Home.jsx` (11), `Roadmap.jsx` (7), `Settings.jsx` (8 other tables), `Career`/`Finance`/`Travel` (1 each), `Ozzy.jsx` (3), `Study.jsx` (7), `TrackerHub.jsx` (7), `trackerContext.js` (7). Audit each: any that *writes* based on an empty read is dangerous (like the notebooks bug).
 - **GDPR deletion.** `api/delete-account.js` deletes the auth user (admin API) after `Settings.deleteAllData` wipes the tables, but **storage files under `pets/<uid>/` are never deleted**. Add storage deletion (service role) and confirm no table rows survive (for example `partners`).
 - **Dependabot: 12 open PRs.** #31 vite 8.1.6, #30 brace-expansion, #29 sharp 0.35.5, #28 source-map-js, #25 js-yaml, #24 baseline-browser-mapping, #22 browserslist, #21 nanoid, #20 @humanfs/node, #19 fast-uri, #15 postcss, #4 vite + vite-plugin-pwa (likely superseded by #31). Merge them one at a time with CI.
-- **Duplicate Vercel projects.** `sanctum` and `sanctum-26vy` both deploy every PR. Decide which one serves trysanctum.app and the Vercel fallback, then remove the other (and its preview comments).
+- ✅ **Duplicate Vercel projects (done 2026-10-21).** `sanctum-26vy` (no env vars, no domain) was deleted. `sanctum-beige.vercel.app` now 308-redirects to `www.trysanctum.app`, and the Supabase Site URL was already correct. PRs now show 3 checks.
+- **Ops note (2026-10-21): Tamara's login issue, resolved.** Cause: an old email link to sanctum-beige, plus iOS autofilling a stale password. Before the cause was found, her 2 notes were deleted via SQL (with her agreement). Her salt was kept and her password is unchanged; Notes works again. The sanctum-beige redirect stops the old link from recurring.
+  - **Lesson:** rule out the login URL and a stale autofilled password before touching notes data.
 - **OWASP checklist audit.** Run the `/security-audit` command (ASVS-style pass: auth/session, access control, input handling, headers/CSP, logging, dependencies).
 - **Password / secret clean-up.**
   - **GitHub:** delete the retired `TEST_EMAIL` / `TEST_PASSWORD` secrets (Michael's real account).
