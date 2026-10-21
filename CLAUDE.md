@@ -10,8 +10,9 @@ https://sanctum.app
 A private personal life organiser app for Michael (Dublin) and Tamara. Stack: React 19 + Vite, Supabase (Stockholm EU, eu-north-1), Vercel, Claude Haiku AI proxy.
 
 ## Live URL
-- https://trysanctum.app (primary)
-- https://sanctum-beige.vercel.app (Vercel fallback, still active)
+- https://trysanctum.app (primary; 308-redirects to https://www.trysanctum.app)
+- https://sanctum-beige.vercel.app: 308-redirects to www.trysanctum.app since 2026-10-21 (old email links still work)
+- One Vercel project, `sanctum`. The duplicate `sanctum-26vy` was deleted 2026-10-21, so PRs show 3 checks: `test`, `Vercel – sanctum`, Vercel Preview Comments.
 
 ## Key people
 - Michael Rodrigues Marques — main user, Dublin
@@ -118,12 +119,18 @@ BETA_EMAILS array in the Login component in App.jsx gates both login and signup.
   - **Legacy-note repair — VERIFIED, issue closed (2026-08-02).** `normalizeBlocks()` also repairs already-collapsed **existing/legacy** notes on load, not just newly-created ones. This was the last open question on the fix (it had only ever been browser-tested against fresh notes). Michael manually confirmed it in production against his own real, previously-corrupted notes — they now display correctly. Note this was hands-on verification, not automated coverage: there is no regression test guarding the legacy-repair path, so a future change to `normalizeBlocks()` or the load-detection logic could silently break it again.
 - Housekeeping: orphaned branch `fix/checklist-format` deleted (origin + local). Its `normalizeBlocks` body was byte-identical to what PR #16 merged; its only other unique content was superseded seeding/`newNote` code replaced by PR #12.
 
+## Recently shipped (2026-10-21, tracker work)
+- **#34** (`46d1f02`, PR A): v1 trackers owner-only in Archived too; regression test flipped.
+- **#35** (`15ac042`, PR B): per-user layout in `profiles.ui_prefs` (migration 013); logout/user switch clear per-user `sanctum_*` keys; owners' layout and Ozzy weight/custom docs moved to the server (`ozzy_weights`, `ozzy_custom_docs`); DB-only salt; forgot-password warning; archived v1 trackers hidden in the sidebar. Production deploy verified (live bundle = `main` build); non-owner probe on prod: all zero, 12/12 UI tests pass.
+- **GHSA-p4h3-9mvv-q7pm published** (low, CWE-200): patched in `main@15ac042`. PR A hid the trackers; PR B scoped the storage.
+- **Tamara's login issue (resolved):** an old email link pointed to sanctum-beige, and iOS autofilled a stale password. Before that was found, her 2 notes were deleted via SQL (with her agreement). Her salt was kept and her password is unchanged; Notes works for her again.
+
 ## Recently shipped (2026-10-20/21)
 Full summary + next steps: **`docs/handoff.md`**.
 - **#26** (`e027e35`): encrypted notes opened without a key are read-only (no plaintext over ciphertext); login confirms the salt is saved before using it.
 - **#27** (`001a2c9`): no note body is ever written in plaintext without a key (in-memory drafts); the migration actually runs; strict reads for notes/notebooks/salt/export; the key is memory-only and cleared on logout/expiry; E2E moved to the test account.
-- **#32** (`66b2ca8`): security incident 2026-10-20 (migrations 011 + 012): shared-events leak, `ozzy_docs` `USING (true)`, public `pets` bucket fixed; Ozzy files via signed URLs (`useSignedUrl`); CI exact-policy-set check. Advisories GHSA-4m5r-w254-7fw4 (publish now, after removing tester names) and GHSA-p4h3-9mvv-q7pm (after the tracker PR): both private drafts.
-- Verified in prod: all notes encrypted (Michael 16/0, Tamara 2/0); non-owner probe zeros, except v1 trackers in Archived (tracker PR).
+- **#32** (`66b2ca8`): security incident 2026-10-20 (migrations 011 + 012): shared-events leak, `ozzy_docs` `USING (true)`, public `pets` bucket fixed; Ozzy files via signed URLs (`useSignedUrl`); CI exact-policy-set check. Advisories: GHSA-p4h3-9mvv-q7pm **published** 2026-10-21; GHSA-4m5r-w254-7fw4 being prepared for publishing (redacted text reviewed first).
+- Verified in prod: all notes encrypted (Michael 16/0, Tamara 2/0 at the time; Tamara's 2 were later deleted, see above); non-owner probe all zero since #34/#35.
 
 ## What is NOT built yet (v2 remaining)
 1. Custom trackers appearing in sidebar nav
@@ -164,9 +171,9 @@ Full summary + next steps: **`docs/handoff.md`**.
 - 9a75b2f feat: calendar↔tracker integration — on-demand tracker context in FAB AI
 
 ## Pending work (priority order)
-0. **Tracker work, split in two** (`docs/handoff.md` §3). **PR A: merged (#34, `46d1f02`), verified in prod.** **PR B (#35; migration 013 applied + `profiles` policy pinned 2026-10-21; follow-up 014: per-command `profiles` policies + `ui_prefs` size cap):** `profiles.ui_prefs` (+ `note_order`, `expanded_nbs`); logout/user-switch clear `sanctum_*` (keep the 7 device prefs + `sanctum_enc_salt_*` as a cache, DB salt wins); owners' layout into `ui_prefs`; Ozzy weight/custom docs into the DB (owner-or-partner read, like `ozzy_docs`) with a lossless merge of localStorage first.
+0. **Tracker work: DONE.** PR A (#34, `46d1f02`) and PR B (#35, `15ac042`) are merged and verified in prod. Remaining: each owner opens the app once on every device that has Ozzy weight entries, so they move to `ozzy_weights`. **Follow-up migration 014 (not urgent):** per-command `profiles` policies `TO authenticated` with explicit WITH CHECK, and a `ui_prefs` size cap (`pg_column_size < 65536`). What PR B did: `profiles.ui_prefs` (+ `note_order`, `expanded_nbs`); logout/user-switch clear `sanctum_*` (keep the 7 device prefs + `sanctum_enc_salt_*` as a cache, DB salt wins); owners' layout into `ui_prefs`; Ozzy weight/custom docs into the DB (owner-or-partner read, like `ozzy_docs`) with a lossless merge of localStorage first.
 0b. **Crypto PR** (`docs/handoff.md` §4): WebAuthn PRF unlock + PBKDF2 600k + encrypt titles/tags/notebook names + **re-encryption flow** + **separate notes passphrase** (recommended over a client-derived login credential). ⚠️ **The login password IS the notes key material.** Changing or resetting it (incl. forgot-password) leaves existing notes unreadable, and GoTrue sees key material at every login. **Don't rotate Michael's password until this ships.**
-0c. **Other follow-ups** (`docs/handoff.md` §4): privacy wording; `sb.select` fail-open callers; GDPR deletion of storage files; Dependabot; duplicate Vercel projects; OWASP audit; secret clean-up.
+0c. **Other follow-ups** (`docs/handoff.md` §4): privacy wording; `sb.select` fail-open callers; GDPR deletion of storage files; Dependabot; OWASP audit; secret clean-up; publish GHSA-4m5r.
 1. GDPR sweep — COMPLETE (2026-06-07): privacy policy shipped at /privacy; cookie consent not required (no tracking cookies, localStorage is exempt from ePrivacy); RoPA is internal.
 
 Carried-over bugs (lower priority, still open):
