@@ -135,11 +135,11 @@ test("pets: own folder works end-to-end (upload → download → signed URL → 
 // ── Exact policy set (catches leftover / dashboard-created policies) ───
 // The incident happened because an extra permissive policy sat next to the
 // right one, so assert the WHOLE set per table: any extra or missing policy
-// fails. roles: null = not pinned yet (policy was created in the dashboard).
+// fails. roles: null = not pinned (none at present).
 type Policy = { schema_name: string; table_name: string; policy_name: string; command: string; roles: string[] };
 const EXPECTED_POLICIES: Record<string, [name: string, cmd: string, roles: string[] | null][]> = {
   "public.events": [
-    ["events_own", "ALL", null],
+    ["events_own", "ALL", ["public"]], // dashboard-created; pinned from the 2026-10-21 inventory
     ["events_shared_read", "SELECT", ["public"]], // migration 010
   ],
   "public.ozzy_docs": [
