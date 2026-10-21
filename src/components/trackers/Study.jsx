@@ -1,6 +1,7 @@
 // Copyright © 2026 Michael FR Marques & Tamara Lechner. All rights reserved.
 import { useState, useEffect, useRef } from "react";
 import { sb } from "../../lib/supabase";
+import { uiPrefs } from "../../lib/uiPrefs.js";
 import { Icon, Modal } from "../shared";
 
 function PMPRoadmapTimeline() {
@@ -171,13 +172,13 @@ export default function Study({ user }) {
 
   // Collapsed subject IDs
   const [collapsedSubjects, setCollapsedSubjects] = useState(() => {
-    try { return new Set(JSON.parse(localStorage.getItem("sanctum_study_collapsed")) || []); } catch { return new Set(); }
+    try { return new Set(JSON.parse(uiPrefs.getItem("sanctum_study_collapsed")) || []); } catch { return new Set(); }
   });
   const toggleCollapse = (id) => {
     setCollapsedSubjects(prev => {
       const next = new Set(prev);
       if (next.has(id)) next.delete(id); else next.add(id);
-      localStorage.setItem("sanctum_study_collapsed", JSON.stringify([...next]));
+      uiPrefs.setItem("sanctum_study_collapsed", JSON.stringify([...next]));
       return next;
     });
   };

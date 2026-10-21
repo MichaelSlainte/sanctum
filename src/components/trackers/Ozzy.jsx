@@ -53,6 +53,23 @@ const calcOzzyAge = (bornDate) => {
   return `${years}yr ${months}mo`;
 };
 
+// Old localStorage entries not yet confirmed on the server (see userStorage.js).
+const readLocalList = (key) => {
+  try { const v = JSON.parse(localStorage.getItem(key)); return Array.isArray(v) ? v : []; } catch { return []; }
+};
+const withUnsyncedLocal = (rows, key) => {
+  const list = Array.isArray(rows) ? rows : [];
+  const onServer = new Set(list.map(r => r.client_id));
+  const local = readLocalList(key)
+    .filter(e => !onServer.has(String(e.id)))
+    .map(e => ({ ...e, client_id: String(e.id), local: true }));
+  return [...list, ...local];
+};
+const dropLocalEntry = (key, clientId) => {
+  const rest = readLocalList(key).filter(e => String(e.id) !== clientId);
+  try { localStorage.setItem(key, JSON.stringify(rest)); } catch { /* ignore */ }
+};
+
 export default function Ozzy({ user }) {
   const [activeTab, setActiveTab] = useState("overview");
 
@@ -79,10 +96,11 @@ export default function Ozzy({ user }) {
     try { return JSON.parse(localStorage.getItem("sanctum_ozzy_docs_meta") || "{}"); }
     catch { return {}; }
   });
-  const [customDocs, setCustomDocs] = useState(() => {
-    try { return JSON.parse(localStorage.getItem("sanctum_ozzy_custom_docs") || "[]"); }
-    catch { return []; }
-  });
+  // Weight log + custom doc names: tables ozzy_weights / ozzy_custom_docs
+  // (migration 013). App merges any old localStorage copy into them on load
+  // (userStorage.js migrateLegacyLocal); until that upload is confirmed, the
+  // local entries are shown too (flagged `local`) so nothing looks lost.
+  const [customDocs, setCustomDocs] = useState([]);
   const [addingDoc, setAddingDoc] = useState(false);
   const [newDocName, setNewDocName] = useState("");
   const docInputRefs = useRef({});
@@ -95,10 +113,7 @@ export default function Ozzy({ user }) {
   const [showAdd, setShowAdd] = useState(false);
   const [editingVet, setEditingVet] = useState(null);
 
-  const [weight, setWeight] = useState(() => {
-    try { return JSON.parse(localStorage.getItem("sanctum_ozzy_weight") || "[]"); }
-    catch { return []; }
-  });
+  const [weight, setWeight] = useState([]);
   const [newWeight, setNewWeight] = useState({ date: new Date().toISOString().slice(0, 10), kg: "" });
   const [showAddWeight, setShowAddWeight] = useState(false);
 
@@ -109,6 +124,14 @@ export default function Ozzy({ user }) {
   const [editingDiet, setEditingDiet] = useState(null);
 
   useEffect(() => {
+    sb.from("ozzy_weights").select("id,client_id,date,kg", "", "date.desc").then(rows => {
+      const merged = withUnsyncedLocal(rows, "sanctum_ozzy_weight");
+      setWeight(merged.sort((a, b) => String(b.date).localeCompare(String(a.date))));
+    }).catch(() => {});
+    sb.from("ozzy_custom_docs").select("id,client_id,name", "", "created_at.asc").then(rows => {
+      setCustomDocs(withUnsyncedLocal(rows, "sanctum_ozzy_custom_docs"));
+    }).catch(() => {});
+
     sb.from("vet_visits").select("*").then(data => {
       if (Array.isArray(data) && data.length > 0) {
         setVets(data);
@@ -161,7 +184,15 @@ export default function Ozzy({ user }) {
   };
 
   const saveVets = (v) => { setVets(v); localStorage.setItem("sanctum_ozzy_vets", JSON.stringify(v)); };
-  const saveWeight = (w) => { setWeight(w); localStorage.setItem("sanctum_ozzy_weight", JSON.stringify(w)); };
+  const deleteWeight = async (w) => {
+    if (w.local) {
+      dropLocalEntry("sanctum_ozzy_weight", w.client_id);
+      setWeight(prev => prev.filter(x => x !== w));
+      return;
+    }
+    if (await sb.from("ozzy_weights").delete({ id: w.id })) setWeight(prev => prev.filter(x => x.id !== w.id));
+    else console.error("[Ozzy] weight delete failed");
+  };
   const saveDiet = (d) => {
     setDiet(d);
     localStorage.setItem("sanctum_ozzy_diet", JSON.stringify(d));
@@ -186,9 +217,12 @@ export default function Ozzy({ user }) {
     saveVets(vets.filter(x => x.id !== id));
   };
 
-  const addWeight = () => {
-    if (!newWeight.kg) return;
-    saveWeight([{ ...newWeight, id: Date.now().toString() }, ...weight]);
+  const addWeight = async () => {
+    if (!newWeight.kg || !newWeight.date) return;
+    const row = { client_id: Date.now().toString(), date: newWeight.date, kg: Number(newWeight.kg) };
+    const res = await sb.from("ozzy_weights").insert(row);
+    if (!Array.isArray(res) || !res[0]) { console.error("[Ozzy] weight save failed:", res); alert("Couldn't save the weight. Please try again."); return; }
+    setWeight(prev => [{ ...row, id: res[0].id }, ...prev].sort((a, b) => String(b.date).localeCompare(String(a.date))));
     setNewWeight({ date: new Date().toISOString().slice(0, 10), kg: "" });
     setShowAddWeight(false);
   };
@@ -256,11 +290,13 @@ export default function Ozzy({ user }) {
     setEditCustomKey("New field");
   };
 
-  const addCustomDoc = () => {
-    if (!newDocName.trim()) return;
-    const updated = [...customDocs, { name: newDocName.trim(), id: Date.now().toString() }];
-    setCustomDocs(updated);
-    localStorage.setItem("sanctum_ozzy_custom_docs", JSON.stringify(updated));
+  const addCustomDoc = async () => {
+    const name = newDocName.trim();
+    if (!name) return;
+    const row = { client_id: Date.now().toString(), name };
+    const res = await sb.from("ozzy_custom_docs").insert(row);
+    if (!Array.isArray(res) || !res[0]) { console.error("[Ozzy] custom doc save failed:", res); alert("Couldn't add the document. Please try again."); return; }
+    setCustomDocs(prev => [...prev, { ...row, id: res[0].id }]);
     setNewDocName("");
     setAddingDoc(false);
   };
@@ -476,11 +512,11 @@ export default function Ozzy({ user }) {
               <div style={{ color: "var(--t3)", fontSize: 13, textAlign: "center", padding: "20px 0" }}>No weight logs yet</div>
             )}
             {weight.slice(0, 8).map(w => (
-              <div key={w.id} className="fin-row">
+              <div key={w.client_id || w.id} className="fin-row">
                 <span style={{ fontSize: 12, color: "var(--t3)", fontFamily: "var(--mono)" }}>{w.date}</span>
                 <div style={{ display: "flex", alignItems: "center", gap: 8 }}>
                   <span style={{ fontSize: 14, fontWeight: 700, fontFamily: "var(--mono)", color: "var(--amber)" }}>{w.kg} kg</span>
-                  <button className="btn xs danger" onClick={() => saveWeight(weight.filter(x => x.id !== w.id))}><Icon name="trash" size={11} /></button>
+                  <button className="btn xs danger" onClick={() => deleteWeight(w)}><Icon name="trash" size={11} /></button>
                 </div>
               </div>
             ))}

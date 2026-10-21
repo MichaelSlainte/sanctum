@@ -3,6 +3,7 @@
 // https://sanctum.app
 import { useState, useEffect } from "react";
 import { sb, auth } from "../lib/supabase";
+import { uiPrefs } from "../lib/uiPrefs.js";
 import { Icon, Modal } from "./shared";
 
 const COLORS = [
@@ -342,7 +343,7 @@ export default function Roadmap({ onHide }) {
   const [user]                      = useState(() => auth.getSession()?.user || null);
 
   const [collapsed, setCollapsed] = useState(() => {
-    try { return JSON.parse(localStorage.getItem("sanctum_roadmap_collapsed") || "{}"); }
+    try { return JSON.parse(uiPrefs.getItem("sanctum_roadmap_collapsed") || "{}"); }
     catch { return {}; }
   });
 
@@ -447,7 +448,7 @@ export default function Roadmap({ onHide }) {
   const toggleCollapsed = (id) => {
     setCollapsed(prev => {
       const next = { ...prev, [id]: !prev[id] };
-      localStorage.setItem("sanctum_roadmap_collapsed", JSON.stringify(next));
+      uiPrefs.setItem("sanctum_roadmap_collapsed", JSON.stringify(next));
       return next;
     });
   };

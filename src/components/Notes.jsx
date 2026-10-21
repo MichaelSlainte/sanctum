@@ -3,6 +3,7 @@
 // https://sanctum.app
 import { useState, useEffect, useRef, useCallback } from "react";
 import { sb, auth } from "../lib/supabase";
+import { uiPrefs } from "../lib/uiPrefs.js";
 import { Icon, Modal, DEFAULT_NOTEBOOKS } from "./shared";
 import { OWNER_IDS } from "./trackers/TrackerHub";
 import { useCrypto } from "../lib/CryptoContext.jsx";
@@ -285,14 +286,14 @@ export default function Notes({ user }) {
     }
   }, [user]);
   const [expandedNBs, setExpandedNBs] = useState(() => {
-    try { const s = localStorage.getItem('sanctum_expanded_nbs'); if (s) return new Set(JSON.parse(s)); } catch {}
+    try { const s = uiPrefs.getItem('sanctum_expanded_nbs'); if (s) return new Set(JSON.parse(s)); } catch {}
     return new Set([DEFAULT_NOTEBOOKS[0]?.id]);
   });
   const toggleExpand = (id) => {
     setExpandedNBs(prev => {
       const next = new Set(prev);
       if (next.has(id)) next.delete(id); else next.add(id);
-      localStorage.setItem('sanctum_expanded_nbs', JSON.stringify([...next]));
+      uiPrefs.setItem('sanctum_expanded_nbs', JSON.stringify([...next]));
       return next;
     });
   };
@@ -372,9 +373,9 @@ export default function Notes({ user }) {
 
   // ── Note ordering ─────────────────────────────────────────────────────
   const [noteOrder, setNoteOrder] = useState(() => {
-    try { return JSON.parse(localStorage.getItem('sanctum_note_order') || '{}'); } catch { return {}; }
+    try { return JSON.parse(uiPrefs.getItem('sanctum_note_order') || '{}'); } catch { return {}; }
   });
-  const saveNoteOrder = (order) => { setNoteOrder(order); localStorage.setItem('sanctum_note_order', JSON.stringify(order)); };
+  const saveNoteOrder = (order) => { setNoteOrder(order); uiPrefs.setItem('sanctum_note_order', JSON.stringify(order)); };
   const getOrderedNotes = useCallback((sectionId, src) => {
     const sid = sectionId?.toLowerCase().trim() || '';
     const notes = (src || allNotes).filter(n => (n.section?.toLowerCase().trim() || '') === sid);

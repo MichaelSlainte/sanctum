@@ -16,21 +16,27 @@ const readProfileSalt = async (userId) => {
   return rows[0]?.encryption_salt || null;
 };
 
-// Salt for the login path. Returns the salt stored on the profile, creating
-// one only when the read succeeded and found none. The new salt is written,
-// then read back; if it isn't confirmed saved this throws, so no key is ever
-// derived from a salt that another device couldn't reproduce.
+// The DB salt (profiles.encryption_salt) is the ONLY source of truth. The
+// localStorage copy is a read cache: refreshed from the DB on every read, and
+// never used to create or overwrite a DB salt. (The old "seed the DB from the
+// browser's salt" fallback was removed 2026-10-21: all 6 accounts had a DB salt.)
+const cacheSalt = (userId, salt) => {
+  try { localStorage.setItem(saltStorageName(userId), salt); } catch { /* cache only */ }
+};
+
+// Salt for the login path. Returns the salt stored on the profile, creating a
+// NEW random one only when the read succeeded and found none (a new account).
+// The new salt is written, then read back; if it isn't confirmed saved this
+// throws, so no key is ever derived from a salt another device couldn't reproduce.
 export async function ensurePersistedSalt(userId) {
   let salt = await readProfileSalt(userId); // throws on a failed read — never treat that as "no salt"
   if (!salt) {
-    // Prefer a browser-local salt: notes may already be encrypted with it (the
-    // old login wrote the salt fire-and-forget, so the server copy can be missing).
-    const candidate = localStorage.getItem(saltStorageName(userId)) || await generateSalt();
+    const candidate = await generateSalt();
     await sb.from('profiles').upsert({ id: userId, encryption_salt: candidate }, 'id');
     salt = await readProfileSalt(userId);
     if (salt !== candidate) throw new Error("Couldn't save your encryption settings, so notes stay locked. Please sign in again.");
   }
-  localStorage.setItem(saltStorageName(userId), salt);
+  cacheSalt(userId, salt); // replaces a stale/different cached copy
   return salt;
 }
 
@@ -45,8 +51,9 @@ export async function encryptionEnabled(userId) {
 // Salt for re-deriving an EXISTING key. Never generates one: a new salt
 // could not decrypt anything already stored. A failed read throws.
 export async function loadSalt(userId) {
-  const salt = await readProfileSalt(userId) || localStorage.getItem(saltStorageName(userId));
+  const salt = await readProfileSalt(userId); // DB only; the cache is never a fallback
   if (!salt) throw new Error('No encryption salt found for this account.');
+  cacheSalt(userId, salt);
   return salt;
 }
 

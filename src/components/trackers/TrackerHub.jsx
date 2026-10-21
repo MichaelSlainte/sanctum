@@ -4,6 +4,7 @@
 import { useState, useRef, useEffect } from "react";
 import { Icon } from "../shared";
 import { sb } from "../../lib/supabase";
+import { uiPrefs } from "../../lib/uiPrefs.js";
 import { useSignedUrl } from "../../lib/useSignedUrl";
 import TrackerCreator from "./TrackerCreator";
 
@@ -848,7 +849,7 @@ export default function TrackerHub({ archivedTrackers = [], onArchive, onUnarchi
   const [order, setOrder] = useState(() => {
     const known = TRACKERS.map(t => t.id);
     try {
-      const saved = JSON.parse(localStorage.getItem("sanctum_tracker_order"));
+      const saved = JSON.parse(uiPrefs.getItem("sanctum_tracker_order"));
       if (Array.isArray(saved)) {
         const valid  = saved.filter(id => known.includes(id));
         const newOnes = known.filter(id => !valid.includes(id));
@@ -875,7 +876,7 @@ export default function TrackerHub({ archivedTrackers = [], onArchive, onUnarchi
       const from = next.indexOf(dragId.current), to = next.indexOf(id);
       if (from === -1 || to === -1) return prev;
       next.splice(from, 1); next.splice(to, 0, dragId.current);
-      localStorage.setItem("sanctum_tracker_order", JSON.stringify(next));
+      uiPrefs.setItem("sanctum_tracker_order", JSON.stringify(next));
       return next;
     });
     setDragOver(null); setDragging(null); dragId.current = null;
@@ -902,7 +903,7 @@ export default function TrackerHub({ archivedTrackers = [], onArchive, onUnarchi
       setOrder(prev => {
         const next = [...prev];
         const from = next.indexOf(touchDragId.current), to = next.indexOf(tid);
-        if (from !== -1 && to !== -1) { next.splice(from, 1); next.splice(to, 0, touchDragId.current); localStorage.setItem("sanctum_tracker_order", JSON.stringify(next)); }
+        if (from !== -1 && to !== -1) { next.splice(from, 1); next.splice(to, 0, touchDragId.current); uiPrefs.setItem("sanctum_tracker_order", JSON.stringify(next)); }
         return next;
       });
     }

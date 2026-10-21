@@ -7,6 +7,23 @@ const SUPABASE_URL = "https://hqlgwisfkkosgekotojz.supabase.co";
 // Supabase publishable/anon key — safe to expose in frontend. Security enforced by RLS policies.
 const SUPABASE_KEY = "sb_publishable_Eky9AvrbiYjejxogwxwJ6Q_x7eoySQ4";
 
+// Notes are encrypted with a key derived from the login password, and there is
+// no re-encryption on a password change yet (docs/handoff.md §4, crypto PR). A
+// reset therefore leaves existing notes unreadable. They are not overwritten:
+// Notes keeps a note it can't decrypt read-only. Shown before a reset email is
+// sent (Login) and on the reset screen (here). Keep it literally true.
+export const NOTES_RESET_WARNING =
+  "Your notes are encrypted with your current password. A new password can't unlock notes you've already written, " +
+  "and no one, including us, can recover them. Only reset if you've really forgotten your password.";
+
+export function NotesResetWarning() {
+  return (
+    <div role="alert" style={{ border: "1px solid var(--amber)", background: "var(--bg2)", color: "var(--t2)", fontSize: 12, lineHeight: 1.5, padding: "10px 14px", borderRadius: 9, marginBottom: 18 }}>
+      <strong style={{ color: "var(--amber)" }}>Heads up:</strong> {NOTES_RESET_WARNING}
+    </div>
+  );
+}
+
 // ─── SET PASSWORD ──────────────────────────────────────────────────────────────
 // Landing screen for Supabase invite / recovery links. The email link redirects to
 // trysanctum.app/#access_token=...&type=invite|recovery. App.jsx parses that hash and
@@ -87,6 +104,7 @@ export default function SetPassword({ callback, betaEmails = [], onComplete, onC
               : "Set a password to finish creating your account"}
         </div>
         {error && <div className="login-error">{error}</div>}
+        {isRecovery && !linkBroken && <NotesResetWarning />}
         {!linkBroken && (
           <>
             <div className="form-row">
