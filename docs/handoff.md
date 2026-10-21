@@ -29,12 +29,18 @@ Where things stand after the notes-encryption and security work of 2026-10-20/21
 | Advisory | Severity | Covers | Publish when | Before publishing |
 |---|---|---|---|---|
 | **GHSA-4m5r-w254-7fw4** | high | the four 2026-10-20 RLS/storage findings | now: fixed and verified (#32) | **Remove the beta testers' usernames** (`leoarkiteto`, `aitoolsgpt2025`) and the "Michael's Gmail test account" mention (Accounts section, line ~33). Change those to "2 invited beta testers" and "an owner-controlled test account", as in the repo's incident note. Remove the "PRIVATE — full version" header line. Set the vulnerable range to `< main@66b2ca8` and the patched version to `main@66b2ca8` (they currently read `<= main@e027e35` / none). |
-| **GHSA-p4h3-9mvv-q7pm** | low | v1 tracker names visible to non-owners via the browser-wide Archived state | after the tracker PR merges and the regression test passes | No personal identifiers inside. Remove "Private until the fix ships" and set the patched version to the tracker PR's merge commit. |
+| **GHSA-p4h3-9mvv-q7pm** | low | v1 tracker names visible to non-owners via the browser-wide Archived state | **now:** PR A merged (#34, `46d1f02`); non-owner probe re-run on prod 2026-10-21, all zero incl. no v1 trackers | No personal identifiers inside. Remove "Private until the fix ships" and set the patched version to `main@46d1f02`. |
 
 ## 3. Next: the tracker work (split into two PRs, agreed 2026-10-21)
 
-- **PR A** (`fix/v1-trackers-owner-only`): item 2 + the test flip in item 5. This alone fixes GHSA-p4h3, so the probe and publishing (item 6) follow it. No migration.
-- **PR B:** everything else below, plus these agreed changes:
+- **PR A: merged** (#34, `46d1f02`). Item 2 + the test flip. Verified on prod 2026-10-21: the security probes pass and the v1-tracker test passes against trysanctum.app.
+- **PR B** (`feat/ui-prefs-logout-clear`): everything else below, plus the agreed changes in this list, plus a sidebar tidy-up (archived v1 trackers are hidden under Trackers) and a forgot-password warning (login + reset screen: a reset leaves existing notes unreadable). **To merge:**
+  1. Apply `supabase/migrations/013_ui_prefs_ozzy_data.sql` (SQL editor) **before** deploying.
+  2. Run its CHECK 2 and pin the `profiles` policy names in `EXPECTED_POLICIES` (`tests/security.spec.ts`, TODO(013)). Until then the CI policy step fails on purpose.
+  3. After deploy, each owner loads the app once on every device that has Ozzy weight entries; the weight log moves to `ozzy_weights`. (Unsynced entries are kept and shown until then, and logout never drops them.)
+  - Salt: the localStorage → DB seeding fallback is **removed** (all 6 accounts had a DB salt, 2026-10-21).
+  - Test account: the notes specs pass with the rotated `TEST_PASSWORD_2`, so no notes/salt reset was added.
+- **PR B, agreed changes:**
   - **Extra `ui_prefs` keys:** `note_order` and `expanded_nbs` (owners would otherwise lose them on logout).
   - **Timezone:** at login, write `profiles.timezone` back to `sanctum_timezone` (Calendar only reads localStorage).
   - **Ozzy weight and custom-doc names are localStorage-only today** (`sanctum_ozzy_weight`, `sanctum_ozzy_custom_docs`), so clearing them would delete them. Move them into the DB with **owner-or-partner read and owner-only write, like `ozzy_docs`**. Check `ozzy_profile`'s current policies first; if they aren't already like that, use a dedicated table or fix the policies, by migration. On first load, merge the localStorage data into the DB (union, nothing dropped) *before* anything clears it.
