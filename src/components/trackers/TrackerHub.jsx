@@ -858,7 +858,7 @@ export default function TrackerHub({ archivedTrackers = [], onArchive, onUnarchi
     return known;
   });
 
-  const [archivedOpen, setArchivedOpen] = useState(archivedTrackers.length > 0 || archivedCustomTrackers.length > 0);
+  const [archivedOpen, setArchivedOpen] = useState((isOwner && archivedTrackers.length > 0) || archivedCustomTrackers.length > 0);
   const [dragOver, setDragOver] = useState(null);
   const [dragging, setDragging] = useState(null);
   const dragId = useRef(null);
@@ -909,8 +909,11 @@ export default function TrackerHub({ archivedTrackers = [], onArchive, onUnarchi
     touchDragId.current = null; setDragging(null); setDragOver(null);
   };
 
-  const activeOrder  = order.filter(id => !archivedTrackers.includes(id));
-  const archivedList = order.filter(id => archivedTrackers.includes(id));
+  // v1 trackers are owner-only, in the active grid AND in Archived. Archived
+  // state lives in browser storage, so a non-owner on a shared browser could
+  // otherwise see an owner's v1 tracker names (GHSA-p4h3-9mvv-q7pm).
+  const activeOrder  = isOwner ? order.filter(id => !archivedTrackers.includes(id)) : [];
+  const archivedList = isOwner ? order.filter(id => archivedTrackers.includes(id)) : [];
 
   const archiveCustomTracker = async (id) => {
     const target = customTrackers.find(t => t.id === id);

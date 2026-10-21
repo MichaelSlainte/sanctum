@@ -80,17 +80,13 @@ test.describe("Sanctum smoke tests", () => {
     await expect(page.getByText("Your Trackers")).toBeVisible({ timeout: 15000 });
   });
 
-  // Regression test for the cross-tenant v1 tracker leak.
-  // Bug: the Archived section in TrackerHub.jsx (~line 1130) renders v1 trackers
-  // with no isOwner check, and the list comes from the browser-wide localStorage
-  // key "sanctum_archived_trackers" (App.jsx ~line 558), not a per-user one. So on a
-  // shared browser a non-owner sees the owner's archived v1 trackers (+ Restore).
+  // Regression test for the cross-tenant v1 tracker leak (GHSA-p4h3-9mvv-q7pm).
+  // Bug: the Archived section in TrackerHub.jsx rendered v1 trackers with no
+  // isOwner check, and the list comes from the browser-wide localStorage key
+  // "sanctum_archived_trackers", not a per-user one. So on a shared browser a
+  // non-owner saw the owner's archived v1 trackers (+ Restore).
   // The test seeds that key to reproduce an owner having archived them earlier.
-  // TODO(link): <bug link — not filed yet; repo is public, see PR #27>
-  // EXPECTED TO FAIL until the tracker fix lands. When it starts passing,
-  // Playwright reports "expected to fail, but passed": remove test.fail() then.
   test("non-owner sees NO v1 trackers in the active grid or Archived", async ({ page }) => {
-    test.fail();
     await page.addInitScript(() => localStorage.setItem("sanctum_archived_trackers", JSON.stringify(["study", "career", "finance", "travel", "pet"])));
     await login(page);
     await page.locator(".sidebar .nav-item:has-text('Trackers')").first().click();

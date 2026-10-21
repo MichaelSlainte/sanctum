@@ -1,3 +1,9 @@
+<!--
+Copyright © 2026 Michael FR Marques & Tamara Lechner. All rights reserved.
+Sanctum — Private and confidential. Unauthorised use prohibited.
+https://sanctum.app
+-->
+
 # Sanctum — Project Context
 
 ## What this is
@@ -86,7 +92,7 @@ BETA_EMAILS array in the Login component in App.jsx gates both login and signup.
 - Forgot-password flow (Supabase /auth/v1/recover)
 - Mobile hardening: iOS input-zoom fix (inputs ≥16px), viewport-fit=cover, interactive-widget=resizes-content, bottom-sheet modal lifted above bottom nav, sticky modal header
 - Vercel Analytics + Speed Insights
-- Playwright E2E: 24 tests, all on the non-owner `TEST_EMAIL_2` account. `notes-encryption.spec.ts` (8), `sanctum.spec.ts` smoke (9, incl. 1 `test.fail()` regression test for the v1-tracker leak), `security.spec.ts` (7, incl. the exact-policy-set check, which runs only in a service-role CI step)
+- Playwright E2E: 24 tests, all on the non-owner `TEST_EMAIL_2` account. `notes-encryption.spec.ts` (8), `sanctum.spec.ts` smoke (9, incl. the v1-tracker-leak regression test, passing since PR A), `security.spec.ts` (7, incl. the exact-policy-set check, which runs only in a service-role CI step)
 - GitHub Actions CI
 - Settings: themes, profile, privacy section, account info
 
@@ -152,8 +158,9 @@ Full summary + next steps: **`docs/handoff.md`**.
 - 9a75b2f feat: calendar↔tracker integration — on-demand tracker context in FAB AI
 
 ## Pending work (priority order)
-0. **Tracker PR (next):** `profiles.ui_prefs`; v1 trackers owners-only (incl. Archived); logout/user-switch clear `sanctum_*` (keep 7 device prefs); migrate owners' layout into `ui_prefs`; flip the `test.fail()` regression test. Full plan: `docs/handoff.md` §3.
-0b. **Other follow-ups** (`docs/handoff.md` §4): privacy wording; note titles/tags/notebook names plaintext; WebAuthn PRF unlock + PBKDF2 600k; `sb.select` fail-open callers; GDPR deletion of storage files; Dependabot; duplicate Vercel projects; OWASP audit; secret clean-up.
+0. **Tracker work, split in two** (`docs/handoff.md` §3). **PR A:** v1 trackers owner-only incl. Archived + flip the regression test (fixes GHSA-p4h3). **PR B:** `profiles.ui_prefs` (+ `note_order`, `expanded_nbs`); logout/user-switch clear `sanctum_*` (keep the 7 device prefs + `sanctum_enc_salt_*` as a cache, DB salt wins); owners' layout into `ui_prefs`; Ozzy weight/custom docs into the DB (owner-or-partner read, like `ozzy_docs`) with a lossless merge of localStorage first.
+0b. **Crypto PR** (`docs/handoff.md` §4): WebAuthn PRF unlock + PBKDF2 600k + encrypt titles/tags/notebook names + **re-encryption flow** + **separate notes passphrase** (recommended over a client-derived login credential). ⚠️ **The login password IS the notes key material.** Changing or resetting it (incl. forgot-password) leaves existing notes unreadable, and GoTrue sees key material at every login. **Don't rotate Michael's password until this ships.**
+0c. **Other follow-ups** (`docs/handoff.md` §4): privacy wording; `sb.select` fail-open callers; GDPR deletion of storage files; Dependabot; duplicate Vercel projects; OWASP audit; secret clean-up.
 1. GDPR sweep — COMPLETE (2026-06-07): privacy policy shipped at /privacy; cookie consent not required (no tracking cookies, localStorage is exempt from ePrivacy); RoPA is internal.
 
 Carried-over bugs (lower priority, still open):

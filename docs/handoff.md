@@ -31,9 +31,17 @@ Where things stand after the notes-encryption and security work of 2026-10-20/21
 | **GHSA-4m5r-w254-7fw4** | high | the four 2026-10-20 RLS/storage findings | now: fixed and verified (#32) | **Remove the beta testers' usernames** (`leoarkiteto`, `aitoolsgpt2025`) and the "Michael's Gmail test account" mention (Accounts section, line ~33). Change those to "2 invited beta testers" and "an owner-controlled test account", as in the repo's incident note. Remove the "PRIVATE — full version" header line. Set the vulnerable range to `< main@66b2ca8` and the patched version to `main@66b2ca8` (they currently read `<= main@e027e35` / none). |
 | **GHSA-p4h3-9mvv-q7pm** | low | v1 tracker names visible to non-owners via the browser-wide Archived state | after the tracker PR merges and the regression test passes | No personal identifiers inside. Remove "Private until the fix ships" and set the patched version to the tracker PR's merge commit. |
 
-## 3. Next: the tracker PR (plan agreed, not started)
+## 3. Next: the tracker work (split into two PRs, agreed 2026-10-21)
 
-Branch from `main`. Decisions already made:
+- **PR A** (`fix/v1-trackers-owner-only`): item 2 + the test flip in item 5. This alone fixes GHSA-p4h3, so the probe and publishing (item 6) follow it. No migration.
+- **PR B:** everything else below, plus these agreed changes:
+  - **Extra `ui_prefs` keys:** `note_order` and `expanded_nbs` (owners would otherwise lose them on logout).
+  - **Timezone:** at login, write `profiles.timezone` back to `sanctum_timezone` (Calendar only reads localStorage).
+  - **Ozzy weight and custom-doc names are localStorage-only today** (`sanctum_ozzy_weight`, `sanctum_ozzy_custom_docs`), so clearing them would delete them. Move them into the DB with **owner-or-partner read and owner-only write, like `ozzy_docs`**. Check `ozzy_profile`'s current policies first; if they aren't already like that, use a dedicated table or fix the policies, by migration. On first load, merge the localStorage data into the DB (union, nothing dropped) *before* anything clears it.
+  - **`sanctum_enc_salt_*` survives logout, as a cache only.** The DB salt is the source of truth: if the DB has a salt and the cache differs, use the DB and replace the cache. Never create or overwrite a salt from the cache. ⚠️ Today `ensurePersistedSalt` *does* seed the DB from the cache when the DB has none (the pre-#26 legacy path). Decide in PR B whether any account still needs that path before removing it.
+  - **Test account:** if notes or salt left over from before the 2026-10-21 `TEST_PASSWORD_2` rotation break the notes specs, reset the test account's notes and salt in spec setup. Test account only (the specs already refuse owners).
+
+Decisions already made:
 
 1. **`profiles.ui_prefs jsonb`** (new migration `013_…`, default `'{}'`). It holds per-user UI state: `archived_trackers`, `tracker_order`, `trackers_expanded`, plus the owners' layout (`dashboard_rings`, `home_widget_order`, `ring_order`, `nav_order`, `hide_roadmap`, `roadmap_collapsed`, `study_collapsed`, `study_ring_source`). **profiles RLS is own-row only** (probed 2026-10-20: the non-owner sees only its own row, and a PATCH on an owner row returns `[]`). Re-confirm in the PR, and add `profiles` to `security_policy_inventory()` and to `EXPECTED_POLICIES` in `tests/security.spec.ts`.
 2. **v1 trackers render only for `OWNER_IDS`**, both the active grid and the **Archived** section and its count (`TrackerHub.jsx` ~1119–1140; the active grid is already gated).
@@ -49,9 +57,16 @@ Branch from `main`. Decisions already made:
 
 - **Privacy wording must be literally true.** The sidebar's "End-to-end encrypted" (`App.jsx` ~946) and the Home badge (`Home.jsx` ~246) cover the whole app, but only note **bodies** are E2E. "Notes are end-to-end encrypted" (`Privacy.jsx` ~48, ~55, ~108; Onboarding "Notes — End-to-end encrypted") is also too broad (next item).
 - **Note titles, tags and notebook names are plaintext.** Either encrypt them (titles/tags with the same key; notebook names live in `notebooks.data` JSONB), or word every claim as "note contents".
-- **Unlock friction and key strength.**
+- **Crypto PR (bundle these together):**
   - **Fingerprint / Face ID unlock via WebAuthn PRF.** `encryptionKey.js` is ready for it: `unlockWith(getKey, prove)`, so a passkey method only adds a `getKey`.
   - **PBKDF2 100k → 600k (OWASP).** This changes the derived key, so it needs a stored per-user iteration count and a one-time re-encryption at the next login (derive the old key, decrypt, re-encrypt with the new key).
+  - **Encrypt note titles, tags and notebook names** (see the item above).
+  - **Re-encryption flow.** Old password → new password: derive both keys, decrypt every note with the old key and re-encrypt it with the new one, and change the Supabase password only once every note is saved. There is none today. Changing the login password (Supabase dashboard, `SetPassword`, recovery email) leaves every existing note unreadable with the new password, and later notes get encrypted with the new key, so the notes end up split across two keys. **Forgot-password recovery does this today.**
+  - **Design issue: the login password *is* the notes key material.** GoTrue receives the password that derives the notes key at every login, so Supabase (or anyone with its logs or a compromised auth endpoint) could decrypt the notes. Not true E2E. Options:
+    - **(a) A separate notes passphrase.** The key is derived only from the passphrase; the login password never touches it.
+    - **(b) Derive the login credential client-side** (Bitwarden-style: one stretched secret, then HKDF into an auth secret sent to GoTrue and a separate encryption key).
+    - **Recommendation: (a).** With PRF fingerprint unlock, the passphrase is rarely typed, so the cost of a second secret is small. It is the only option where a login-password reset or rotation can't break the notes. (b) still loses the notes on a forgotten password. It also needs the salt *before* login, which means a pre-auth salt lookup (account enumeration) or an email-derived salt. And every account, plus `SetPassword` and recovery, would have to switch to derived credentials in our hand-rolled auth client. Migration for (a): at the next unlock, enter the login password (old key), set a passphrase, re-encrypt with the re-encryption flow above. After that, "change passphrase" re-encrypts, and login-password changes need no re-encryption.
+  - **After this ships: rotate Michael's password** (moved here from the clean-up list: rotating it before then leaves his notes unreadable).
 - **`sb.select` still returns `[]` on errors for non-notes callers.** Notes, notebooks, salt, profile salt and the notes export are strict (`{ strict: true }`). Still lenient: `App.jsx` (custom_trackers, events ×4, profiles ×4), `Calendar.jsx` (5), `Home.jsx` (11), `Roadmap.jsx` (7), `Settings.jsx` (8 other tables), `Career`/`Finance`/`Travel` (1 each), `Ozzy.jsx` (3), `Study.jsx` (7), `TrackerHub.jsx` (7), `trackerContext.js` (7). Audit each: any that *writes* based on an empty read is dangerous (like the notebooks bug).
 - **GDPR deletion.** `api/delete-account.js` deletes the auth user (admin API) after `Settings.deleteAllData` wipes the tables, but **storage files under `pets/<uid>/` are never deleted**. Add storage deletion (service role) and confirm no table rows survive (for example `partners`).
 - **Dependabot: 12 open PRs.** #31 vite 8.1.6, #30 brace-expansion, #29 sharp 0.35.5, #28 source-map-js, #25 js-yaml, #24 baseline-browser-mapping, #22 browserslist, #21 nanoid, #20 @humanfs/node, #19 fast-uri, #15 postcss, #4 vite + vite-plugin-pwa (likely superseded by #31). Merge them one at a time with CI.
@@ -60,7 +75,8 @@ Branch from `main`. Decisions already made:
 - **Password / secret clean-up.**
   - **GitHub:** delete the retired `TEST_EMAIL` / `TEST_PASSWORD` secrets (Michael's real account).
   - **Local:** remove `TEST_EMAIL` / `TEST_PASSWORD` from `.env.local`.
-  - **Rotate Michael's password:** it sat in CI secrets and a local env file.
+  - **Rotate Michael's password:** it sat in CI secrets and a local env file. **Only after the crypto PR** (re-encryption flow); see above.
+  - `TEST_PASSWORD_2` rotated 2026-10-21 (GitHub secret and `.env.local`); login verified locally.
   - **Service-role key:** keep `SUPABASE_SERVICE_ROLE_KEY` only in GitHub secrets (one CI step) and Vercel server env.
   - **AI rate limiting:** set `UPSTASH_REDIS_REST_URL` / `_TOKEN` in Vercel so the rate limit persists across instances.
 
@@ -71,5 +87,5 @@ Branch from `main`. Decisions already made:
 - **`SUPABASE_SERVICE_ROLE_KEY`:** GitHub secret, used by one CI step ("Policy inventory check"), with no app server running (`API_ONLY=1`).
 - **Suites:**
   - `tests/notes-encryption.spec.ts` (8);
-  - `tests/sanctum.spec.ts` (9, one of them `test.fail()`);
+  - `tests/sanctum.spec.ts` (9; the v1-tracker regression test passes since PR A);
   - `tests/security.spec.ts` (7; the exact-policy test runs only in that CI step).
