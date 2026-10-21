@@ -3,7 +3,8 @@
 // https://sanctum.app
 import { useState, useRef, useEffect } from "react";
 import { Icon } from "../shared";
-import { sb, storage } from "../../lib/supabase";
+import { sb } from "../../lib/supabase";
+import { useSignedUrl } from "../../lib/useSignedUrl";
 import TrackerCreator from "./TrackerCreator";
 
 // v1 hardcoded trackers (Study/Career/Finance/Travel/Ozzy) are personal to the app
@@ -739,7 +740,10 @@ export default function TrackerHub({ archivedTrackers = [], onArchive, onUnarchi
     ozzyRing: 0, ozzyColor: "var(--grn)",
   });
 
-  const [ozzyPhoto, setOzzyPhoto] = useState(null);
+  // Private bucket: keep the storage path; the hook keeps a fresh signed URL for it.
+  const [ozzyPhotoPath, setOzzyPhotoPath] = useState(null);
+  const ozzyPhotoUrl = useSignedUrl("pets", ozzyPhotoPath);
+  const ozzyPhoto = ozzyPhotoUrl.url;
   const [ozzyLightbox, setOzzyLightbox] = useState(false);
   useEffect(() => {
     if (!ozzyLightbox) return;
@@ -804,7 +808,7 @@ export default function TrackerHub({ archivedTrackers = [], onArchive, onUnarchi
         ]);
 
         const photoRow = Array.isArray(ozzyRows) ? ozzyRows.find(r => r.key === "photo_url") : null;
-        if (photoRow?.value) storage.createSignedUrl("pets", photoRow.value, 600).then(u => { if (u) setOzzyPhoto(u); }); // private bucket
+        if (photoRow?.value) setOzzyPhotoPath(photoRow.value);
 
         const studyHours = Array.isArray(sessions)
           ? sessions.reduce((sum, s) => sum + (s.hours || 0), 0) : 0;
@@ -955,7 +959,7 @@ export default function TrackerHub({ archivedTrackers = [], onArchive, onUnarchi
         <div className="tc-ring"><MiniRing percent={ring.percent} color={ring.color} /></div>
         <div className="tc-icon" style={id === "pet" && ozzyPhoto ? { overflow: "hidden" } : {}}>
           {id === "pet" && ozzyPhoto
-            ? <img src={ozzyPhoto} alt="Ozzy"
+            ? <img src={ozzyPhoto} alt="Ozzy" onError={ozzyPhotoUrl.onError} onLoad={ozzyPhotoUrl.onLoad}
                 style={{ width: "100%", height: "100%", objectFit: "cover", cursor: "zoom-in" }}
                 onClick={e => { e.stopPropagation(); setOzzyLightbox(true); }} />
             : <Icon name={t.icon} size={22} color="var(--t2)" />
@@ -1078,6 +1082,7 @@ export default function TrackerHub({ archivedTrackers = [], onArchive, onUnarchi
       >
         <img
           src={ozzyPhoto}
+          onError={ozzyPhotoUrl.onError}
           alt="Ozzy"
           onClick={e => e.stopPropagation()}
           style={{

@@ -3,6 +3,7 @@
 // https://sanctum.app
 import { useState, useEffect, useRef } from "react";
 import { sb, storage } from "../../lib/supabase";
+import { useSignedUrl } from "../../lib/useSignedUrl";
 import { Icon, Modal } from "../shared";
 
 const DEFAULT_PROFILE = {
@@ -55,7 +56,10 @@ const calcOzzyAge = (bornDate) => {
 export default function Ozzy({ user }) {
   const [activeTab, setActiveTab] = useState("overview");
 
-  const [ozzyPhoto, setOzzyPhoto] = useState(null);
+  // Private bucket: keep the storage path; the hook keeps a fresh signed URL for it.
+  const [photoPath, setPhotoPath] = useState(null);
+  const photo = useSignedUrl("pets", photoPath);
+  const ozzyPhoto = photo.url;
   const [photoUploading, setPhotoUploading] = useState(false);
   const photoInputRef = useRef(null);
 
@@ -120,7 +124,7 @@ export default function Ozzy({ user }) {
         if (row.key.startsWith('study_config')) return; // study tracker keys — not custom fields
         if (row.key === "photo_url" && row.value) {
           // Private bucket: short-lived signed URL, never a public one.
-          storage.createSignedUrl("pets", row.value, 600).then(u => { if (u) setOzzyPhoto(u); });
+          setPhotoPath(row.value);
         } else if (row.key === "diet") {
           try { setDiet(JSON.parse(row.value)); } catch {}
         } else if (row.key in DEFAULT_PROFILE) {
@@ -311,7 +315,7 @@ export default function Ozzy({ user }) {
               {photoUploading
                 ? <div style={{ fontSize: 10, color: "var(--t3)" }}>…</div>
                 : ozzyPhoto
-                  ? <img src={ozzyPhoto} style={{ width: "100%", height: "100%", objectFit: "cover" }} alt="Ozzy" />
+                  ? <img src={ozzyPhoto} onError={photo.onError} onLoad={photo.onLoad} style={{ width: "100%", height: "100%", objectFit: "cover" }} alt="Ozzy" />
                   : <svg width="28" height="28" viewBox="0 0 24 24" fill="none" stroke="var(--t3)" strokeWidth="1.5">
                       <path d="M20 21v-2a4 4 0 0 0-4-4H8a4 4 0 0 0-4 4v2" />
                       <circle cx="12" cy="7" r="4" />
@@ -342,12 +346,13 @@ export default function Ozzy({ user }) {
                 if (!file) return;
                 setPhotoUploading(true);
                 try {
-                  const path = `${user?.id || "shared"}/ozzy.jpg`;
+                  if (!user?.id) throw new Error("not signed in");
+                  const path = `${user.id}/ozzy.jpg`; // first folder = owner uid (storage RLS)
                   const uploadRes = await storage.upload("pets", path, file);
                   if (uploadRes?.error) throw new Error(uploadRes.error.message || "Upload failed");
                   await sb.from("ozzy_profile").upsert({ key: "photo_url", value: path, user_id: user?.id }, "key,user_id");
-                  const signed = await storage.createSignedUrl("pets", path, 600);
-                  if (signed) setOzzyPhoto(signed);
+                  setPhotoPath(path);
+                  photo.refresh(); // same path, new file: re-sign so the new photo shows
                 } catch (err) {
                   console.error("[Ozzy] photo upload failed:", err);
                 } finally {
