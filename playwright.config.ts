@@ -23,7 +23,9 @@ export default defineConfig({
       use: { ...devices["Desktop Chrome"] },
     },
   ],
-  webServer: {
+  // API_ONLY=1: API-level checks only (no app server). Used by the CI step that
+  // holds the service-role key, so that key is never in the dev server's env.
+  webServer: process.env.API_ONLY ? undefined : {
     command: "npm run dev",
     url: "http://localhost:5173",
     reuseExistingServer: !process.env.CI,

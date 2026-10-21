@@ -92,7 +92,8 @@ export const auth = {
 };
 
 export const storage = {
-  createBucket: async (id, isPublic = true) => {
+  // Buckets are private by default; files are read through signed URLs only.
+  createBucket: async (id, isPublic = false) => {
     const session = auth.getSession();
     const headers = { apikey: SUPABASE_KEY, "Content-Type": "application/json" };
     if (session) headers.Authorization = `Bearer ${session.token}`;
@@ -105,13 +106,37 @@ export const storage = {
     } catch { return null; }
   },
   upload: async (bucket, path, file) => {
+    await ensureValidToken();
     const session = auth.getSession();
     const headers = { apikey: SUPABASE_KEY, "Content-Type": file.type || "application/octet-stream", "x-upsert": "true" };
     if (session) headers.Authorization = `Bearer ${session.token}`;
     const res = await fetch(`${SUPABASE_URL}/storage/v1/object/${bucket}/${path}`, { method: "POST", headers, body: file });
     return res.json();
   },
-  getPublicUrl: (bucket, path) => `${SUPABASE_URL}/storage/v1/object/public/${bucket}/${path}`,
+  // Short-lived URL for a file in a PRIVATE bucket (storage RLS decides who may
+  // sign it). Returns null when not allowed / not found. Don't persist the URL:
+  // sign again when it's needed.
+  createSignedUrl: async (bucket, path, expiresIn = 600) => {
+    if (!path) return null;
+    await ensureValidToken();
+    const session = auth.getSession();
+    if (!session) return null;
+    try {
+      const res = await fetch(`${SUPABASE_URL}/storage/v1/object/sign/${bucket}/${path}`, {
+        method: "POST",
+        headers: { apikey: SUPABASE_KEY, "Content-Type": "application/json", Authorization: `Bearer ${session.token}` },
+        body: JSON.stringify({ expiresIn }),
+      });
+      if (!res.ok) return null;
+      const data = await res.json();
+      return data?.signedURL ? `${SUPABASE_URL}/storage/v1${data.signedURL}` : null;
+    } catch { return null; }
+  },
+  // Object path from a legacy public URL (…/object/public/<bucket>/<path>).
+  pathFromLegacyUrl: (bucket, url) => {
+    const m = typeof url === "string" && url.match(new RegExp(`/storage/v1/object/(?:public/|authenticated/)?${bucket}/([^?]+)`));
+    return m ? decodeURIComponent(m[1]) : null;
+  },
 };
 
 // Shared refresh lock — prevents concurrent token refresh races

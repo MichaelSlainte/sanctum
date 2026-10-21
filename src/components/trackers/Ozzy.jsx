@@ -3,6 +3,7 @@
 // https://sanctum.app
 import { useState, useEffect, useRef } from "react";
 import { sb, storage } from "../../lib/supabase";
+import { useSignedUrl } from "../../lib/useSignedUrl";
 import { Icon, Modal } from "../shared";
 
 const DEFAULT_PROFILE = {
@@ -55,7 +56,10 @@ const calcOzzyAge = (bornDate) => {
 export default function Ozzy({ user }) {
   const [activeTab, setActiveTab] = useState("overview");
 
-  const [ozzyPhoto, setOzzyPhoto] = useState(null);
+  // Private bucket: keep the storage path; the hook keeps a fresh signed URL for it.
+  const [photoPath, setPhotoPath] = useState(null);
+  const photo = useSignedUrl("pets", photoPath);
+  const ozzyPhoto = photo.url;
   const [photoUploading, setPhotoUploading] = useState(false);
   const photoInputRef = useRef(null);
 
@@ -119,7 +123,8 @@ export default function Ozzy({ user }) {
       data.forEach(row => {
         if (row.key.startsWith('study_config')) return; // study tracker keys — not custom fields
         if (row.key === "photo_url" && row.value) {
-          setOzzyPhoto(storage.getPublicUrl("pets", row.value));
+          // Private bucket: short-lived signed URL, never a public one.
+          setPhotoPath(row.value);
         } else if (row.key === "diet") {
           try { setDiet(JSON.parse(row.value)); } catch {}
         } else if (row.key in DEFAULT_PROFILE) {
@@ -136,7 +141,8 @@ export default function Ozzy({ user }) {
       if (!Array.isArray(data) || data.length === 0) return;
       setDocs(prev => {
         const meta = { ...prev };
-        data.forEach(row => { meta[row.name] = { filename: row.filename, uploaded_at: row.uploaded_at, url: row.url }; });
+        // Keep only the storage path; files are opened through signed URLs.
+        data.forEach(row => { meta[row.name] = { filename: row.filename, uploaded_at: row.uploaded_at, path: row.path || storage.pathFromLegacyUrl("pets", row.url) }; });
         return meta;
       });
     }).catch(() => {});
@@ -188,26 +194,32 @@ export default function Ozzy({ user }) {
   };
 
   const handleDocUpload = async (docName, file) => {
-    if (!file) return;
+    if (!file || !user?.id) return;
     try {
-      const path = `${user?.id || 'shared'}/${docName.replace(/\s+/g, '_')}_${Date.now()}`;
-      await storage.upload('pets', path, file);
-      const url = storage.getPublicUrl('pets', path);
-      const meta = { filename: file.name, uploaded_at: new Date().toISOString(), url };
+      // Path must start with the owner's uid: storage RLS checks that folder.
+      const path = `${user.id}/${docName.replace(/\s+/g, '_')}_${Date.now()}`;
+      const up = await storage.upload('pets', path, file);
+      if (up?.error || up?.statusCode) throw new Error(up?.message || up?.error || 'upload failed');
+      const meta = { filename: file.name, uploaded_at: new Date().toISOString(), path };
       setDocs(prev => {
         const updated = { ...prev, [docName]: meta };
         localStorage.setItem("sanctum_ozzy_docs_meta", JSON.stringify(updated));
         return updated;
       });
-      await sb.from("ozzy_docs").insert({ name: docName, filename: file.name, uploaded_at: meta.uploaded_at, url, user_id: user?.id });
-    } catch {}
+      const res = await sb.from("ozzy_docs").insert({ name: docName, filename: file.name, uploaded_at: meta.uploaded_at, path, user_id: user.id });
+      if (!Array.isArray(res)) throw new Error('ozzy_docs insert failed');
+    } catch (err) {
+      console.error('[Ozzy] document upload failed:', err);
+    }
   };
 
-  const downloadDoc = (docName) => {
+  const downloadDoc = async (docName) => {
     const meta = docs[docName];
-    if (!meta?.url) return;
+    const path = meta?.path || storage.pathFromLegacyUrl("pets", meta?.url);
+    const url = await storage.createSignedUrl("pets", path, 60); // signed on click, valid 60s
+    if (!url) { console.error('[Ozzy] could not sign document URL'); return; }
     const link = document.createElement("a");
-    link.href = meta.url;
+    link.href = url;
     link.download = meta.filename || docName;
     link.target = '_blank';
     link.click();
@@ -303,7 +315,7 @@ export default function Ozzy({ user }) {
               {photoUploading
                 ? <div style={{ fontSize: 10, color: "var(--t3)" }}>…</div>
                 : ozzyPhoto
-                  ? <img src={ozzyPhoto} style={{ width: "100%", height: "100%", objectFit: "cover" }} alt="Ozzy" />
+                  ? <img src={ozzyPhoto} onError={photo.onError} onLoad={photo.onLoad} style={{ width: "100%", height: "100%", objectFit: "cover" }} alt="Ozzy" />
                   : <svg width="28" height="28" viewBox="0 0 24 24" fill="none" stroke="var(--t3)" strokeWidth="1.5">
                       <path d="M20 21v-2a4 4 0 0 0-4-4H8a4 4 0 0 0-4 4v2" />
                       <circle cx="12" cy="7" r="4" />
@@ -334,11 +346,13 @@ export default function Ozzy({ user }) {
                 if (!file) return;
                 setPhotoUploading(true);
                 try {
-                  const path = `${user?.id || "shared"}/ozzy.jpg`;
+                  if (!user?.id) throw new Error("not signed in");
+                  const path = `${user.id}/ozzy.jpg`; // first folder = owner uid (storage RLS)
                   const uploadRes = await storage.upload("pets", path, file);
                   if (uploadRes?.error) throw new Error(uploadRes.error.message || "Upload failed");
                   await sb.from("ozzy_profile").upsert({ key: "photo_url", value: path, user_id: user?.id }, "key,user_id");
-                  setOzzyPhoto(storage.getPublicUrl("pets", path) + `?t=${Date.now()}`);
+                  setPhotoPath(path);
+                  photo.refresh(); // same path, new file: re-sign so the new photo shows
                 } catch (err) {
                   console.error("[Ozzy] photo upload failed:", err);
                 } finally {
