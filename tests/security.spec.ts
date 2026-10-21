@@ -42,53 +42,6 @@ test.beforeAll(async () => {
   expect(partners, "test account must have no partner").toEqual([]);
 });
 
-// ── Exact policy set (catches leftover / dashboard-created policies) ───
-// The incident happened because an extra permissive policy sat next to the
-// right one, so assert the WHOLE set per table: any extra or missing policy
-// fails. roles: null = not pinned yet (policy was created in the dashboard).
-type Policy = { schema_name: string; table_name: string; policy_name: string; command: string; roles: string[] };
-const EXPECTED_POLICIES: Record<string, [name: string, cmd: string, roles: string[] | null][]> = {
-  "public.events": [
-    ["events_own", "ALL", null],
-    ["events_shared_read", "SELECT", ["public"]], // migration 010
-  ],
-  "public.ozzy_docs": [
-    ["ozzy_docs_delete", "DELETE", ["authenticated"]],
-    ["ozzy_docs_insert", "INSERT", ["authenticated"]],
-    ["ozzy_docs_read", "SELECT", ["authenticated"]],
-    ["ozzy_docs_update", "UPDATE", ["authenticated"]],
-  ],
-  "public.partners": [
-    ["partners_self_read", "SELECT", ["public"]], // migration 010; no write policies by design
-  ],
-  "storage.objects": [ // ALL storage policies, not just pets: a new bucket policy must be added here deliberately
-    ["pets_delete_own", "DELETE", ["authenticated"]],
-    ["pets_insert_own", "INSERT", ["authenticated"]],
-    ["pets_read_own_or_partner", "SELECT", ["authenticated"]],
-    ["pets_update_own", "UPDATE", ["authenticated"]],
-  ],
-};
-
-test("policies: exact set per table, no extras (security_policy_inventory)", async () => {
-  const anon = await fetch(`${URL}/rest/v1/rpc/security_policy_inventory`, { method: "POST", headers: { ...anonH, "Content-Type": "application/json" }, body: "{}" });
-  expect(anon.status, "anon must not read the policy inventory").not.toBe(200);
-
-  const r = await fetch(`${URL}/rest/v1/rpc/security_policy_inventory`, { method: "POST", headers: { ...userH(), "Content-Type": "application/json" }, body: "{}" });
-  expect(r.status, "inventory RPC (migration 011)").toBe(200);
-  const actual: Policy[] = await r.json();
-  const byTable: Record<string, Policy[]> = {};
-  for (const p of actual) (byTable[`${p.schema_name}.${p.table_name}`] ??= []).push(p);
-
-  expect(Object.keys(byTable).sort(), "tables covered").toEqual(Object.keys(EXPECTED_POLICIES).sort());
-  for (const [table, expected] of Object.entries(EXPECTED_POLICIES)) {
-    const got = (byTable[table] ?? []).sort((a, b) => a.policy_name.localeCompare(b.policy_name));
-    expect(got.map(p => `${p.policy_name} ${p.command}`), `${table} policy set`).toEqual(expected.map(([n, c]) => `${n} ${c}`).sort());
-    for (const [name, , roles] of expected) {
-      if (roles) expect(got.find(p => p.policy_name === name)?.roles, `${table}.${name} roles`).toEqual(roles);
-    }
-  }
-});
-
 // ── Finding 1: shared events ─────────────────────────────────────────────
 test("events: shared events are not readable by anon or a non-partner", async () => {
   expect(await rows("events?select=id&shared=eq.true", anonH)).toEqual([]);
@@ -176,5 +129,67 @@ test("pets: own folder works end-to-end (upload → download → signed URL → 
       method: "DELETE", headers: { ...userH(), "Content-Type": "application/json" }, body: JSON.stringify({ prefixes: [path] }),
     });
     expect(del.status, "own delete").toBe(200);
+  }
+});
+
+// ── Exact policy set (catches leftover / dashboard-created policies) ───
+// The incident happened because an extra permissive policy sat next to the
+// right one, so assert the WHOLE set per table: any extra or missing policy
+// fails. roles: null = not pinned yet (policy was created in the dashboard).
+type Policy = { schema_name: string; table_name: string; policy_name: string; command: string; roles: string[] };
+const EXPECTED_POLICIES: Record<string, [name: string, cmd: string, roles: string[] | null][]> = {
+  "public.events": [
+    ["events_own", "ALL", null],
+    ["events_shared_read", "SELECT", ["public"]], // migration 010
+  ],
+  "public.ozzy_docs": [
+    ["ozzy_docs_delete", "DELETE", ["authenticated"]],
+    ["ozzy_docs_insert", "INSERT", ["authenticated"]],
+    ["ozzy_docs_read", "SELECT", ["authenticated"]],
+    ["ozzy_docs_update", "UPDATE", ["authenticated"]],
+  ],
+  "public.partners": [
+    ["partners_self_read", "SELECT", ["public"]], // migration 010; no write policies by design
+  ],
+  "storage.objects": [ // ALL storage policies, not just pets: a new bucket policy must be added here deliberately
+    ["pets_delete_own", "DELETE", ["authenticated"]],
+    ["pets_insert_own", "INSERT", ["authenticated"]],
+    ["pets_read_own_or_partner", "SELECT", ["authenticated"]],
+    ["pets_update_own", "UPDATE", ["authenticated"]],
+  ],
+};
+
+// Service role only (migration 012). The key comes from the GitHub secret
+// SUPABASE_SERVICE_ROLE_KEY, set ONLY on the CI step that runs this check (no dev
+// server is running in that step). Locally the check is skipped unless the
+// variable is set; in that CI step REQUIRE_POLICY_INVENTORY=1 makes a missing
+// key a failure instead of a skip.
+const SERVICE_KEY = process.env.SUPABASE_SERVICE_ROLE_KEY ?? "";
+const inventory = (headers: Record<string, string>) =>
+  fetch(`${URL}/rest/v1/rpc/security_policy_inventory`, { method: "POST", headers: { ...headers, "Content-Type": "application/json" }, body: "{}" });
+
+test("policies: inventory is service-role only", async () => {
+  expect((await inventory(anonH)).status, "anon must not execute it").not.toBe(200);
+  expect((await inventory(userH())).status, "a logged-in app user must not execute it").not.toBe(200);
+});
+
+test("policies: exact set per table, no extras (security_policy_inventory)", async () => {
+  if (!SERVICE_KEY) {
+    expect(process.env.REQUIRE_POLICY_INVENTORY, "SUPABASE_SERVICE_ROLE_KEY missing in the CI policy step").toBeFalsy();
+    test.skip(true, "SUPABASE_SERVICE_ROLE_KEY not set (runs in CI only)");
+  }
+  const r = await inventory({ apikey: SERVICE_KEY, Authorization: `Bearer ${SERVICE_KEY}` });
+  expect(r.status, "inventory RPC (migration 012)").toBe(200);
+  const actual: Policy[] = await r.json();
+  const byTable: Record<string, Policy[]> = {};
+  for (const p of actual) (byTable[`${p.schema_name}.${p.table_name}`] ??= []).push(p);
+
+  expect(Object.keys(byTable).sort(), "tables covered").toEqual(Object.keys(EXPECTED_POLICIES).sort());
+  for (const [table, expected] of Object.entries(EXPECTED_POLICIES)) {
+    const got = (byTable[table] ?? []).sort((a, b) => a.policy_name.localeCompare(b.policy_name));
+    expect(got.map(p => `${p.policy_name} ${p.command}`), `${table} policy set`).toEqual(expected.map(([n, c]) => `${n} ${c}`).sort());
+    for (const [name, , roles] of expected) {
+      if (roles) expect(got.find(p => p.policy_name === name)?.roles, `${table}.${name} roles`).toEqual(roles);
+    }
   }
 });

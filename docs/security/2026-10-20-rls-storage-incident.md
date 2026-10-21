@@ -51,7 +51,7 @@ Signup is disabled, so only invited or admin-created accounts could use the logg
 
 ## Verification
 - **CI:** `tests/security.spec.ts` runs on every PR as anon and as a non-owner, non-partner test account:
-  - **exact policy set** on `events`, `ozzy_docs`, `partners` and `storage.objects` (via `security_policy_inventory()`). Any extra or missing policy fails the build;
+  - **exact policy set** on `events`, `ozzy_docs`, `partners` and `storage.objects` (via `security_policy_inventory()`, migration 012). Any extra or missing policy fails the build. The function is **service-role only**: app users can't run it, and CI calls it with the service-role key from a GitHub secret, in a step with no app server;
   - shared events → none;
   - `ozzy_docs`: cross-user read, write and forged inserts rejected; own rows work;
   - pets: another user's file can't be fetched (public route, cache-busted), downloaded, signed, listed or written into;

@@ -30,9 +30,19 @@ jobs:
       - name: Run Playwright tests
         run: npm run test:e2e
         env:
-          TEST_EMAIL: ${{ secrets.TEST_EMAIL }}
-          TEST_PASSWORD: ${{ secrets.TEST_PASSWORD }}
-          # Dedicated non-owner account for the notes encryption tests
+          # Dedicated non-owner test account; CI never uses a real user's credentials.
+          TEST_EMAIL_2: ${{ secrets.TEST_EMAIL_2 }}
+          TEST_PASSWORD_2: ${{ secrets.TEST_PASSWORD_2 }}
+
+      # Exact RLS policy set (tests/security.spec.ts). The ONLY step that sees the
+      # service-role key: no dev server (API_ONLY), one test file, one test.
+      # GitHub does not pass secrets to workflows triggered from forks.
+      - name: Policy inventory check (service role)
+        run: npx playwright test tests/security.spec.ts -g "exact set per table" --reporter=list
+        env:
+          API_ONLY: "1"
+          REQUIRE_POLICY_INVENTORY: "1"
+          SUPABASE_SERVICE_ROLE_KEY: ${{ secrets.SUPABASE_SERVICE_ROLE_KEY }}
           TEST_EMAIL_2: ${{ secrets.TEST_EMAIL_2 }}
           TEST_PASSWORD_2: ${{ secrets.TEST_PASSWORD_2 }}
 

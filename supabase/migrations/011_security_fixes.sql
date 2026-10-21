@@ -155,25 +155,6 @@ CREATE POLICY pets_delete_own ON storage.objects
   FOR DELETE TO authenticated
   USING (bucket_id = 'pets' AND (storage.foldername(name))[1] = auth.uid()::text);
 
--- ── 5. Policy inventory for CI ───────────────────────────────────────────
--- pg_policies isn't reachable over REST, so CI (tests/security.spec.ts) calls
--- this to assert the EXACT policy set per table and fail on any extra policy.
--- Returns names / command / roles only, never the policy expressions.
--- Logged-in callers only.
-CREATE OR REPLACE FUNCTION public.security_policy_inventory()
-RETURNS TABLE (schema_name text, table_name text, policy_name text, command text, roles text[])
-LANGUAGE sql STABLE SECURITY INVOKER
-SET search_path = pg_catalog
-AS $$
-  SELECT schemaname::text, tablename::text, policyname::text, cmd::text, roles::text[]
-    FROM pg_catalog.pg_policies
-   WHERE (schemaname = 'public'  AND tablename IN ('events', 'ozzy_docs', 'partners'))
-      OR (schemaname = 'storage' AND tablename = 'objects')
-   ORDER BY 1, 2, 3;
-$$;
-REVOKE ALL ON FUNCTION public.security_policy_inventory() FROM PUBLIC, anon;
-GRANT EXECUTE ON FUNCTION public.security_policy_inventory() TO authenticated;
-
 COMMIT;
 
 -- ── CHECKS: run these after, in a new query ──────────────────────────────
@@ -195,10 +176,6 @@ COMMIT;
 --     ozzy_docs  ozzy_docs_insert          INSERT  {authenticated}
 --     ozzy_docs  ozzy_docs_read            SELECT  {authenticated}
 --     ozzy_docs  ozzy_docs_update          UPDATE  {authenticated}
---
--- select * from public.security_policy_inventory();
---   → 11 rows: the 10 above + partners_self_read (partners, SELECT). storage.objects
---     lists ALL its policies here, so any non-pets storage policy would appear too.
 --
 -- select id, public from storage.buckets where id = 'pets';
 --   → pets | false
