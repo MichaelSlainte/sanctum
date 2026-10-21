@@ -10,8 +10,8 @@ Final text for the private draft advisory GHSA-4m5r-w254-7fw4. Paste the fields 
 
 ## Before publishing (checklist, not part of the advisory)
 
-- [ ] **Severity:** choose between Medium with the CVSS vector below (recommended: it matches what was exposed) and High with no CVSS (as in the draft).
-- [ ] **CDN note:** if the photo has been re-uploaded since 2026-10-20 (which purges the cached public copy), change the last "CDN cache" line to "Purged by re-uploading the photo."
+- [x] **Severity:** Medium, CVSS 3.1 6.5 (decided 2026-10-21).
+- [x] **CDN note:** the photo was re-uploaded on 2026-10-21; the note says so.
 - [ ] Re-check: no names, emails, usernames or UUIDs. A scan on 2026-10-21 found none.
 - [ ] Remove the "PRIVATE — full version" line from the draft, if it's still there (this text replaces the draft body entirely).
 
@@ -23,16 +23,17 @@ Final text for the private draft advisory GHSA-4m5r-w254-7fw4. Paste the fields 
 | **Ecosystem / package** | other / `sanctum` |
 | **Affected versions** | `< main@66b2ca8` |
 | **Patched versions** | `main@66b2ca8` |
-| **Severity** | **Medium**, CVSS 3.1 `AV:N/AC:L/PR:N/UI:N/S:U/C:L/I:L/A:N` (6.5). Alternative: High, with no CVSS. |
+| **Severity** | **Medium**, CVSS 3.1 `CVSS:3.1/AV:N/AC:L/PR:N/UI:N/S:U/C:L/I:L/A:N` (6.5) |
 | **CWEs** | CWE-732 (Incorrect Permission Assignment for Critical Resource): public bucket, `USING (true)`, any-path upload. CWE-863 (Incorrect Authorization): the extra events policy that cancelled out the partner-only rule. CWE-200 (Exposure of Sensitive Information to an Unauthorized Actor). |
 | **Credits** | none |
+| **CVE** | none requested |
 
 ## Description
 
 # 2026-10-20 — RLS and storage misconfigurations
 
 **Status:** fixed. The database and storage fixes were live on 2026-10-20 at about 19:50 UTC. They are recorded as migration `011_security_fixes.sql`, plus a CI policy check (`012_security_policy_inventory.sql`), merged in `main@66b2ca8`.
-**Severity:** high for the storage findings (no login needed), medium for events.
+**Severity:** Medium overall (CVSS 3.1 6.5). The storage findings needed no login; the events finding needed a logged-in account after 2026-06-01.
 
 ## Summary
 A review on 2026-10-20 probed every table and the storage bucket from an account that is neither an owner nor a partner. It found four access-control misconfigurations:
@@ -88,5 +89,5 @@ Signup is disabled, so only invited or admin-created accounts could use the logg
 - **Production, 2026-10-21:** a probe with the non-owner test account, the same role as the beta testers, found zero shared events, zero `ozzy_docs` rows and zero pets files. The owners' photo couldn't be fetched, signed or downloaded.
 
 ## Notes
-- **CDN cache:** after the bucket went private, the CDN kept serving a cached copy of the photo's old public URL for a while. Re-uploading the photo purges it.
+- **CDN cache:** after the bucket went private, the CDN kept serving a cached copy of the photo's old public URL for a while. It was purged by re-uploading the photo on 2026-10-21.
 - **Lesson:** check sharing and partner policies from an account that is **not** a partner, and never create policies in the dashboard without a migration.
