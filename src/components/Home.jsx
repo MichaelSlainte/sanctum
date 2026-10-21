@@ -1,6 +1,7 @@
 // Copyright © 2026 Michael FR Marques & Tamara Lechner. All rights reserved.
 import { useState, useEffect, useRef } from "react";
 import { sb } from "../lib/supabase";
+import { uiPrefs } from "../lib/uiPrefs.js";
 import { callAI, parseAction, fetchTrackerContext, isTrackerQuery } from "../lib/chat";
 import { Icon, Modal, EVENT_COLORS } from "./shared";
 import Roadmap from "./Roadmap";
@@ -301,19 +302,19 @@ export default function Home({ user, archivedTrackers = [], onNavigate, onGoToCa
     subject: "pmp", topic: "", hours: "", date: new Date().toISOString().slice(0, 10), notes: "",
   });
   const [showRoadmap, setShowRoadmap] = useState(() =>
-    localStorage.getItem("sanctum_hide_roadmap") !== "true"
+    uiPrefs.getItem("sanctum_hide_roadmap") !== "true"
   );
 
   const DEFAULT_RINGS = { pmp: true, scotland: true, msc: true, tasks: true, weekly_study: true, italy: false, thm: false };
   const [dashboardRings, setDashboardRings] = useState(() => {
     try {
-      const saved = JSON.parse(localStorage.getItem("sanctum_dashboard_rings"));
+      const saved = JSON.parse(uiPrefs.getItem("sanctum_dashboard_rings"));
       if (saved && typeof saved === "object") return { ...DEFAULT_RINGS, ...saved };
     } catch {}
     return DEFAULT_RINGS;
   });
   const [studyRingSource, setStudyRingSource] = useState(() =>
-    localStorage.getItem("sanctum_study_ring_source") || "pmp"
+    uiPrefs.getItem("sanctum_study_ring_source") || "pmp"
   );
 
   // Active (non-archived) custom trackers + their entries, for the home dashboard
@@ -327,20 +328,20 @@ export default function Home({ user, archivedTrackers = [], onNavigate, onGoToCa
   const toggleRing = (key) => {
     setDashboardRings(prev => {
       const next = { ...prev, [key]: !prev[key] };
-      localStorage.setItem("sanctum_dashboard_rings", JSON.stringify(next));
+      uiPrefs.setItem("sanctum_dashboard_rings", JSON.stringify(next));
       return next;
     });
   };
   const setStudySource = (src) => {
     setStudyRingSource(src);
-    localStorage.setItem("sanctum_study_ring_source", src);
+    uiPrefs.setItem("sanctum_study_ring_source", src);
   };
 
   // Drag-and-drop card ordering
   const RING_IDS = ["pmp", "scotland", "msc", "tasks", "weekly_study"];
   const [cardOrder, setCardOrder] = useState(() => {
     try {
-      const s = JSON.parse(localStorage.getItem("sanctum_ring_order"));
+      const s = JSON.parse(uiPrefs.getItem("sanctum_ring_order"));
       if (Array.isArray(s) && s.length === RING_IDS.length && RING_IDS.every(id => s.includes(id))) return s;
     } catch {}
     return RING_IDS;
@@ -372,7 +373,7 @@ export default function Home({ user, archivedTrackers = [], onNavigate, onGoToCa
       if (from === -1 || to === -1) return prev;
       next.splice(from, 1);
       next.splice(to, 0, dragId.current);
-      localStorage.setItem("sanctum_ring_order", JSON.stringify(next));
+      uiPrefs.setItem("sanctum_ring_order", JSON.stringify(next));
       return next;
     });
     setDragOver(null);
@@ -408,7 +409,7 @@ export default function Home({ user, archivedTrackers = [], onNavigate, onGoToCa
         const next = [...prev];
         const from = next.indexOf(touchDragCardId.current);
         const to = next.indexOf(tid);
-        if (from !== -1 && to !== -1) { next.splice(from, 1); next.splice(to, 0, touchDragCardId.current); localStorage.setItem("sanctum_ring_order", JSON.stringify(next)); }
+        if (from !== -1 && to !== -1) { next.splice(from, 1); next.splice(to, 0, touchDragCardId.current); uiPrefs.setItem("sanctum_ring_order", JSON.stringify(next)); }
         return next;
       });
     }
@@ -421,7 +422,7 @@ export default function Home({ user, archivedTrackers = [], onNavigate, onGoToCa
   const WIDGET_IDS = ["tasks", "week"];
   const [widgetOrder, setWidgetOrder] = useState(() => {
     try {
-      const s = JSON.parse(localStorage.getItem("sanctum_home_widget_order"));
+      const s = JSON.parse(uiPrefs.getItem("sanctum_home_widget_order"));
       if (Array.isArray(s) && s.length === 2 && WIDGET_IDS.every(id => s.includes(id))) return s;
     } catch {}
     return WIDGET_IDS;
@@ -448,7 +449,7 @@ export default function Home({ user, archivedTrackers = [], onNavigate, onGoToCa
       const from = next.indexOf(wDragId.current), to = next.indexOf(id);
       if (from === -1 || to === -1) return prev;
       next.splice(from, 1); next.splice(to, 0, wDragId.current);
-      localStorage.setItem("sanctum_home_widget_order", JSON.stringify(next));
+      uiPrefs.setItem("sanctum_home_widget_order", JSON.stringify(next));
       return next;
     });
     setWDragOver(null); setWDragging(null); wDragId.current = null;
@@ -477,7 +478,7 @@ export default function Home({ user, archivedTrackers = [], onNavigate, onGoToCa
       setWidgetOrder(prev => {
         const next = [...prev];
         const from = next.indexOf(touchDragWidgetId.current), to = next.indexOf(tid);
-        if (from !== -1 && to !== -1) { next.splice(from, 1); next.splice(to, 0, touchDragWidgetId.current); localStorage.setItem("sanctum_home_widget_order", JSON.stringify(next)); }
+        if (from !== -1 && to !== -1) { next.splice(from, 1); next.splice(to, 0, touchDragWidgetId.current); uiPrefs.setItem("sanctum_home_widget_order", JSON.stringify(next)); }
         return next;
       });
     }
@@ -1175,11 +1176,11 @@ For all other queries respond in plain conversational text, warm but concise, ma
       )}
 
       {showRoadmap ? (
-        <Roadmap onHide={() => { setShowRoadmap(false); localStorage.setItem("sanctum_hide_roadmap", "true"); }} />
+        <Roadmap onHide={() => { setShowRoadmap(false); uiPrefs.setItem("sanctum_hide_roadmap", "true"); }} />
       ) : (
         <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", marginBottom: 18, padding: "10px 14px", background: "var(--bg1)", border: "1px solid var(--b2)", borderRadius: 12 }}>
           <span style={{ fontSize: 11, color: "var(--t3)", fontWeight: 600, textTransform: "uppercase", letterSpacing: ".5px" }}>Roadmap</span>
-          <button className="btn xs" onClick={() => { setShowRoadmap(true); localStorage.setItem("sanctum_hide_roadmap", "false"); }}>Show</button>
+          <button className="btn xs" onClick={() => { setShowRoadmap(true); uiPrefs.setItem("sanctum_hide_roadmap", "false"); }}>Show</button>
         </div>
       )}
 
