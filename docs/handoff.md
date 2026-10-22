@@ -28,7 +28,7 @@ Where things stand after the notes-encryption and security work of 2026-10-20/21
 
 | Advisory | Severity | Covers | Publish when | Before publishing |
 |---|---|---|---|---|
-| **GHSA-4m5r-w254-7fw4** | high | the four 2026-10-20 RLS/storage findings | **next:** redacted text prepared 2026-10-21, awaiting Michael's review. Fixed and verified (#32) | **Remove the beta testers' usernames** (`leoarkiteto`, `aitoolsgpt2025`) and the "Michael's Gmail test account" mention (Accounts section, line ~33). Change those to "2 invited beta testers" and "an owner-controlled test account", as in the repo's incident note. Remove the "PRIVATE — full version" header line. Set the vulnerable range to `< main@66b2ca8` and the patched version to `main@66b2ca8` (they currently read `<= main@e027e35` / none). |
+| **GHSA-4m5r-w254-7fw4** | medium (CVSS 3.1 6.5) | the four 2026-10-20 RLS/storage findings | **✅ Published 2026-10-22.** Affected `< main@66b2ca8`, patched `main@66b2ca8`; CWE-732, CWE-863, CWE-200; no CVE. Published text: `docs/security/GHSA-4m5r-publish.md` (redacted: no names, usernames, emails or UUIDs). | done |
 | **GHSA-p4h3-9mvv-q7pm** | low | v1 tracker names visible to non-owners via the browser-wide Archived state | **✅ Published 2026-10-21.** Patched `main@15ac042` (PR B completes the fix: PR A `46d1f02` hid the trackers, PR B scoped the storage). CWE-200. | done |
 
 ## 3. Tracker work: done (2026-10-21)

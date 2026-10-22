@@ -129,7 +129,7 @@ BETA_EMAILS array in the Login component in App.jsx gates both login and signup.
 Full summary + next steps: **`docs/handoff.md`**.
 - **#26** (`e027e35`): encrypted notes opened without a key are read-only (no plaintext over ciphertext); login confirms the salt is saved before using it.
 - **#27** (`001a2c9`): no note body is ever written in plaintext without a key (in-memory drafts); the migration actually runs; strict reads for notes/notebooks/salt/export; the key is memory-only and cleared on logout/expiry; E2E moved to the test account.
-- **#32** (`66b2ca8`): security incident 2026-10-20 (migrations 011 + 012): shared-events leak, `ozzy_docs` `USING (true)`, public `pets` bucket fixed; Ozzy files via signed URLs (`useSignedUrl`); CI exact-policy-set check. Advisories: GHSA-p4h3-9mvv-q7pm **published** 2026-10-21; GHSA-4m5r-w254-7fw4 being prepared for publishing (redacted text reviewed first).
+- **#32** (`66b2ca8`): security incident 2026-10-20 (migrations 011 + 012): shared-events leak, `ozzy_docs` `USING (true)`, public `pets` bucket fixed; Ozzy files via signed URLs (`useSignedUrl`); CI exact-policy-set check. Advisories: both **published**. GHSA-p4h3-9mvv-q7pm (2026-10-21, low) and GHSA-4m5r-w254-7fw4 (2026-10-22, medium, CVSS 6.5; text in `docs/security/GHSA-4m5r-publish.md`).
 - Verified in prod: all notes encrypted (Michael 16/0, Tamara 2/0 at the time; Tamara's 2 were later deleted, see above); non-owner probe all zero since #34/#35.
 
 ## What is NOT built yet (v2 remaining)
@@ -173,7 +173,7 @@ Full summary + next steps: **`docs/handoff.md`**.
 ## Pending work (priority order)
 0. **Tracker work: DONE.** PR A (#34, `46d1f02`) and PR B (#35, `15ac042`) are merged and verified in prod. Remaining: each owner opens the app once on every device that has Ozzy weight entries, so they move to `ozzy_weights`. **Follow-up migration 014 (not urgent):** per-command `profiles` policies `TO authenticated` with explicit WITH CHECK, and a `ui_prefs` size cap (`pg_column_size < 65536`). What PR B did: `profiles.ui_prefs` (+ `note_order`, `expanded_nbs`); logout/user-switch clear `sanctum_*` (keep the 7 device prefs + `sanctum_enc_salt_*` as a cache, DB salt wins); owners' layout into `ui_prefs`; Ozzy weight/custom docs into the DB (owner-or-partner read, like `ozzy_docs`) with a lossless merge of localStorage first.
 0b. **Crypto PR** (`docs/handoff.md` §4): WebAuthn PRF unlock + PBKDF2 600k + encrypt titles/tags/notebook names + **re-encryption flow** + **separate notes passphrase** (recommended over a client-derived login credential). ⚠️ **The login password IS the notes key material.** Changing or resetting it (incl. forgot-password) leaves existing notes unreadable, and GoTrue sees key material at every login. **Don't rotate Michael's password until this ships.**
-0c. **Other follow-ups** (`docs/handoff.md` §4): privacy wording; `sb.select` fail-open callers; GDPR deletion of storage files; Dependabot; OWASP audit; secret clean-up; publish GHSA-4m5r.
+0c. **Other follow-ups** (`docs/handoff.md` §4): privacy wording; `sb.select` fail-open callers; GDPR deletion of storage files; Dependabot; OWASP audit; secret clean-up.
 1. GDPR sweep — COMPLETE (2026-06-07): privacy policy shipped at /privacy; cookie consent not required (no tracking cookies, localStorage is exempt from ePrivacy); RoPA is internal.
 
 Carried-over bugs (lower priority, still open):
